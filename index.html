@@ -929,19 +929,23 @@ function parseXlsx(arrayBuffer) {
           let d;
           if (expDate.t === 'd' && expDate.v instanceof Date) d = expDate.v;
           else if (typeof expDate.v === 'number') {
-            // Excel serial date
             d = new Date(Math.round((expDate.v - 25569) * 86400 * 1000));
           } else {
             d = new Date(expDate.w || expDate.v);
           }
           if (!isNaN(d.getTime())) {
+            // If category is "Account adjustment", this isn't really an expense —
+            // it's a transfer/refund logged on the expense side. Money LEFT the
+            // account, so store as adjustment with NEGATIVE amount.
+            const catVal = expCat && expCat.v ? String(expCat.v) : '';
+            const isAdjustment = catVal === 'Account adjustment';
             imported.transactions.push({
               id: uid(),
               date: dateStr(d),
-              type: 'expense',
-              amount: expAmt.v,
+              type: isAdjustment ? 'adjustment' : 'expense',
+              amount: isAdjustment ? -expAmt.v : expAmt.v,
               currency: acc.currency,
-              category: expCat && expCat.v ? String(expCat.v) : '',
+              category: catVal,
               subcategory: expSub && expSub.v ? String(expSub.v) : '',
               account: acc.id,
               comment: expCmt && expCmt.v ? String(expCmt.v) : '',
