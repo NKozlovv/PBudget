@@ -613,6 +613,21 @@ function toEUR(amount, currency) {
   return amount;
 }
 
+// Historical-aware EUR conversion: uses the transaction's stored fx_rate
+// if present, otherwise falls back to the current global rate.
+// This preserves historical values even when today's rate changes.
+function txToEUR(tx) {
+  if (!tx || !tx.amount) return 0;
+  if (tx.currency === 'EUR' || tx.currency === '€') return tx.amount;
+  if (tx.currency === 'USD' || tx.currency === '$') {
+    const rate = (tx.fx_rate != null && isFinite(tx.fx_rate) && tx.fx_rate > 0)
+      ? tx.fx_rate
+      : state.fxRate;
+    return tx.amount * rate;
+  }
+  return tx.amount;
+}
+
 function monthOfDate(dateStr) {
   const d = new Date(dateStr);
   return d.getMonth(); // 0-11
@@ -668,7 +683,7 @@ function accountBalanceAtMonth(accountId, month, year) {
     if (txDate.getFullYear() > year) return;
     if (txDate.getFullYear() === year && txDate.getMonth() > month) return;
     if (tx.account !== accountId) return;
-    const amtEUR = toEUR(tx.amount, tx.currency);
+    const amtEUR = txToEUR(tx);
     if (tx.type === 'expense') balanceEUR -= amtEUR;
     else if (tx.type === 'income') balanceEUR += amtEUR;
     else if (tx.type === 'adjustment') balanceEUR += amtEUR;
@@ -691,7 +706,7 @@ function accountBalanceNative(accountId, month, year) {
     // Convert transaction amount to account's currency if needed
     let amt = tx.amount;
     if (tx.currency !== acc.currency) {
-      const eur = toEUR(tx.amount, tx.currency);
+      const eur = txToEUR(tx);
       amt = acc.currency === 'EUR' ? eur : eur / state.fxRate;
     }
     if (tx.type === 'expense') balance -= amt;
@@ -717,7 +732,7 @@ function monthlyTotals(year) {
   state.transactions.forEach(tx => {
     if (yearOfDate(tx.date) !== year) return;
     const m = monthOfDate(tx.date);
-    const amt = toEUR(tx.amount, tx.currency);
+    const amt = txToEUR(tx);
     if (tx.type === 'expense') exp[m] += amt;
     else if (tx.type === 'income') inc[m] += Math.max(0, amt); // positive income
   });
@@ -731,7 +746,7 @@ function categoryTotals(year, monthFilter) {
     if (tx.type !== 'expense') return;
     if (yearOfDate(tx.date) !== year) return;
     if (monthFilter != null && monthOfDate(tx.date) !== monthFilter) return;
-    const amt = toEUR(tx.amount, tx.currency);
+    const amt = txToEUR(tx);
     totals[tx.category] = (totals[tx.category] || 0) + amt;
   });
   return totals;
@@ -744,7 +759,7 @@ function subcategoryTotals(year, monthFilter, category) {
     if (tx.category !== category) return;
     if (yearOfDate(tx.date) !== year) return;
     if (monthFilter != null && monthOfDate(tx.date) !== monthFilter) return;
-    const amt = toEUR(tx.amount, tx.currency);
+    const amt = txToEUR(tx);
     const key = tx.subcategory || '(uncategorised)';
     totals[key] = (totals[key] || 0) + amt;
   });
@@ -770,7 +785,7 @@ function forecastSpend(year) {
     if (yearOfDate(tx.date) !== year) return;
     const m = monthOfDate(tx.date);
     if (m > lastActual) return;
-    const amt = toEUR(tx.amount, tx.currency);
+    const amt = txToEUR(tx);
     catTotals[tx.category] = (catTotals[tx.category] || 0) + amt;
   });
   const perCategory = {};
@@ -786,134 +801,140 @@ function forecastSpend(year) {
 }
 
 // ============================================================
-// XLSX IMPORT
+// XLSX IMPORT - v3 (per-tx FX rates, derive accounts/categories from data)
 // ============================================================
-function parseXlsx(arrayBuffer) {
-  const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-  const imported = {
-    accounts: [],
-    categories: {},
-    openingBalances: {},
-    transactions: [],
-    incomeTypes: ['Salary', 'Reimbursement', 'Account adjustment'],
-  };
 
-  // --- Parse Misc sheet for categories & income types ---
-  // Row 1 (index 0) = general expense categories (col A-M) + "Account adjustment" (col N) - not a real cat
-  // Rows 2+ under each column = subcategories for that category
-  // Around row 14 there's an income types list
-  if (wb.SheetNames.includes('Misc')) {
-    const ws = wb.Sheets['Misc'];
-    if (ws['!ref']) {
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      // Read row 1 (index 0) as category headers
-      const catHeaders = [];
-      for (let c = 0; c <= Math.min(range.e.c, 20); c++) {
-        const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
-        if (cell && cell.v && typeof cell.v === 'string') {
-          catHeaders.push({ col: c, name: String(cell.v).trim() });
-        }
-      }
-      // For each real expense category (skip "Account adjustment" which is an income type placeholder)
-      catHeaders.forEach(h => {
-        if (h.name === 'Account adjustment') return;
-        const subs = [];
-        for (let r = 1; r <= 12; r++) {
-          const cell = ws[XLSX.utils.encode_cell({ r, c: h.col })];
-          if (cell && cell.v && typeof cell.v === 'string') {
-            const v = String(cell.v).trim();
-            if (v && !['Salary', 'Reimbursement', 'Account adjustment'].includes(v)) {
-              subs.push(v);
-            }
-          }
-        }
-        if (subs.length > 0) imported.categories[h.name] = subs;
-        else imported.categories[h.name] = []; // keep empty categories
-      });
-
-      // Try to extract income types from rows 13-16 (label 'Income' on left, types across)
-      const foundIncomeTypes = new Set();
-      for (let r = 12; r <= Math.min(range.e.r, 20); r++) {
-        for (let c = 0; c <= 10; c++) {
-          const cell = ws[XLSX.utils.encode_cell({ r, c })];
-          if (cell && cell.v && typeof cell.v === 'string') {
-            const v = String(cell.v).trim();
-            if (['Salary', 'Reimbursement', 'Account adjustment'].includes(v)) {
-              foundIncomeTypes.add(v);
-            }
-          }
-        }
-      }
-      if (foundIncomeTypes.size > 0) imported.incomeTypes = Array.from(foundIncomeTypes);
-    }
+// Fetch USD→EUR rate for a specific date from Frankfurter (ECB).
+// Returns null if the call fails.
+const _fxCache = {};
+async function fetchHistoricalFxRate(dateStr) {
+  if (_fxCache[dateStr] !== undefined) return _fxCache[dateStr];
+  try {
+    // Frankfurter returns the rate for the given date, or the nearest prior
+    // business day if it's a weekend/holiday.
+    const res = await fetch(`https://api.frankfurter.dev/v1/${dateStr}?from=USD&to=EUR`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const rate = data && data.rates && data.rates.EUR;
+    if (!rate || !isFinite(rate)) throw new Error('bad rate');
+    _fxCache[dateStr] = rate;
+    return rate;
+  } catch (e) {
+    console.warn('FX fetch failed for', dateStr, e);
+    _fxCache[dateStr] = null;
+    return null;
   }
+}
 
-  // --- Parse Accounts Balance sheet ---
-  // Structure: row 1 may be blank, row 2 = header (Account | € | $ | Jan..Dec),
-  // rows 3+ = one account per row; col B (idx 1) = name, col C (idx 2) = € value,
-  // col D (idx 3) = $ value, col E (idx 4) = Jan end-of-month, ..., col P = Dec.
-  // The "€" column is the CURRENT balance (latest snapshot), but for OPENING
-  // we use what's shown there if January column is empty, OR Jan column if present.
-  // To reconstruct opening: opening = current_balance − sum(monthly deltas from transactions)
-  // Simpler: take the "€" value as opening balance (user will see current = that,
-  // and transactions will re-compute going forward). Better: just use € as opening.
+// Fetch rates for many dates in parallel (with a concurrency cap).
+async function fetchRatesForDates(dates) {
+  const unique = Array.from(new Set(dates));
+  const CHUNK = 10;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const batch = unique.slice(i, i + CHUNK);
+    await Promise.all(batch.map(d => fetchHistoricalFxRate(d)));
+  }
+}
+
+// Excel serial → JS Date
+function excelSerialToDate(n) {
+  // Excel's epoch is 1899-12-30 (accounting for the 1900 leap year bug)
+  return new Date(Math.round((n - 25569) * 86400 * 1000));
+}
+
+// Normalize any date-like value into a YYYY-MM-DD string, or null if unparseable
+function normalizeDate(cellVal) {
+  if (cellVal == null || cellVal === '') return null;
+  if (cellVal instanceof Date) {
+    if (isNaN(cellVal.getTime())) return null;
+    return cellVal.toISOString().slice(0, 10);
+  }
+  if (typeof cellVal === 'number') {
+    const d = excelSerialToDate(cellVal);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  }
+  if (typeof cellVal === 'string') {
+    const d = new Date(cellVal);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+// Detect currency from an account name like "Deel, $" or "Cash, €"
+function detectCurrency(accountName) {
+  if (!accountName) return 'EUR';
+  const s = String(accountName).trim();
+  if (s.endsWith('$') || s.includes(', $')) return 'USD';
+  return 'EUR';
+}
+
+let currentImportYear = 2026;
+
+// Main parser — returns { transactions, accounts, categories, incomeTypes, openingBalances }
+// Everything EXCEPT opening balances is derived from transaction rows themselves.
+function parseXlsxRaw(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+
+  const transactions = [];  // will be populated below
+  const accountsByName = new Map(); // name -> { name, currency }
+  const categoriesMap = new Map();  // cat name -> Set of subcategory names (expense only)
+  const incomeTypesSet = new Set();
+  const openingBalances = {}; // keyed by account name (remapped to id later)
+
+  // ---- 1. Opening balances from Accounts Balance sheet ----
   if (wb.SheetNames.includes('Accounts Balance')) {
     const ws = wb.Sheets['Accounts Balance'];
-    // Read sheet with headers at row 2; use raw cell addressing
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    // Find the header row by looking for 'Account' in column B
-    let headerRow = -1;
-    for (let r = range.s.r; r <= range.e.r; r++) {
-      const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-      if (cell && cell.v === 'Account') { headerRow = r; break; }
-    }
-    if (headerRow >= 0) {
-      for (let r = headerRow + 1; r <= range.e.r; r++) {
-        const nameCell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-        const eurCell  = ws[XLSX.utils.encode_cell({ r, c: 2 })];
-        const usdCell  = ws[XLSX.utils.encode_cell({ r, c: 3 })];
-        if (!nameCell || nameCell.v == null) continue;
-        const name = String(nameCell.v).trim();
-        if (!name || name === 'TOTAL') continue;
-        let currency = 'EUR';
-        if (name.includes(', $') || name.endsWith('$')) currency = 'USD';
-        const id = uid();
-        imported.accounts.push({ id, name, currency });
-        // Opening balance: for USD accounts use the $ column (native value),
-        // for EUR accounts use the € column.
-        let opening = 0;
-        if (currency === 'USD') {
-          if (usdCell && typeof usdCell.v === 'number') opening = usdCell.v;
-          else if (eurCell && typeof eurCell.v === 'number') opening = eurCell.v / (state.fxRate || 0.854); // fallback
-        } else {
-          if (eurCell && typeof eurCell.v === 'number') opening = eurCell.v;
+    const range = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+    if (range) {
+      let headerRow = -1;
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        const c = ws[XLSX.utils.encode_cell({ r, c: 1 })];
+        if (c && c.v === 'Account') { headerRow = r; break; }
+      }
+      if (headerRow >= 0) {
+        for (let r = headerRow + 1; r <= range.e.r; r++) {
+          const nameCell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
+          const eurCell  = ws[XLSX.utils.encode_cell({ r, c: 2 })];
+          const usdCell  = ws[XLSX.utils.encode_cell({ r, c: 3 })];
+          if (!nameCell || nameCell.v == null) continue;
+          const name = String(nameCell.v).trim();
+          if (!name || name === 'TOTAL') continue;
+          const currency = detectCurrency(name);
+          accountsByName.set(name, { name, currency });
+          // Opening balance in native currency
+          let opening = 0;
+          if (currency === 'USD' && usdCell && typeof usdCell.v === 'number') {
+            opening = usdCell.v;
+          } else if (eurCell && typeof eurCell.v === 'number') {
+            opening = eurCell.v;
+          }
+          openingBalances[name] = opening;
         }
-        imported.openingBalances[id] = opening;
       }
     }
   }
 
-  // --- Parse monthly sheets ---
-  // Each sheet has row 2 with section headers (Expenses | Income | Accounts Activity)
-  // and row 3 with column headers. Data starts at row 4 (1-indexed) = index 3.
-  // Expense block:  col B=Date, C=Amount, D=General Cat, E=Sub Cat, F=Comment, G=Account
-  // Income block:   col I=Amount, J=Type, K=Comment, L=Account
+  // ---- 2. Walk every monthly sheet, pulling each transaction ----
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
   MONTHS.forEach((monthName, monthIdx) => {
     if (!wb.SheetNames.includes(monthName)) return;
     const ws = wb.Sheets[monthName];
     if (!ws['!ref']) return;
     const range = XLSX.utils.decode_range(ws['!ref']);
 
-    // Find the header row (contains 'Date' in col B)
+    // Find header row ('Date' in col B, i.e. index 1)
     let headerRow = -1;
-    for (let r = range.s.r; r <= Math.min(range.s.r + 5, range.e.r); r++) {
+    for (let r = range.s.r; r <= Math.min(range.s.r + 10, range.e.r); r++) {
       const c = ws[XLSX.utils.encode_cell({ r, c: 1 })];
       if (c && c.v === 'Date') { headerRow = r; break; }
     }
-    if (headerRow < 0) headerRow = 2; // fallback
+    if (headerRow < 0) return;
 
     for (let r = headerRow + 1; r <= range.e.r; r++) {
-      // ---- Expense side ----
+      // ---- EXPENSE-SIDE ROW (cols B-G = indices 1-6) ----
       const expDate = ws[XLSX.utils.encode_cell({ r, c: 1 })];
       const expAmt  = ws[XLSX.utils.encode_cell({ r, c: 2 })];
       const expCat  = ws[XLSX.utils.encode_cell({ r, c: 3 })];
@@ -921,80 +942,165 @@ function parseXlsx(arrayBuffer) {
       const expCmt  = ws[XLSX.utils.encode_cell({ r, c: 5 })];
       const expAcc  = ws[XLSX.utils.encode_cell({ r, c: 6 })];
 
-      if (expDate && expAmt && typeof expAmt.v === 'number' && expAmt.v > 0) {
+      const hasExpAmount = expAmt && typeof expAmt.v === 'number' && expAmt.v !== 0;
+      if (hasExpAmount) {
         const accName = expAcc && expAcc.v ? String(expAcc.v).trim() : null;
-        const acc = accName ? imported.accounts.find(a => a.name === accName) : null;
-        if (acc) {
-          // Parse date
-          let d;
-          if (expDate.t === 'd' && expDate.v instanceof Date) d = expDate.v;
-          else if (typeof expDate.v === 'number') {
-            d = new Date(Math.round((expDate.v - 25569) * 86400 * 1000));
-          } else {
-            d = new Date(expDate.w || expDate.v);
+        const dateISO = expDate ? normalizeDate(expDate.v) : null;
+        const cat = expCat && expCat.v ? String(expCat.v).trim() : '';
+        const sub = expSub && expSub.v ? String(expSub.v).trim() : '';
+        const cmt = expCmt && expCmt.v ? String(expCmt.v).trim() : '';
+
+        if (accName && dateISO) {
+          // Make sure this account is registered (in case it wasn't in Accounts Balance)
+          if (!accountsByName.has(accName)) {
+            accountsByName.set(accName, { name: accName, currency: detectCurrency(accName) });
           }
-          if (!isNaN(d.getTime())) {
-            // If category is "Account adjustment", this isn't really an expense —
-            // it's a transfer/refund logged on the expense side. Money LEFT the
-            // account, so store as adjustment with NEGATIVE amount.
-            const catVal = expCat && expCat.v ? String(expCat.v) : '';
-            const isAdjustment = catVal === 'Account adjustment';
-            imported.transactions.push({
-              id: uid(),
-              date: dateStr(d),
-              type: isAdjustment ? 'adjustment' : 'expense',
-              amount: isAdjustment ? -expAmt.v : expAmt.v,
-              currency: acc.currency,
-              category: catVal,
-              subcategory: expSub && expSub.v ? String(expSub.v) : '',
-              account: acc.id,
-              comment: expCmt && expCmt.v ? String(expCmt.v) : '',
-            });
+          const acc = accountsByName.get(accName);
+
+          // "Account adjustment" on expense side = transfer/refund, not a real expense.
+          // Stored as adjustment with negative amount (money left the account).
+          const isAdjustment = cat === 'Account adjustment';
+          if (!isAdjustment && cat) {
+            // Real expense — register its category
+            if (!categoriesMap.has(cat)) categoriesMap.set(cat, new Set());
+            if (sub) categoriesMap.get(cat).add(sub);
           }
+          transactions.push({
+            _accName: accName,
+            date: dateISO,
+            type: isAdjustment ? 'adjustment' : 'expense',
+            amount: isAdjustment ? -Math.abs(expAmt.v) : Math.abs(expAmt.v),
+            currency: acc.currency,
+            category: cat,
+            subcategory: isAdjustment ? '' : sub,
+            comment: cmt,
+          });
         }
       }
 
-      // ---- Income side ----
+      // ---- INCOME-SIDE ROW (cols I-L = indices 8-11) ----
       const incAmt = ws[XLSX.utils.encode_cell({ r, c: 8 })];
       const incTyp = ws[XLSX.utils.encode_cell({ r, c: 9 })];
       const incCmt = ws[XLSX.utils.encode_cell({ r, c: 10 })];
       const incAcc = ws[XLSX.utils.encode_cell({ r, c: 11 })];
 
-      if (incAmt && typeof incAmt.v === 'number' && incTyp && incTyp.v) {
+      const hasIncAmount = incAmt && typeof incAmt.v === 'number' && incAmt.v !== 0;
+      const hasIncType = incTyp && incTyp.v;
+      if (hasIncAmount && hasIncType) {
         const accName = incAcc && incAcc.v ? String(incAcc.v).trim() : null;
-        const acc = accName ? imported.accounts.find(a => a.name === accName) : null;
-        if (acc) {
-          const typeStr = String(incTyp.v);
+        const typeStr = String(incTyp.v).trim();
+        const cmt = incCmt && incCmt.v ? String(incCmt.v).trim() : '';
+
+        if (accName) {
+          if (!accountsByName.has(accName)) {
+            accountsByName.set(accName, { name: accName, currency: detectCurrency(accName) });
+          }
+          const acc = accountsByName.get(accName);
+
+          const isAdjustment = typeStr === 'Account adjustment';
+          if (!isAdjustment) incomeTypesSet.add(typeStr);
+
+          // Income date: sheet has no per-row date; use 28th of the month
           const d = new Date(currentImportYear, monthIdx, 28);
-          const type = typeStr === 'Account adjustment' ? 'adjustment' : 'income';
-          imported.transactions.push({
-            id: uid(),
-            date: dateStr(d),
-            type,
-            amount: incAmt.v,
+          transactions.push({
+            _accName: accName,
+            date: d.toISOString().slice(0, 10),
+            type: isAdjustment ? 'adjustment' : 'income',
+            amount: Math.abs(incAmt.v),
             currency: acc.currency,
             category: typeStr,
             subcategory: '',
-            account: acc.id,
-            comment: incCmt && incCmt.v ? String(incCmt.v) : '',
+            comment: cmt,
           });
         }
       }
     }
   });
 
-  return imported;
-}
+  // ---- 3. Assemble output ----
+  const accounts = [];
+  const nameToId = {};
+  let accountIdx = 0;
+  for (const [name, info] of accountsByName) {
+    const id = uid();
+    accounts.push({ id, name, currency: info.currency });
+    nameToId[name] = id;
+    accountIdx++;
+  }
 
-let currentImportYear = 2026;
+  // Remap opening balances to account IDs
+  const openingById = {};
+  for (const [name, amt] of Object.entries(openingBalances)) {
+    if (nameToId[name]) openingById[nameToId[name]] = amt;
+  }
+  // Any account found only in transactions gets opening = 0
+  for (const acc of accounts) {
+    if (!(acc.id in openingById)) openingById[acc.id] = 0;
+  }
+
+  // Replace _accName with actual account ID, assign tx IDs
+  const finalTransactions = transactions.map(t => ({
+    id: uid(),
+    date: t.date,
+    type: t.type,
+    amount: t.amount,
+    currency: t.currency,
+    fx_rate: null, // will be filled in for USD transactions below
+    category: t.category,
+    subcategory: t.subcategory,
+    account: nameToId[t._accName],
+    comment: t.comment,
+  }));
+
+  // Categories map → { name: [subs] }
+  const categories = {};
+  for (const [cat, subsSet] of categoriesMap) {
+    categories[cat] = Array.from(subsSet).sort();
+  }
+
+  // Income types
+  const incomeTypes = incomeTypesSet.size > 0
+    ? Array.from(incomeTypesSet)
+    : ['Salary', 'Reimbursement'];
+  // Always include 'Account adjustment' as a known type even though it's handled specially
+  if (!incomeTypes.includes('Account adjustment')) incomeTypes.push('Account adjustment');
+
+  return {
+    accounts,
+    categories,
+    incomeTypes,
+    transactions: finalTransactions,
+    openingBalances: openingById,
+  };
+}
 
 async function importXlsx(file) {
   const buf = await file.arrayBuffer();
-  // Try to detect year from filename like "Budget_2026.xlsx"
   const match = (file.name || '').match(/(\d{4})/);
   currentImportYear = match ? parseInt(match[1]) : new Date().getFullYear();
 
-  const imported = parseXlsx(buf);
+  toast('Parsing xlsx...');
+  const imported = parseXlsxRaw(buf);
+
+  // Collect all unique dates that have USD transactions → fetch historical rates
+  const usdDates = imported.transactions
+    .filter(t => t.currency === 'USD')
+    .map(t => t.date);
+
+  if (usdDates.length > 0) {
+    toast(`Fetching ${new Set(usdDates).size} historical FX rates...`);
+    await fetchRatesForDates(usdDates);
+
+    // Apply rates to each USD transaction
+    const todayRate = state.fxRate || 0.854;
+    imported.transactions.forEach(t => {
+      if (t.currency === 'USD') {
+        t.fx_rate = _fxCache[t.date] || todayRate;
+      }
+    });
+  }
+
+  // Commit to state
   state.accounts = imported.accounts;
   state.categories = imported.categories;
   state.openingBalances = imported.openingBalances;
@@ -1006,6 +1112,7 @@ async function importXlsx(file) {
   toast(`Imported ${imported.transactions.length} transactions across ${imported.accounts.length} accounts`);
   render();
 }
+
 
 // ============================================================
 // EXPORT
@@ -1288,8 +1395,8 @@ function renderTransactions() {
     return true;
   }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  const totalExp = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + toEUR(t.amount, t.currency), 0);
-  const totalInc = filtered.filter(t => t.type === 'income').reduce((s, t) => s + toEUR(t.amount, t.currency), 0);
+  const totalExp = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + txToEUR(t), 0);
+  const totalInc = filtered.filter(t => t.type === 'income').reduce((s, t) => s + txToEUR(t), 0);
 
   const main = document.getElementById('main');
   const cats = Object.keys(state.categories);
@@ -1556,7 +1663,7 @@ function renderCategories() {
   state.transactions.forEach(tx => {
     if (tx.type !== 'income') return;
     if (yearOfDate(tx.date) !== year) return;
-    const amt = toEUR(tx.amount, tx.currency);
+    const amt = txToEUR(tx);
     incomeTotals[tx.category] = (incomeTotals[tx.category] || 0) + amt;
   });
   const totalInc = Object.values(incomeTotals).reduce((s, v) => s + v, 0);
