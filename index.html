@@ -521,11 +521,12 @@
 const STORAGE_KEY = 'ledger-budget-v2';
 
 let state = {
+  budgetId: null,     // active budget id (set after login/bootstrap)
   accounts: [],       // [{id, name, currency}]
   categories: {},     // {general: [subcategories]}
   incomeTypes: ['Salary', 'Reimbursement', 'Account adjustment'],
   transactions: [],   // [{id, date, type:'expense'|'income'|'adjustment', amount, currency, category, subcategory, account, comment}]
-  openingBalances: {},// {accountId: eur-amount}
+  openingBalances: {},// {accountId: native-currency-amount}
   fxRate: 0.854,      // 1 USD = X EUR
   baseCurrency: 'EUR',
   activeView: 'dashboard',
@@ -2275,6 +2276,370 @@ async function signOut() {
   await sb.auth.signOut();
   currentUser = null;
   location.reload();
+}
+
+// ============================================================
+// SUPABASE DATA LAYER
+// All cloud reads/writes for the active budget.
+// `state.budgetId` must be set before any of these are called.
+// ============================================================
+
+// ---- Budget bootstrap ----
+// Returns an existing budget the user is a member of, or creates a default one.
+async function ensureBudget() {
+  // Try to find a budget I'm a member of
+  const { data: memberships, error: mErr } = await sb
+    .from('budget_members')
+    .select('budget_id, role, budgets(id, name, fx_rate, base_currency, owner_id)')
+    .eq('user_id', currentUser.id)
+    .limit(1);
+
+  if (mErr) throw mErr;
+  if (memberships && memberships.length > 0) {
+    const b = memberships[0].budgets;
+    return { id: b.id, name: b.name, fxRate: parseFloat(b.fx_rate), baseCurrency: b.base_currency, ownerId: b.owner_id };
+  }
+
+  // None exist → create default budget for this user
+  const { data: newBudget, error: bErr } = await sb
+    .from('budgets')
+    .insert({ name: 'My Budget', owner_id: currentUser.id, fx_rate: 0.854, base_currency: 'EUR' })
+    .select()
+    .single();
+  if (bErr) throw bErr;
+  return { id: newBudget.id, name: newBudget.name, fxRate: parseFloat(newBudget.fx_rate), baseCurrency: newBudget.base_currency, ownerId: newBudget.owner_id };
+}
+
+// ---- Load all data for a budget into state ----
+async function loadBudgetData(budgetId) {
+  // Accounts
+  const { data: accounts, error: aErr } = await sb
+    .from('accounts')
+    .select('*')
+    .eq('budget_id', budgetId)
+    .order('sort_order', { ascending: true });
+  if (aErr) throw aErr;
+
+  state.accounts = (accounts || []).map(a => ({
+    id: a.id,
+    name: a.name,
+    currency: a.currency,
+  }));
+  state.openingBalances = {};
+  (accounts || []).forEach(a => { state.openingBalances[a.id] = parseFloat(a.opening_balance) || 0; });
+
+  // Categories (expense + income)
+  const { data: cats, error: cErr } = await sb
+    .from('categories')
+    .select('*, subcategories(*)')
+    .eq('budget_id', budgetId)
+    .order('sort_order', { ascending: true });
+  if (cErr) throw cErr;
+
+  state.categories = {};
+  state.incomeTypes = [];
+  (cats || []).forEach(c => {
+    if (c.kind === 'expense') {
+      state.categories[c.name] = (c.subcategories || [])
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(s => s.name);
+    } else {
+      state.incomeTypes.push(c.name);
+    }
+  });
+  if (state.incomeTypes.length === 0) {
+    state.incomeTypes = ['Salary', 'Reimbursement', 'Account adjustment'];
+  }
+
+  // Transactions
+  const { data: txs, error: tErr } = await sb
+    .from('transactions')
+    .select('*')
+    .eq('budget_id', budgetId)
+    .order('date', { ascending: false });
+  if (tErr) throw tErr;
+
+  state.transactions = (txs || []).map(t => ({
+    id: t.id,
+    date: t.date,
+    type: t.type,
+    amount: parseFloat(t.amount),
+    currency: t.currency,
+    category: t.category || '',
+    subcategory: t.subcategory || '',
+    account: t.account_id,
+    comment: t.comment || '',
+  }));
+
+  state.hasData = state.accounts.length > 0 || state.transactions.length > 0;
+}
+
+// ---- Budget-level updates ----
+async function cloudUpdateBudget(patch) {
+  if (!state.budgetId) return;
+  const dbPatch = {};
+  if ('fxRate' in patch) dbPatch.fx_rate = patch.fxRate;
+  if ('baseCurrency' in patch) dbPatch.base_currency = patch.baseCurrency;
+  if ('name' in patch) dbPatch.name = patch.name;
+  const { error } = await sb.from('budgets').update(dbPatch).eq('id', state.budgetId);
+  if (error) throw error;
+}
+
+// ---- Accounts ----
+async function cloudCreateAccount({ name, currency, opening_balance = 0, sort_order = 0 }) {
+  const { data, error } = await sb
+    .from('accounts')
+    .insert({ budget_id: state.budgetId, name, currency, opening_balance, sort_order })
+    .select()
+    .single();
+  if (error) throw error;
+  return { id: data.id, name: data.name, currency: data.currency, opening: parseFloat(data.opening_balance) };
+}
+
+async function cloudUpdateAccount(id, patch) {
+  const { error } = await sb.from('accounts').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+async function cloudDeleteAccount(id) {
+  const { error } = await sb.from('accounts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ---- Categories ----
+async function cloudCreateCategory(name, kind = 'expense') {
+  const { data, error } = await sb
+    .from('categories')
+    .insert({ budget_id: state.budgetId, name, kind })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function cloudRenameCategory(oldName, newName, kind = 'expense') {
+  const { data: cat, error: e1 } = await sb
+    .from('categories')
+    .select('id')
+    .eq('budget_id', state.budgetId)
+    .eq('name', oldName)
+    .eq('kind', kind)
+    .single();
+  if (e1) throw e1;
+  const { error: e2 } = await sb.from('categories').update({ name: newName }).eq('id', cat.id);
+  if (e2) throw e2;
+  // Also update txs (category is stored as text, not FK)
+  const { error: e3 } = await sb
+    .from('transactions')
+    .update({ category: newName })
+    .eq('budget_id', state.budgetId)
+    .eq('category', oldName);
+  if (e3) throw e3;
+}
+
+async function cloudDeleteCategory(name, kind = 'expense') {
+  const { error } = await sb
+    .from('categories')
+    .delete()
+    .eq('budget_id', state.budgetId)
+    .eq('name', name)
+    .eq('kind', kind);
+  if (error) throw error;
+}
+
+async function cloudReassignCategory(oldName, newName) {
+  const { error } = await sb
+    .from('transactions')
+    .update({ category: newName, subcategory: '' })
+    .eq('budget_id', state.budgetId)
+    .eq('category', oldName);
+  if (error) throw error;
+}
+
+// ---- Subcategories ----
+async function cloudCreateSub(categoryName, subName) {
+  const { data: cat, error: e1 } = await sb
+    .from('categories')
+    .select('id')
+    .eq('budget_id', state.budgetId)
+    .eq('name', categoryName)
+    .eq('kind', 'expense')
+    .single();
+  if (e1) throw e1;
+  const { error: e2 } = await sb
+    .from('subcategories')
+    .insert({ category_id: cat.id, name: subName });
+  if (e2) throw e2;
+}
+
+async function cloudRenameSub(categoryName, oldSub, newSub) {
+  const { data: cat } = await sb
+    .from('categories')
+    .select('id')
+    .eq('budget_id', state.budgetId)
+    .eq('name', categoryName)
+    .eq('kind', 'expense')
+    .single();
+  if (!cat) return;
+  const { error: e1 } = await sb
+    .from('subcategories')
+    .update({ name: newSub })
+    .eq('category_id', cat.id)
+    .eq('name', oldSub);
+  if (e1) throw e1;
+  const { error: e2 } = await sb
+    .from('transactions')
+    .update({ subcategory: newSub })
+    .eq('budget_id', state.budgetId)
+    .eq('category', categoryName)
+    .eq('subcategory', oldSub);
+  if (e2) throw e2;
+}
+
+async function cloudDeleteSub(categoryName, subName) {
+  const { data: cat } = await sb
+    .from('categories')
+    .select('id')
+    .eq('budget_id', state.budgetId)
+    .eq('name', categoryName)
+    .eq('kind', 'expense')
+    .single();
+  if (!cat) return;
+  const { error: e1 } = await sb
+    .from('subcategories')
+    .delete()
+    .eq('category_id', cat.id)
+    .eq('name', subName);
+  if (e1) throw e1;
+  // Clear subcategory on any transactions using it
+  const { error: e2 } = await sb
+    .from('transactions')
+    .update({ subcategory: '' })
+    .eq('budget_id', state.budgetId)
+    .eq('category', categoryName)
+    .eq('subcategory', subName);
+  if (e2) throw e2;
+}
+
+// ---- Transactions ----
+function txToDb(tx) {
+  return {
+    budget_id: state.budgetId,
+    date: tx.date,
+    type: tx.type,
+    amount: tx.amount,
+    currency: tx.currency,
+    category: tx.category || null,
+    subcategory: tx.subcategory || null,
+    account_id: tx.account || null,
+    comment: tx.comment || null,
+    created_by: currentUser ? currentUser.id : null,
+  };
+}
+
+async function cloudCreateTx(tx) {
+  const { data, error } = await sb
+    .from('transactions')
+    .insert(txToDb(tx))
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function cloudUpdateTx(id, tx) {
+  const patch = txToDb(tx);
+  delete patch.budget_id;
+  delete patch.created_by;
+  patch.updated_at = new Date().toISOString();
+  const { error } = await sb.from('transactions').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+async function cloudDeleteTx(id) {
+  const { error } = await sb.from('transactions').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ---- Bulk import from xlsx ----
+// Called after parseXlsx returns `imported`. Writes everything to the cloud.
+async function cloudBulkImport(imported) {
+  // 1. Accounts — preserve old IDs → new IDs mapping for transaction account refs
+  const accMap = {};
+  for (let i = 0; i < imported.accounts.length; i++) {
+    const a = imported.accounts[i];
+    const opening = imported.openingBalances[a.id] || 0;
+    const { data, error } = await sb
+      .from('accounts')
+      .insert({
+        budget_id: state.budgetId,
+        name: a.name,
+        currency: a.currency,
+        opening_balance: opening,
+        sort_order: i,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    accMap[a.id] = data.id;
+  }
+
+  // 2. Categories + subcategories
+  let catSortOrder = 0;
+  for (const [catName, subs] of Object.entries(imported.categories)) {
+    const { data: cat, error: e1 } = await sb
+      .from('categories')
+      .insert({ budget_id: state.budgetId, name: catName, kind: 'expense', sort_order: catSortOrder++ })
+      .select()
+      .single();
+    if (e1) throw e1;
+    if (subs && subs.length > 0) {
+      const subRows = subs.map((s, i) => ({ category_id: cat.id, name: s, sort_order: i }));
+      const { error: e2 } = await sb.from('subcategories').insert(subRows);
+      if (e2) throw e2;
+    }
+  }
+
+  // 3. Income types (as categories with kind='income')
+  let incSortOrder = 0;
+  for (const name of imported.incomeTypes) {
+    const { error } = await sb
+      .from('categories')
+      .insert({ budget_id: state.budgetId, name, kind: 'income', sort_order: incSortOrder++ });
+    if (error && !String(error.message).includes('duplicate')) throw error;
+  }
+
+  // 4. Transactions — batch insert in chunks of 200
+  const txRows = imported.transactions.map(t => ({
+    budget_id: state.budgetId,
+    date: t.date,
+    type: t.type,
+    amount: t.amount,
+    currency: t.currency,
+    category: t.category || null,
+    subcategory: t.subcategory || null,
+    account_id: accMap[t.account] || null,
+    comment: t.comment || null,
+    created_by: currentUser ? currentUser.id : null,
+  }));
+
+  const CHUNK = 200;
+  for (let i = 0; i < txRows.length; i += CHUNK) {
+    const batch = txRows.slice(i, i + CHUNK);
+    const { error } = await sb.from('transactions').insert(batch);
+    if (error) throw error;
+  }
+}
+
+// ---- Delete all data in the current budget (for reset) ----
+async function cloudWipeBudget() {
+  if (!state.budgetId) return;
+  // Cascades handle subcategories, transactions via FK on delete cascade if set.
+  // But our schema doesn't cascade categories → subcategories (they do),
+  // and doesn't cascade accounts → transactions. So delete in order:
+  await sb.from('transactions').delete().eq('budget_id', state.budgetId);
+  await sb.from('accounts').delete().eq('budget_id', state.budgetId);
+  await sb.from('categories').delete().eq('budget_id', state.budgetId);
 }
 
 // ============================================================
