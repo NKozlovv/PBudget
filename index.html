@@ -17,6 +17,8 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
+    BUILD_VERSION: 'v0.4.0 — March debug',
+    BUILD_DATE: '2026-04-24',
   };
 </script>
 <style>
@@ -514,6 +516,9 @@
 <!-- Modal container -->
 <div id="modalRoot"></div>
 
+<!-- Version marker -->
+<div id="versionMarker" style="position:fixed; bottom:8px; right:10px; font-family:'JetBrains Mono', monospace; font-size:10px; color:#a59c8a; pointer-events:none; z-index:50; background:rgba(255,255,255,0.5); padding:2px 6px; border-radius:3px"></div>
+
 <script>
 // ============================================================
 // STATE
@@ -919,6 +924,9 @@ function parseXlsxRaw(arrayBuffer) {
   // ---- 2. Walk every monthly sheet, pulling each transaction ----
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+  // Debug collection
+  const _debug = { dropped: [], kept: {}, parsedRaw: {} };
+
   MONTHS.forEach((monthName, monthIdx) => {
     if (!wb.SheetNames.includes(monthName)) return;
     const ws = wb.Sheets[monthName];
@@ -933,6 +941,9 @@ function parseXlsxRaw(arrayBuffer) {
     }
     if (headerRow < 0) return;
 
+    _debug.kept[monthName] = { exp: 0, inc: 0, adj: 0 };
+    _debug.parsedRaw[monthName] = { exp_amount_rows: 0, inc_amount_rows: 0, sheet_range: ws['!ref'], header_row: headerRow };
+
     for (let r = headerRow + 1; r <= range.e.r; r++) {
       // ---- EXPENSE-SIDE ROW (cols B-G = indices 1-6) ----
       const expDate = ws[XLSX.utils.encode_cell({ r, c: 1 })];
@@ -944,6 +955,7 @@ function parseXlsxRaw(arrayBuffer) {
 
       const hasExpAmount = expAmt && typeof expAmt.v === 'number' && expAmt.v !== 0;
       if (hasExpAmount) {
+        _debug.parsedRaw[monthName].exp_amount_rows++;
         const accName = expAcc && expAcc.v ? String(expAcc.v).trim() : null;
         const dateISO = expDate ? normalizeDate(expDate.v) : null;
         const cat = expCat && expCat.v ? String(expCat.v).trim() : '';
@@ -951,20 +963,18 @@ function parseXlsxRaw(arrayBuffer) {
         const cmt = expCmt && expCmt.v ? String(expCmt.v).trim() : '';
 
         if (accName && dateISO) {
-          // Make sure this account is registered (in case it wasn't in Accounts Balance)
           if (!accountsByName.has(accName)) {
             accountsByName.set(accName, { name: accName, currency: detectCurrency(accName) });
           }
           const acc = accountsByName.get(accName);
 
-          // "Account adjustment" on expense side = transfer/refund, not a real expense.
-          // Stored as adjustment with negative amount (money left the account).
           const isAdjustment = cat === 'Account adjustment';
           if (!isAdjustment && cat) {
-            // Real expense — register its category
             if (!categoriesMap.has(cat)) categoriesMap.set(cat, new Set());
             if (sub) categoriesMap.get(cat).add(sub);
           }
+          if (isAdjustment) _debug.kept[monthName].adj++;
+          else _debug.kept[monthName].exp++;
           transactions.push({
             _accName: accName,
             date: dateISO,
@@ -974,6 +984,13 @@ function parseXlsxRaw(arrayBuffer) {
             category: cat,
             subcategory: isAdjustment ? '' : sub,
             comment: cmt,
+          });
+        } else {
+          _debug.dropped.push({
+            sheet: monthName, row: r+1, side: 'expense',
+            amt: expAmt.v, cat, acc: accName,
+            dateRaw: expDate && expDate.v, dateType: expDate && typeof expDate.v,
+            dateParsed: dateISO, reason: !accName ? 'no-account' : 'bad-date'
           });
         }
       }
@@ -1065,6 +1082,16 @@ function parseXlsxRaw(arrayBuffer) {
   // Always include 'Account adjustment' as a known type even though it's handled specially
   if (!incomeTypes.includes('Account adjustment')) incomeTypes.push('Account adjustment');
 
+  // ---- Expose debug data to window for inspection ----
+  window.LEDGER_DEBUG = _debug;
+  console.log('%c[LEDGER IMPORT DEBUG]', 'background:#c44536;color:#fff;padding:2px 6px;border-radius:3px');
+  console.log('Raw rows seen per month:', _debug.parsedRaw);
+  console.log('Kept per month:', _debug.kept);
+  console.log(`Dropped ${_debug.dropped.length} rows total. First 20:`, _debug.dropped.slice(0, 20));
+  if (_debug.dropped.length > 0) {
+    console.table(_debug.dropped.slice(0, 50));
+  }
+
   return {
     accounts,
     categories,
@@ -1109,7 +1136,16 @@ async function importXlsx(file) {
   state.hasData = true;
 
   await saveState();
-  toast(`Imported ${imported.transactions.length} transactions across ${imported.accounts.length} accounts`);
+  // Compute per-month counts for a diagnostic toast
+  const perMonth = {};
+  imported.transactions.forEach(t => {
+    const m = t.date.slice(0, 7);
+    perMonth[m] = (perMonth[m] || 0) + 1;
+  });
+  const summary = Object.entries(perMonth).sort().map(([m, c]) => `${m}:${c}`).join('  ');
+  toast(`Imported ${imported.transactions.length} tx / ${imported.accounts.length} accounts`);
+  console.log('Transactions per month:', perMonth);
+  console.log('Summary:', summary);
   render();
 }
 
@@ -2762,6 +2798,10 @@ async function bootMainApp() {
 }
 
 async function init() {
+  // Populate version marker
+  const vm = document.getElementById('versionMarker');
+  if (vm) vm.textContent = `${window.LEDGER_CONFIG.BUILD_VERSION} · ${window.LEDGER_CONFIG.BUILD_DATE}`;
+
   const user = await checkAuth();
   if (!user) {
     renderAuthScreen('login');
