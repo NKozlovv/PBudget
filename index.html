@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.5.0 — cloud import',
+    BUILD_VERSION: 'v0.5.1 — auth debug',
     BUILD_DATE: '2026-04-24',
   };
 </script>
@@ -2485,6 +2485,7 @@ async function signOut() {
 // ---- Budget bootstrap ----
 // Returns an existing budget the user is a member of, or creates a default one.
 async function ensureBudget() {
+  console.log('[ensureBudget] currentUser.id =', currentUser && currentUser.id);
   // Try to find a budget I'm a member of
   const { data: memberships, error: mErr } = await sb
     .from('budget_members')
@@ -2492,19 +2493,22 @@ async function ensureBudget() {
     .eq('user_id', currentUser.id)
     .limit(1);
 
-  if (mErr) throw mErr;
+  if (mErr) { console.error('[ensureBudget] membership lookup error:', mErr); throw mErr; }
+  console.log('[ensureBudget] memberships:', memberships);
   if (memberships && memberships.length > 0) {
     const b = memberships[0].budgets;
     return { id: b.id, name: b.name, fxRate: parseFloat(b.fx_rate), baseCurrency: b.base_currency, ownerId: b.owner_id };
   }
 
   // None exist → create default budget for this user
+  console.log('[ensureBudget] No budget found, creating with owner_id:', currentUser.id);
   const { data: newBudget, error: bErr } = await sb
     .from('budgets')
     .insert({ name: 'My Budget', owner_id: currentUser.id, fx_rate: 0.854, base_currency: 'EUR' })
     .select()
     .single();
-  if (bErr) throw bErr;
+  if (bErr) { console.error('[ensureBudget] budget insert error:', bErr); throw bErr; }
+  console.log('[ensureBudget] created budget:', newBudget);
   return { id: newBudget.id, name: newBudget.name, fxRate: parseFloat(newBudget.fx_rate), baseCurrency: newBudget.base_currency, ownerId: newBudget.owner_id };
 }
 
@@ -2878,6 +2882,12 @@ async function init() {
 
   // ---- CLOUD: bootstrap budget + load data ----
   try {
+    // Debug: verify the session has a valid access token
+    const { data: sessData } = await sb.auth.getSession();
+    console.log('[DEBUG] session user id:', sessData?.session?.user?.id);
+    console.log('[DEBUG] has access_token:', !!sessData?.session?.access_token);
+    console.log('[DEBUG] currentUser.id:', currentUser?.id);
+
     const budget = await ensureBudget();
     state.budgetId = budget.id;
     state.fxRate = budget.fxRate;
