@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.4.1 — timezone fix',
+    BUILD_VERSION: 'v0.5.0 — cloud import',
     BUILD_DATE: '2026-04-24',
   };
 </script>
@@ -1147,7 +1147,7 @@ async function importXlsx(file) {
   toast('Parsing xlsx...');
   const imported = parseXlsxRaw(buf);
 
-  // Collect all unique dates that have USD transactions → fetch historical rates
+  // Fetch historical FX rates for every USD tx date
   const usdDates = imported.transactions
     .filter(t => t.currency === 'USD')
     .map(t => t.date);
@@ -1155,8 +1155,6 @@ async function importXlsx(file) {
   if (usdDates.length > 0) {
     toast(`Fetching ${new Set(usdDates).size} historical FX rates...`);
     await fetchRatesForDates(usdDates);
-
-    // Apply rates to each USD transaction
     const todayRate = state.fxRate || 0.854;
     imported.transactions.forEach(t => {
       if (t.currency === 'USD') {
@@ -1165,26 +1163,31 @@ async function importXlsx(file) {
     });
   }
 
-  // Commit to state
-  state.accounts = imported.accounts;
-  state.categories = imported.categories;
-  state.openingBalances = imported.openingBalances;
-  state.transactions = imported.transactions;
-  state.incomeTypes = imported.incomeTypes;
-  state.hasData = true;
+  // Push everything to the cloud
+  try {
+    toast('Uploading to cloud…');
+    // Wipe any existing data for this budget first (fresh import)
+    await cloudWipeBudget();
 
-  await saveState();
-  // Compute per-month counts for a diagnostic toast
-  const perMonth = {};
-  imported.transactions.forEach(t => {
-    const m = t.date.slice(0, 7);
-    perMonth[m] = (perMonth[m] || 0) + 1;
-  });
-  const summary = Object.entries(perMonth).sort().map(([m, c]) => `${m}:${c}`).join('  ');
-  toast(`Imported ${imported.transactions.length} tx / ${imported.accounts.length} accounts`);
-  console.log('Transactions per month:', perMonth);
-  console.log('Summary:', summary);
-  render();
+    await cloudBulkImport(imported);
+
+    // Refresh state from cloud
+    await loadBudgetData(state.budgetId);
+
+    toast(`Imported ${imported.transactions.length} tx / ${imported.accounts.length} accounts`);
+    // Per-month diagnostic
+    const perMonth = {};
+    imported.transactions.forEach(t => {
+      const m = t.date.slice(0, 7);
+      perMonth[m] = (perMonth[m] || 0) + 1;
+    });
+    console.log('Transactions per month:', perMonth);
+
+    render();
+  } catch (err) {
+    console.error('Cloud upload failed:', err);
+    toast('Upload failed: ' + (err.message || 'unknown'));
+  }
 }
 
 
@@ -2306,19 +2309,30 @@ document.getElementById('btnAddTx').onclick = () => {
 };
 document.getElementById('btnExport').onclick = exportData;
 document.getElementById('btnReset').onclick = async () => {
-  if (!confirm('Reset all data? This cannot be undone.')) return;
-  state.accounts = []; state.categories = {}; state.transactions = []; state.openingBalances = {};
-  state.hasData = false;
-  await saveState();
-  render();
+  if (!confirm('Reset all data in the cloud? This cannot be undone.')) return;
+  try {
+    await cloudWipeBudget();
+    state.accounts = []; state.categories = {}; state.transactions = []; state.openingBalances = {};
+    state.hasData = false;
+    render();
+    toast('All data wiped');
+  } catch (err) {
+    toast('Reset failed: ' + err.message);
+  }
 };
 
+// Debounced FX rate save (don't hit the DB on every keystroke)
+let _fxSaveTimer = null;
 document.getElementById('fxRate').addEventListener('input', async (e) => {
   const v = parseFloat(e.target.value);
   if (!isFinite(v) || v <= 0) return;
   state.fxRate = v;
-  await saveState();
   render();
+  clearTimeout(_fxSaveTimer);
+  _fxSaveTimer = setTimeout(async () => {
+    try { await cloudUpdateBudget({ fxRate: v }); }
+    catch (err) { console.error('FX save failed', err); }
+  }, 600);
 });
 
 document.getElementById('btnFetchFx').addEventListener('click', async () => {
@@ -2327,7 +2341,6 @@ document.getElementById('btnFetchFx').addEventListener('click', async () => {
   btn.textContent = '…';
   btn.disabled = true;
   try {
-    // Use a public CORS-friendly FX API (Frankfurter, maintained by ECB data)
     const res = await fetch('https://api.frankfurter.dev/v1/latest?from=USD&to=EUR');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -2335,7 +2348,7 @@ document.getElementById('btnFetchFx').addEventListener('click', async () => {
     if (!rate || !isFinite(rate)) throw new Error('Invalid rate');
     state.fxRate = Math.round(rate * 10000) / 10000;
     document.getElementById('fxRate').value = state.fxRate;
-    await saveState();
+    await cloudUpdateBudget({ fxRate: state.fxRate });
     render();
     toast(`Updated: 1 USD = €${state.fxRate.toFixed(4)}`);
   } catch (err) {
@@ -2550,6 +2563,7 @@ async function loadBudgetData(budgetId) {
     type: t.type,
     amount: parseFloat(t.amount),
     currency: t.currency,
+    fx_rate: t.fx_rate != null ? parseFloat(t.fx_rate) : null,
     category: t.category || '',
     subcategory: t.subcategory || '',
     account: t.account_id,
@@ -2714,6 +2728,7 @@ function txToDb(tx) {
     type: tx.type,
     amount: tx.amount,
     currency: tx.currency,
+    fx_rate: tx.fx_rate != null ? tx.fx_rate : null,
     category: tx.category || null,
     subcategory: tx.subcategory || null,
     account_id: tx.account || null,
@@ -2801,6 +2816,7 @@ async function cloudBulkImport(imported) {
     type: t.type,
     amount: t.amount,
     currency: t.currency,
+    fx_rate: t.fx_rate != null ? t.fx_rate : null,
     category: t.category || null,
     subcategory: t.subcategory || null,
     account_id: accMap[t.account] || null,
@@ -2846,6 +2862,10 @@ async function init() {
     return;
   }
 
+  // Show a loading pulse while we talk to the cloud
+  const main = document.getElementById('main');
+  if (main) main.innerHTML = '<div class="empty"><h2>Loading…</h2><p>Fetching your data from the cloud.</p></div>';
+
   // Add user menu to the topbar
   const topbarActions = document.querySelector('.topbar-actions');
   if (topbarActions && !document.getElementById('userPill')) {
@@ -2856,7 +2876,26 @@ async function init() {
     topbarActions.insertBefore(pill, topbarActions.firstChild);
   }
 
-  await loadState();
+  // ---- CLOUD: bootstrap budget + load data ----
+  try {
+    const budget = await ensureBudget();
+    state.budgetId = budget.id;
+    state.fxRate = budget.fxRate;
+    state.baseCurrency = budget.baseCurrency;
+    document.getElementById('fxRate').value = state.fxRate;
+
+    await loadBudgetData(budget.id);
+  } catch (err) {
+    console.error('Cloud bootstrap failed:', err);
+    if (main) main.innerHTML = `
+      <div class="empty">
+        <h2>Couldn't load your data</h2>
+        <p>${err.message || 'Unknown error'}. Check your internet and try again.</p>
+        <button class="btn" onclick="location.reload()">Retry</button>
+      </div>`;
+    return;
+  }
+
   render();
 }
 
