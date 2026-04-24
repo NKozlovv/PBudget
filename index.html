@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.5.1 — auth debug',
+    BUILD_VERSION: 'v0.5.2 — full cloud CRUD',
     BUILD_DATE: '2026-04-24',
   };
 </script>
@@ -1852,10 +1852,14 @@ async function addCategory() {
   if (!name || !name.trim()) return;
   const trimmed = name.trim();
   if (state.categories[trimmed]) { toast('Category already exists'); return; }
-  state.categories[trimmed] = [];
-  await saveState();
-  render();
-  toast('Added');
+  try {
+    await cloudCreateCategory(trimmed, 'expense');
+    state.categories[trimmed] = [];
+    render();
+    toast('Added');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function renameCategory(oldName) {
@@ -1863,13 +1867,16 @@ async function renameCategory(oldName) {
   if (!name || !name.trim() || name === oldName) return;
   const trimmed = name.trim();
   if (state.categories[trimmed]) { toast('Name already in use'); return; }
-  state.categories[trimmed] = state.categories[oldName];
-  delete state.categories[oldName];
-  // Update transactions
-  state.transactions.forEach(tx => { if (tx.category === oldName) tx.category = trimmed; });
-  await saveState();
-  render();
-  toast('Renamed');
+  try {
+    await cloudRenameCategory(oldName, trimmed, 'expense');
+    state.categories[trimmed] = state.categories[oldName];
+    delete state.categories[oldName];
+    state.transactions.forEach(tx => { if (tx.category === oldName) tx.category = trimmed; });
+    render();
+    toast('Renamed');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function deleteCategory(name) {
@@ -1878,16 +1885,25 @@ async function deleteCategory(name) {
     ? `Delete "${name}"? ${txCount} transaction${txCount > 1 ? 's' : ''} use this category and will be moved to "Misc".`
     : `Delete "${name}"?`;
   if (!confirm(msg)) return;
-  if (txCount > 0) {
-    if (!state.categories['Misc']) state.categories['Misc'] = [];
-    state.transactions.forEach(tx => {
-      if (tx.category === name) { tx.category = 'Misc'; tx.subcategory = ''; }
-    });
+  try {
+    if (txCount > 0) {
+      // Ensure "Misc" category exists in cloud
+      if (!state.categories['Misc']) {
+        await cloudCreateCategory('Misc', 'expense');
+        state.categories['Misc'] = [];
+      }
+      await cloudReassignCategory(name, 'Misc');
+      state.transactions.forEach(tx => {
+        if (tx.category === name) { tx.category = 'Misc'; tx.subcategory = ''; }
+      });
+    }
+    await cloudDeleteCategory(name, 'expense');
+    delete state.categories[name];
+    render();
+    toast('Deleted');
+  } catch (err) {
+    toast('Failed: ' + err.message);
   }
-  delete state.categories[name];
-  await saveState();
-  render();
-  toast('Deleted');
 }
 
 async function addSub(cat) {
@@ -1895,10 +1911,14 @@ async function addSub(cat) {
   if (!name || !name.trim()) return;
   const trimmed = name.trim();
   if (state.categories[cat].includes(trimmed)) { toast('Already exists'); return; }
-  state.categories[cat].push(trimmed);
-  await saveState();
-  render();
-  toast('Added');
+  try {
+    await cloudCreateSub(cat, trimmed);
+    state.categories[cat].push(trimmed);
+    render();
+    toast('Added');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function renameSub(cat, oldName) {
@@ -1908,13 +1928,17 @@ async function renameSub(cat, oldName) {
   if (state.categories[cat].includes(trimmed)) { toast('Name already in use'); return; }
   const i = state.categories[cat].indexOf(oldName);
   if (i < 0) return;
-  state.categories[cat][i] = trimmed;
-  state.transactions.forEach(tx => {
-    if (tx.category === cat && tx.subcategory === oldName) tx.subcategory = trimmed;
-  });
-  await saveState();
-  render();
-  toast('Renamed');
+  try {
+    await cloudRenameSub(cat, oldName, trimmed);
+    state.categories[cat][i] = trimmed;
+    state.transactions.forEach(tx => {
+      if (tx.category === cat && tx.subcategory === oldName) tx.subcategory = trimmed;
+    });
+    render();
+    toast('Renamed');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function deleteSub(cat, name) {
@@ -1923,13 +1947,17 @@ async function deleteSub(cat, name) {
     ? `Delete sub-category "${name}"? ${txCount} transaction${txCount > 1 ? 's' : ''} will have their sub-category cleared.`
     : `Delete sub-category "${name}"?`;
   if (!confirm(msg)) return;
-  state.categories[cat] = state.categories[cat].filter(s => s !== name);
-  state.transactions.forEach(tx => {
-    if (tx.category === cat && tx.subcategory === name) tx.subcategory = '';
-  });
-  await saveState();
-  render();
-  toast('Deleted');
+  try {
+    await cloudDeleteSub(cat, name);
+    state.categories[cat] = state.categories[cat].filter(s => s !== name);
+    state.transactions.forEach(tx => {
+      if (tx.category === cat && tx.subcategory === name) tx.subcategory = '';
+    });
+    render();
+    toast('Deleted');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function addIncomeType() {
@@ -1937,10 +1965,14 @@ async function addIncomeType() {
   if (!name || !name.trim()) return;
   const trimmed = name.trim();
   if (state.incomeTypes.includes(trimmed)) { toast('Already exists'); return; }
-  state.incomeTypes.push(trimmed);
-  await saveState();
-  render();
-  toast('Added');
+  try {
+    await cloudCreateCategory(trimmed, 'income');
+    state.incomeTypes.push(trimmed);
+    render();
+    toast('Added');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function renameIncomeType(oldName) {
@@ -1950,13 +1982,17 @@ async function renameIncomeType(oldName) {
   if (state.incomeTypes.includes(trimmed)) { toast('Name already in use'); return; }
   const i = state.incomeTypes.indexOf(oldName);
   if (i < 0) return;
-  state.incomeTypes[i] = trimmed;
-  state.transactions.forEach(tx => {
-    if (tx.type === 'income' && tx.category === oldName) tx.category = trimmed;
-  });
-  await saveState();
-  render();
-  toast('Renamed');
+  try {
+    await cloudRenameCategory(oldName, trimmed, 'income');
+    state.incomeTypes[i] = trimmed;
+    state.transactions.forEach(tx => {
+      if (tx.type === 'income' && tx.category === oldName) tx.category = trimmed;
+    });
+    render();
+    toast('Renamed');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 async function deleteIncomeType(name) {
@@ -1966,10 +2002,14 @@ async function deleteIncomeType(name) {
     return;
   }
   if (!confirm(`Delete income category "${name}"?`)) return;
-  state.incomeTypes = state.incomeTypes.filter(t => t !== name);
-  await saveState();
-  render();
-  toast('Deleted');
+  try {
+    await cloudDeleteCategory(name, 'income');
+    state.incomeTypes = state.incomeTypes.filter(t => t !== name);
+    render();
+    toast('Deleted');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 // ------------- FORECAST -------------
@@ -2257,7 +2297,6 @@ function getCurrentTxType() { return pendingTxType; }
 async function saveTx(editId) {
   const type = pendingTxType;
   const tx = {
-    id: editId || uid(),
     date: document.getElementById('txDate').value,
     type,
     amount: parseFloat(document.getElementById('txAmount').value) || 0,
@@ -2268,24 +2307,76 @@ async function saveTx(editId) {
     comment: document.getElementById('txComment').value,
   };
   if (!tx.amount || !tx.date) { toast('Date and amount required'); return; }
-  if (editId) {
-    state.transactions = state.transactions.map(t => t.id === editId ? tx : t);
+
+  // Normalize sign for adjustments: allow negative entry in UI
+  if (type === 'adjustment') {
+    // For adjustment, accept the raw amount (can be negative or positive)
+    tx.amount = parseFloat(document.getElementById('txAmount').value);
   } else {
-    state.transactions.push(tx);
+    tx.amount = Math.abs(tx.amount);
   }
-  await saveState();
-  closeModal();
-  render();
-  toast(editId ? 'Transaction updated' : 'Transaction added');
+
+  // FX rate handling:
+  // - If USD and no stored rate exists (new tx), fetch the rate for this date
+  // - Otherwise (editing), preserve the original rate unless currency changed
+  if (tx.currency === 'USD') {
+    if (editId) {
+      const existing = state.transactions.find(t => t.id === editId);
+      if (existing && existing.currency === 'USD' && existing.fx_rate != null) {
+        tx.fx_rate = existing.fx_rate;
+      } else {
+        // Currency changed to USD or new tx - fetch rate
+        tx.fx_rate = await fetchHistoricalFxRate(tx.date) || state.fxRate;
+      }
+    } else {
+      tx.fx_rate = await fetchHistoricalFxRate(tx.date) || state.fxRate;
+    }
+  } else {
+    tx.fx_rate = null;
+  }
+
+  try {
+    if (editId) {
+      await cloudUpdateTx(editId, tx);
+      // Update local state
+      state.transactions = state.transactions.map(t =>
+        t.id === editId ? { ...tx, id: editId } : t
+      );
+    } else {
+      const inserted = await cloudCreateTx(tx);
+      // Add to local state (with the DB-assigned id)
+      state.transactions.push({
+        id: inserted.id,
+        date: tx.date,
+        type: tx.type,
+        amount: tx.amount,
+        currency: tx.currency,
+        fx_rate: tx.fx_rate,
+        category: tx.category,
+        subcategory: tx.subcategory,
+        account: tx.account,
+        comment: tx.comment,
+      });
+    }
+    closeModal();
+    render();
+    toast(editId ? 'Transaction updated' : 'Transaction added');
+  } catch (err) {
+    toast('Save failed: ' + err.message);
+  }
 }
 
 async function deleteTx(id) {
   if (!confirm('Delete this transaction?')) return;
-  state.transactions = state.transactions.filter(t => t.id !== id);
-  await saveState();
-  closeModal();
-  render();
-  toast('Deleted');
+  try {
+    await cloudDeleteTx(id);
+    state.transactions = state.transactions.filter(t => t.id !== id);
+    closeModal();
+    render();
+    toast('Deleted');
+  } catch (err) {
+    toast('Delete failed: ' + err.message);
+  }
 }
 
 function openEditTx(id) {
