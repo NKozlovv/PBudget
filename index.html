@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.4.0 — March debug',
+    BUILD_VERSION: 'v0.4.1 — timezone fix',
     BUILD_DATE: '2026-04-24',
   };
 </script>
@@ -634,21 +634,50 @@ function txToEUR(tx) {
 }
 
 function monthOfDate(dateStr) {
+  // Parse YYYY-MM-DD as local components to avoid UTC shift.
+  if (typeof dateStr === 'string') {
+    const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return parseInt(m[2], 10) - 1; // month is 1-12 in string, 0-11 in JS
+  }
   const d = new Date(dateStr);
-  return d.getMonth(); // 0-11
+  return d.getMonth();
 }
 function yearOfDate(dateStr) {
+  if (typeof dateStr === 'string') {
+    const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return parseInt(m[1], 10);
+  }
   const d = new Date(dateStr);
   return d.getFullYear();
 }
 function dateStr(d) {
   if (!d) return '';
-  if (typeof d === 'string') d = new Date(d);
-  return d.toISOString().slice(0, 10);
+  if (typeof d === 'string') {
+    // Preserve YYYY-MM-DD strings as-is (no TZ conversion)
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    d = new Date(d);
+  }
+  if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${day}`;
 }
 function dateDisplay(d) {
   if (!d) return '';
-  const dt = new Date(d);
+  let dt;
+  if (typeof d === 'string') {
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      dt = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+    } else {
+      dt = new Date(d);
+    }
+  } else {
+    dt = new Date(d);
+  }
+  if (isNaN(dt.getTime())) return '';
   return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -684,9 +713,9 @@ function accountBalanceAtMonth(accountId, month, year) {
   if (month < 0) return balanceEUR;
 
   state.transactions.forEach(tx => {
-    const txDate = new Date(tx.date);
-    if (txDate.getFullYear() > year) return;
-    if (txDate.getFullYear() === year && txDate.getMonth() > month) return;
+    const txYear = yearOfDate(tx.date); const txMonth = monthOfDate(tx.date);
+    if (txYear > year) return;
+    if (txYear === year && txMonth > month) return;
     if (tx.account !== accountId) return;
     const amtEUR = txToEUR(tx);
     if (tx.type === 'expense') balanceEUR -= amtEUR;
@@ -704,9 +733,9 @@ function accountBalanceNative(accountId, month, year) {
   if (month < 0) return balance;
 
   state.transactions.forEach(tx => {
-    const txDate = new Date(tx.date);
-    if (txDate.getFullYear() > year) return;
-    if (txDate.getFullYear() === year && txDate.getMonth() > month) return;
+    const txYear = yearOfDate(tx.date); const txMonth = monthOfDate(tx.date);
+    if (txYear > year) return;
+    if (txYear === year && txMonth > month) return;
     if (tx.account !== accountId) return;
     // Convert transaction amount to account's currency if needed
     let amt = tx.amount;
@@ -841,28 +870,37 @@ async function fetchRatesForDates(dates) {
   }
 }
 
-// Excel serial → JS Date
+// Excel serial → JS Date (local midnight)
 function excelSerialToDate(n) {
-  // Excel's epoch is 1899-12-30 (accounting for the 1900 leap year bug)
-  return new Date(Math.round((n - 25569) * 86400 * 1000));
+  // Excel serial counts days since 1899-12-30. We create a Date at local midnight
+  // of that day to avoid timezone shifts.
+  const epoch = new Date(1899, 11, 30); // 1899-12-30 local
+  return new Date(epoch.getTime() + Math.round(n) * 86400 * 1000);
 }
 
-// Normalize any date-like value into a YYYY-MM-DD string, or null if unparseable
+// Format any Date as YYYY-MM-DD in LOCAL time (not UTC).
+// This avoids the "midnight local = previous day UTC" bug where toISOString()
+// would shift the date by one day for anyone east of UTC.
+function toLocalISODate(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Normalize any date-like value into a YYYY-MM-DD string (local-time),
+// or null if unparseable.
 function normalizeDate(cellVal) {
   if (cellVal == null || cellVal === '') return null;
-  if (cellVal instanceof Date) {
-    if (isNaN(cellVal.getTime())) return null;
-    return cellVal.toISOString().slice(0, 10);
-  }
-  if (typeof cellVal === 'number') {
-    const d = excelSerialToDate(cellVal);
-    if (isNaN(d.getTime())) return null;
-    return d.toISOString().slice(0, 10);
-  }
+  if (cellVal instanceof Date) return toLocalISODate(cellVal);
+  if (typeof cellVal === 'number') return toLocalISODate(excelSerialToDate(cellVal));
   if (typeof cellVal === 'string') {
+    // Prefer parsing YYYY-MM-DD literally without TZ conversion
+    const m = cellVal.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
     const d = new Date(cellVal);
-    if (isNaN(d.getTime())) return null;
-    return d.toISOString().slice(0, 10);
+    return toLocalISODate(d);
   }
   return null;
 }
@@ -1021,7 +1059,7 @@ function parseXlsxRaw(arrayBuffer) {
           const d = new Date(currentImportYear, monthIdx, 28);
           transactions.push({
             _accName: accName,
-            date: d.toISOString().slice(0, 10),
+            date: toLocalISODate(d),
             type: isAdjustment ? 'adjustment' : 'income',
             amount: Math.abs(incAmt.v),
             currency: acc.currency,
