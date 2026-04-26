@@ -23,32 +23,49 @@
 </script>
 <style>
   :root {
-    --bg: #f5f3ef;
-    --bg-2: #ece8e0;
+    /* Roadmap §2.1 — Modern Soft tokens */
+    --bg-page: #f5f3ef;
+    --bg-card: #ffffff;
+    --bg-card-hover: #faf8f4;
     --ink: #1a1a2e;
-    --ink-soft: #4a4a5a;
-    --ink-mute: #8a8a98;
-    --paper: #ffffff;
-    --line: #e8e4dc;
-    --line-soft: #f0ece4;
-    --primary: #1a1a2e;
-    --accent: #c44536;
-    --accent-2: #d8a64a;
-    --gold: #d8a64a;
-    --sage: #1a7a4a;
-    --terracotta: #c44536;
-    --dusty: #7daad0;
+    --ink-soft: #4a4a5e;
+    --ink-mute: #6b6a73;
+    --ink-faint: #9d9a95;
+    --line: #ebe8de;
+    --line-soft: #f0ead9;
+    --success: #1a7a4a;
+    --success-soft: #dcf5e4;
+    --danger: #c44536;
+    --danger-soft: #fbe6e6;
+    --accent: #d8a64a;            /* gold — highlight / link / active */
+    --accent-soft: #faefd9;
+    --info: #7daad0;
+    --info-soft: #e4edf6;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-pill: 20px;
+    --shadow-card: 0 1px 2px rgba(20,15,10,0.04), 0 1px 6px rgba(20,15,10,0.03);
+    --shadow-card-hover: 0 2px 8px rgba(20,15,10,0.08);
+
+    /* Aliases — keep legacy references working without per-rule rewrites */
+    --bg: var(--bg-page);
+    --bg-2: #ece8e0;
+    --paper: var(--bg-card);
+    --primary: var(--ink);
+    --sage: var(--success);
+    --terracotta: var(--danger);
+    --gold: var(--accent);
+    --dusty: var(--info);
     --mauve: #a07a9a;
     --olive: #7a8a4a;
-    --green: #1a7a4a;
-    --red: #c44536;
-    --blue: #7daad0;
-    --shadow: 0 1px 2px rgba(20,15,10,0.04);
+    --green: var(--success);
+    --red: var(--danger);
+    --blue: var(--info);
+    --shadow: var(--shadow-card);
     --shadow-md: 0 2px 8px rgba(20,15,10,0.06);
     --shadow-lg: 0 4px 20px rgba(20,15,10,0.10);
-    --radius: 14px;
-    --radius-sm: 10px;
-    --radius-pill: 999px;
+    --radius: var(--radius-md);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -539,8 +556,9 @@
   .tag-n { font-size: 10px; color: var(--ink-mute); font-family: 'JetBrains Mono', monospace; }
 
   /* Summary stat row */
-  .stat-row { display: flex; gap: 24px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); margin-bottom: 16px; }
-  .stat-item { flex: 1; }
+  .stat-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .stat-item { flex: 1; background: var(--bg-card); border-radius: var(--radius-md); padding: 14px 16px; box-shadow: var(--shadow-card); transition: transform 0.15s ease; }
+  .stat-item:hover { transform: translateY(-1px); box-shadow: var(--shadow-card-hover); }
   .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-mute); margin-bottom: 4px; }
   .stat-value { font-family: 'Inter Tight', sans-serif; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 
