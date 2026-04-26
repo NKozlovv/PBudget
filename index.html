@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.0 — Build 5: accounts + forecast refresh',
+    BUILD_VERSION: 'v0.9.1 — Phase 4: multi-budget switcher',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -107,6 +107,38 @@
   }
   .brand em { font-style: normal; font-weight: 400; color: var(--ink-faint); font-size: 12px; margin-left: 2px; }
   .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* Budget switcher */
+  .budget-switcher-wrap { position: relative; }
+  .budget-switcher-btn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: var(--radius-pill);
+    border: 1px solid var(--line); background: var(--paper);
+    font-family: inherit; font-size: 13px; font-weight: 500; color: var(--ink);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .budget-switcher-btn:hover { background: var(--bg-page); }
+  .budget-switcher-btn .caret { font-size: 10px; color: var(--ink-mute); transition: transform 0.15s; }
+  .budget-switcher-btn.open .caret { transform: rotate(180deg); }
+  .budget-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0;
+    min-width: 220px; z-index: 500;
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: 0 4px 16px rgba(20,15,10,0.12);
+    padding: 6px 0; display: none;
+  }
+  .budget-dropdown.open { display: block; }
+  .budget-dropdown-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; font-size: 13px; cursor: pointer;
+    color: var(--ink); gap: 8px; transition: background 0.1s;
+  }
+  .budget-dropdown-item:hover { background: var(--bg-page); }
+  .budget-dropdown-item.active { font-weight: 600; }
+  .budget-dropdown-item .check { color: var(--accent); font-size: 14px; }
+  .budget-dropdown-sep { height: 1px; background: var(--line); margin: 6px 0; }
+  .budget-dropdown-action { padding: 9px 14px; font-size: 13px; cursor: pointer; color: var(--ink-mute); display: flex; align-items: center; gap: 8px; transition: background 0.1s; }
+  .budget-dropdown-action:hover { background: var(--bg-page); color: var(--ink); }
 
   /* Nav — pill-shaped tabs per roadmap §2.3 */
   .nav {
@@ -710,9 +742,24 @@
 
 <!-- Topbar -->
 <div class="topbar">
-  <div class="brand">
-    <span class="brand-mark">€</span>
-    Ledger <em>/ personal budget</em>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="brand">
+      <span class="brand-mark">€</span>
+      Ledger
+    </div>
+    <!-- Budget switcher injected here by JS after login -->
+    <div class="budget-switcher-wrap" id="budgetSwitcherWrap" style="display:none">
+      <button class="budget-switcher-btn" id="budgetSwitcherBtn" onclick="toggleBudgetDropdown()">
+        <span id="budgetSwitcherLabel">My Budget</span>
+        <span class="caret">▾</span>
+      </button>
+      <div class="budget-dropdown" id="budgetDropdown">
+        <div id="budgetDropdownList"></div>
+        <div class="budget-dropdown-sep"></div>
+        <div class="budget-dropdown-action" onclick="closeBudgetDropdown();createBudget()">＋ New budget</div>
+        <div class="budget-dropdown-action" onclick="closeBudgetDropdown();renameBudget()">✎ Rename this budget</div>
+      </div>
+    </div>
   </div>
   <div class="topbar-actions">
     <span class="fx-rate">
@@ -752,6 +799,8 @@ const STORAGE_KEY = 'ledger-budget-v2';
 
 let state = {
   budgetId: null,     // active budget id (set after login/bootstrap)
+  budgetName: '',     // name of active budget
+  budgets: [],        // [{id, name, ownerId}] — all budgets this user can access
   accounts: [],       // [{id, name, currency}]
   categories: {},     // {general: [subcategories]}
   incomeTypes: ['Salary', 'Reimbursement', 'Account adjustment'],
@@ -4062,33 +4111,142 @@ async function signOut() {
 // ============================================================
 
 // ---- Budget bootstrap ----
-// Returns an existing budget the user is a member of, or creates a default one.
+// Loads ALL budgets the user is a member of; creates a default one if none exist.
+// Returns the budget to activate (first owned, else first available).
 async function ensureBudget() {
-  console.log('[ensureBudget] currentUser.id =', currentUser && currentUser.id);
-  // Try to find a budget I'm a member of
   const { data: memberships, error: mErr } = await sb
     .from('budget_members')
     .select('budget_id, role, budgets(id, name, fx_rate, base_currency, owner_id)')
-    .eq('user_id', currentUser.id)
-    .limit(1);
+    .eq('user_id', currentUser.id);
 
-  if (mErr) { console.error('[ensureBudget] membership lookup error:', mErr); throw mErr; }
-  console.log('[ensureBudget] memberships:', memberships);
+  if (mErr) throw mErr;
+
   if (memberships && memberships.length > 0) {
-    const b = memberships[0].budgets;
-    return { id: b.id, name: b.name, fxRate: parseFloat(b.fx_rate), baseCurrency: b.base_currency, ownerId: b.owner_id };
+    const all = memberships.map(m => ({
+      id: m.budgets.id,
+      name: m.budgets.name,
+      fxRate: parseFloat(m.budgets.fx_rate),
+      baseCurrency: m.budgets.base_currency,
+      ownerId: m.budgets.owner_id,
+      role: m.role,
+    }));
+    state.budgets = all.map(b => ({ id: b.id, name: b.name, ownerId: b.ownerId }));
+    // Prefer last used (stored in sessionStorage), else first owned, else first
+    const lastId = sessionStorage.getItem('ledger_active_budget');
+    const active = (lastId && all.find(b => b.id === lastId))
+      || all.find(b => b.ownerId === currentUser.id)
+      || all[0];
+    return active;
   }
 
   // None exist → create default budget for this user
-  console.log('[ensureBudget] No budget found, creating with owner_id:', currentUser.id);
   const { data: newBudget, error: bErr } = await sb
     .from('budgets')
     .insert({ name: 'My Budget', owner_id: currentUser.id, fx_rate: 0.854, base_currency: 'EUR' })
-    .select()
-    .single();
-  if (bErr) { console.error('[ensureBudget] budget insert error:', bErr); throw bErr; }
-  console.log('[ensureBudget] created budget:', newBudget);
-  return { id: newBudget.id, name: newBudget.name, fxRate: parseFloat(newBudget.fx_rate), baseCurrency: newBudget.base_currency, ownerId: newBudget.owner_id };
+    .select().single();
+  if (bErr) throw bErr;
+  const b = { id: newBudget.id, name: newBudget.name, fxRate: parseFloat(newBudget.fx_rate), baseCurrency: newBudget.base_currency, ownerId: newBudget.owner_id };
+  state.budgets = [{ id: b.id, name: b.name, ownerId: b.ownerId }];
+  return b;
+}
+
+// ---- Budget switcher UI ----
+function updateBudgetSwitcherUI() {
+  const wrap = document.getElementById('budgetSwitcherWrap');
+  const label = document.getElementById('budgetSwitcherLabel');
+  const list = document.getElementById('budgetDropdownList');
+  if (!wrap || !label || !list) return;
+
+  wrap.style.display = '';
+  label.textContent = state.budgetName || 'My Budget';
+
+  list.innerHTML = state.budgets.map(b => `
+    <div class="budget-dropdown-item ${b.id === state.budgetId ? 'active' : ''}" onclick="closeBudgetDropdown();switchBudget('${b.id}')">
+      <span>${escapeHtml(b.name)}</span>
+      ${b.id === state.budgetId ? '<span class="check">✓</span>' : ''}
+    </div>`).join('');
+}
+
+function toggleBudgetDropdown() {
+  const btn = document.getElementById('budgetSwitcherBtn');
+  const dd = document.getElementById('budgetDropdown');
+  const isOpen = dd.classList.contains('open');
+  if (isOpen) { closeBudgetDropdown(); return; }
+  btn.classList.add('open');
+  dd.classList.add('open');
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', _closeBudgetDropdownOnOutside), 0);
+}
+
+function closeBudgetDropdown() {
+  document.getElementById('budgetSwitcherBtn')?.classList.remove('open');
+  document.getElementById('budgetDropdown')?.classList.remove('open');
+  document.removeEventListener('click', _closeBudgetDropdownOnOutside);
+}
+
+function _closeBudgetDropdownOnOutside(e) {
+  const wrap = document.getElementById('budgetSwitcherWrap');
+  if (wrap && !wrap.contains(e.target)) closeBudgetDropdown();
+}
+
+async function switchBudget(id) {
+  if (id === state.budgetId) return;
+  const main = document.getElementById('main');
+  if (main) main.innerHTML = '<div class="empty"><h2>Loading…</h2></div>';
+  try {
+    const { data: bData, error } = await sb.from('budgets').select('*').eq('id', id).single();
+    if (error) throw error;
+    state.budgetId = bData.id;
+    state.budgetName = bData.name;
+    state.fxRate = parseFloat(bData.fx_rate);
+    state.baseCurrency = bData.base_currency;
+    state.activeView = 'dashboard';
+    state.txFilters = { month: 'all', category: 'all', subcategory: 'all', account: 'all', type: 'all', search: '' };
+    sessionStorage.setItem('ledger_active_budget', id);
+    document.getElementById('fxRate').value = state.fxRate;
+    await loadBudgetData(id);
+    updateBudgetSwitcherUI();
+    render();
+    toast(`Switched to "${bData.name}"`);
+  } catch (err) {
+    toast('Failed to switch budget: ' + err.message);
+  }
+}
+
+async function createBudget() {
+  const name = prompt('New budget name:');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  try {
+    const { data: b, error } = await sb
+      .from('budgets')
+      .insert({ name: trimmed, owner_id: currentUser.id, fx_rate: state.fxRate, base_currency: 'EUR' })
+      .select().single();
+    if (error) throw error;
+    state.budgets.push({ id: b.id, name: b.name, ownerId: b.owner_id });
+    toast(`Created "${b.name}" — switching…`);
+    await switchBudget(b.id);
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
+}
+
+async function renameBudget() {
+  const current = state.budgets.find(b => b.id === state.budgetId);
+  if (!current || current.ownerId !== currentUser.id) { toast('Only the owner can rename this budget'); return; }
+  const name = prompt('Rename budget:', current.name);
+  if (!name || !name.trim() || name.trim() === current.name) return;
+  const trimmed = name.trim();
+  try {
+    const { error } = await sb.from('budgets').update({ name: trimmed }).eq('id', state.budgetId);
+    if (error) throw error;
+    current.name = trimmed;
+    state.budgetName = trimmed;
+    updateBudgetSwitcherUI();
+    toast('Renamed');
+  } catch (err) {
+    toast('Failed: ' + err.message);
+  }
 }
 
 // ---- Load all data for a budget into state ----
@@ -4469,11 +4627,14 @@ async function init() {
 
     const budget = await ensureBudget();
     state.budgetId = budget.id;
+    state.budgetName = budget.name;
     state.fxRate = budget.fxRate;
     state.baseCurrency = budget.baseCurrency;
+    sessionStorage.setItem('ledger_active_budget', budget.id);
     document.getElementById('fxRate').value = state.fxRate;
 
     await loadBudgetData(budget.id);
+    updateBudgetSwitcherUI();
   } catch (err) {
     console.error('Cloud bootstrap failed:', err);
     if (main) main.innerHTML = `
