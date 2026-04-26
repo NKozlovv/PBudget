@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.8.0 — Build 4: category drill-down modal',
+    BUILD_VERSION: 'v0.8.1 — categories page: rich cards + edit modal + %',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -2464,14 +2464,17 @@ function openCategoryDrill(catName) {
       return 0;
     });
     const maxAmt = sorted[0]?.[1] || 1;
+    const totalAmt = sorted.reduce((s, [, v]) => s + v, 0) || 1;
     return sorted.map(([sub, amt]) => {
-      const pct = Math.round(amt / maxAmt * 100);
+      const barPct = Math.round(amt / maxAmt * 100);
+      const sharePct = (amt / totalAmt * 100).toFixed(0);
       const count = state.transactions.filter(t => t.type==='expense' && t.category===catName && (t.subcategory||'(uncategorised)')===sub && yearOfDate(t.date)===year).length;
       return `<div class="drill-sub-row">
         <div style="min-width:130px;font-weight:500;color:var(--ink)">${escapeHtml(sub)}</div>
-        <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${pct}%;background:${col.dot}"></div></div>
+        <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
         <div class="amt" style="min-width:80px;text-align:right">${fmtEUR(amt)}</div>
-        <div style="min-width:36px;text-align:right;color:var(--ink-mute);font-size:11px">${count}×</div>
+        <div style="min-width:36px;text-align:right;color:var(--ink-mute);font-size:11px">${sharePct}%</div>
+        <div style="min-width:28px;text-align:right;color:var(--ink-faint);font-size:11px">${count}×</div>
       </div>`;
     }).join('');
   }
@@ -2893,19 +2896,22 @@ function renderCategories() {
   const year = currentYear();
   const cats = categoryTotals(year, null);
   const main = document.getElementById('main');
+  const { expenses, income } = monthlyTotals(year);
+  const monthsWithData = expenses.reduce((n, e, i) => n + (e > 0 || income[i] > 0 ? 1 : 0), 0) || 1;
+  const lastDataMonth = Math.max(expenses.reduce((best, e, i) => e > 0 ? i : best, 0), 0);
 
   const totalExp = Object.values(cats).reduce((s, v) => s + v, 0);
-  const expCats = Object.entries(state.categories);
+  const expCats = Object.entries(state.categories).sort((a, b) => (cats[b[0]] || 0) - (cats[a[0]] || 0));
 
-  // Income totals by type
   const incomeTotals = {};
   state.transactions.forEach(tx => {
     if (tx.type !== 'income') return;
     if (yearOfDate(tx.date) !== year) return;
-    const amt = txToEUR(tx);
-    incomeTotals[tx.category] = (incomeTotals[tx.category] || 0) + amt;
+    incomeTotals[tx.category] = (incomeTotals[tx.category] || 0) + txToEUR(tx);
   });
   const totalInc = Object.values(incomeTotals).reduce((s, v) => s + v, 0);
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   main.innerHTML = `
     <div class="stat-row">
@@ -2927,7 +2933,7 @@ function renderCategories() {
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:16px">
+    <div class="card" style="margin-bottom:24px">
       <div class="card-title">
         Income categories
         <span style="display:flex;gap:8px;align-items:center">
@@ -2935,76 +2941,172 @@ function renderCategories() {
           <button class="btn btn-sm" onclick="addIncomeType()">+ Add type</button>
         </span>
       </div>
-      <div id="incomeTypesList">
-        ${state.incomeTypes.map(t => {
-          const amt = incomeTotals[t] || 0;
-          const pct = totalInc ? (amt / totalInc * 100) : 0;
-          const count = state.transactions.filter(tx => tx.type === 'income' && tx.category === t).length;
-          return `
-            <div class="cat-row">
-              <div>
-                <strong>${t}</strong>
-                ${count > 0 ? `<span class="fine"> · ${count} tx</span>` : ''}
-              </div>
-              <div class="amt">${fmtEUR(amt)}</div>
-              <div class="tag-n">${pct.toFixed(0)}%</div>
-              <div style="display:flex; gap:4px; justify-content:flex-end">
-                <button class="btn btn-sm btn-ghost" onclick="renameIncomeType('${escapeAttr(t)}')" title="Rename">✎</button>
-                <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteIncomeType('${escapeAttr(t)}')" title="Delete">✕</button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
+      ${state.incomeTypes.length === 0 ? '<p class="fine" style="margin:4px 0">No income categories yet.</p>' : ''}
+      ${state.incomeTypes.map(t => {
+        const amt = incomeTotals[t] || 0;
+        const pct = totalInc ? (amt / totalInc * 100) : 0;
+        const maxInc = Math.max(...state.incomeTypes.map(x => incomeTotals[x] || 0), 1);
+        const barPct = Math.round(amt / maxInc * 100);
+        const col = categoryColor(t);
+        return `<div class="drill-sub-row">
+          <div style="display:flex;align-items:center;gap:8px;min-width:140px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${col.dot};flex-shrink:0"></div>
+            <span style="font-weight:500">${escapeHtml(t)}</span>
+          </div>
+          <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
+          <div class="amt" style="min-width:80px;text-align:right">${fmtEUR(amt)}</div>
+          <div style="min-width:36px;text-align:right;color:var(--ink-mute);font-size:11px">${pct.toFixed(0)}%</div>
+          <div style="display:flex;gap:3px;margin-left:8px">
+            <button class="btn btn-sm btn-ghost" onclick="renameIncomeType('${escapeAttr(t)}')" title="Rename">✎</button>
+            <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteIncomeType('${escapeAttr(t)}')" title="Delete">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin: 24px 0 12px">
-      <h3 class="serif" style="font-weight:600; font-size:18px">Expense categories</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-weight:600;font-size:18px;letter-spacing:-0.01em">Expense categories</h3>
       <button class="btn btn-sm" onclick="addCategory()">+ New category</button>
     </div>
 
     <div class="grid-2" style="align-items:start">
-      ${expCats.sort((a, b) => (cats[b[0]] || 0) - (cats[a[0]] || 0)).map(([cat, subs]) => {
+      ${expCats.map(([cat, subs], idx) => {
         const catSum = cats[cat] || 0;
-        const pct = totalExp ? (catSum / totalExp * 100) : 0;
-        const subTotals = subcategoryTotals(year, null, cat);
+        const totalPct = totalExp ? (catSum / totalExp * 100) : 0;
+        const avg = catSum / monthsWithData;
+        const thisMonth = (() => {
+          let m = 0;
+          state.transactions.forEach(tx => {
+            if (tx.type !== 'expense' || tx.category !== cat || yearOfDate(tx.date) !== year) return;
+            if (monthOfDate(tx.date) === lastDataMonth) m += txToEUR(tx);
+          });
+          return m;
+        })();
+        const col = categoryColor(cat);
         const catId = escapeAttr(cat);
+        const safeId = 'ccat_' + idx;
+
+        const subTotals = subcategoryTotals(year, null, cat);
+        const subEntries = Object.entries(subTotals).sort((a, b) => b[1] - a[1]);
+        const maxSub = subEntries[0]?.[1] || 1;
+
         return `
           <div class="card">
-            <div class="card-title">
-              <span style="cursor:pointer" onclick="openCategoryDrill('${catId}')" title="View details">
-                ${cat}
-                <span class="card-title-sub" style="margin-left:6px">${fmtEUR(catSum)} · ${pct.toFixed(1)}%</span>
-              </span>
-              <span style="display:flex;gap:4px">
-                <button class="btn btn-sm btn-ghost" onclick="renameCategory('${catId}')" title="Rename">✎</button>
-                <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteCategory('${catId}')" title="Delete">✕</button>
-              </span>
-            </div>
-            <div>
-              ${subs.length ? subs.map(s => {
-                const v = subTotals[s] || 0;
-                const spct = catSum ? (v / catSum * 100) : 0;
-                const sId = escapeAttr(s);
-                return `<div class="cat-row sub-indent">
-                  <div>${s}</div>
-                  <div class="amt">${fmtEUR(v)}</div>
-                  <div class="tag-n">${spct.toFixed(0)}%</div>
-                  <div style="display:flex; gap:2px; justify-content:flex-end">
-                    <button class="btn btn-sm btn-ghost" onclick="renameSub('${catId}','${sId}')" style="padding:3px 6px">✎</button>
-                    <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteSub('${catId}','${sId}')" style="padding:3px 6px">✕</button>
-                  </div>
-                </div>`;
-              }).join('') : '<p class="fine" style="margin:8px 0">No sub-categories.</p>'}
-              <div style="margin-top:10px; padding-top:10px; border-top: 1px dashed var(--line)">
-                <button class="btn btn-sm btn-ghost" onclick="addSub('${catId}')">+ Add sub-category</button>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:11px;height:11px;border-radius:50%;background:${col.dot};flex-shrink:0;margin-top:2px"></div>
+                <div>
+                  <div style="font-size:16px;font-weight:600;letter-spacing:-0.02em;color:var(--ink)">${escapeHtml(cat)}</div>
+                  <div style="font-size:12px;color:var(--ink-mute);margin-top:1px">${totalPct.toFixed(1)}% of total spend</div>
+                </div>
               </div>
+              <button class="btn btn-sm btn-ghost" onclick="openCategoryEdit('${catId}')" style="flex-shrink:0;margin-left:8px">Edit</button>
             </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+              <div class="drill-stat"><div class="drill-stat-label">This month</div><div class="drill-stat-val" style="font-size:15px">${fmtEUR(thisMonth)}</div></div>
+              <div class="drill-stat"><div class="drill-stat-label">Monthly avg</div><div class="drill-stat-val" style="font-size:15px">${fmtEUR(avg)}</div></div>
+              <div class="drill-stat"><div class="drill-stat-label">YTD</div><div class="drill-stat-val" style="font-size:15px">${fmtEUR(catSum)}</div></div>
+            </div>
+
+            <div style="height:72px;position:relative;margin-bottom:14px">
+              <canvas id="${safeId}"></canvas>
+            </div>
+
+            ${subEntries.length > 0 ? subEntries.map(([sub, amt]) => {
+              const subPct = catSum ? (amt / catSum * 100) : 0;
+              const barPct = Math.round(amt / maxSub * 100);
+              return `<div class="drill-sub-row">
+                <div style="min-width:110px;font-size:12px;font-weight:500;color:var(--ink)">${escapeHtml(sub)}</div>
+                <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
+                <div class="amt" style="min-width:72px;text-align:right;font-size:12px">${fmtEUR(amt)}</div>
+                <div style="min-width:34px;text-align:right;font-size:11px;color:var(--ink-mute)">${subPct.toFixed(0)}%</div>
+              </div>`;
+            }).join('') : '<p style="font-size:12px;color:var(--ink-mute);margin:0">No sub-categories.</p>'}
           </div>
         `;
       }).join('')}
     </div>
   `;
+
+  // Draw mini bar charts
+  requestAnimationFrame(() => {
+    expCats.forEach(([cat], idx) => {
+      const canvas = document.getElementById('ccat_' + idx);
+      if (!canvas) return;
+      const col = categoryColor(cat);
+      const monthly12 = Array(12).fill(0);
+      state.transactions.forEach(tx => {
+        if (tx.type !== 'expense' || tx.category !== cat || yearOfDate(tx.date) !== year) return;
+        monthly12[monthOfDate(tx.date)] += txToEUR(tx);
+      });
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: MONTHS,
+          datasets: [{
+            data: monthly12,
+            backgroundColor: monthly12.map((v, i) => i > lastDataMonth ? 'rgba(180,165,140,0.25)' : col.dot + 'cc'),
+            borderRadius: 3,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtEUR(ctx.raw) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0 } },
+            y: { display: false }
+          }
+        }
+      });
+    });
+  });
+}
+
+function openCategoryEdit(catName) {
+  document.getElementById('catEditModal')?.remove();
+  const subs = state.categories[catName] || [];
+  const catId = escapeAttr(catName);
+
+  function subsHtml() {
+    const cur = state.categories[catName] || [];
+    if (cur.length === 0) return '<p style="color:var(--ink-mute);font-size:13px;margin:8px 0">No sub-categories yet.</p>';
+    return cur.map(s => {
+      const sId = escapeAttr(s);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line-soft)">
+        <span style="font-size:13px">${escapeHtml(s)}</span>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-ghost" onclick="renameSub('${catId}','${sId}')" title="Rename">✎</button>
+          <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteSub('${catId}','${sId}')" title="Delete">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const el = document.createElement('div');
+  el.className = 'modal-overlay';
+  el.id = 'catEditModal';
+  el.onclick = e => { if (e.target === el) el.remove(); };
+  el.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h3>${escapeHtml(catName)}</h3>
+        <button style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-mute)" onclick="document.getElementById('catEditModal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-mute);margin-bottom:6px">Subcategories</div>
+        <div id="catEditSubList">${subsHtml()}</div>
+        <button class="btn btn-sm btn-ghost" style="margin-top:12px" onclick="addSub('${catId}')">+ Add subcategory</button>
+      </div>
+      <div class="modal-footer">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-ghost" onclick="document.getElementById('catEditModal').remove();renameCategory('${catId}')">Rename</button>
+          <button class="btn btn-sm btn-ghost btn-danger" onclick="document.getElementById('catEditModal').remove();deleteCategory('${catId}')">Delete category</button>
+        </div>
+        <button class="btn btn-sm" onclick="document.getElementById('catEditModal').remove()">Done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
 }
 
 function escapeAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
@@ -3077,6 +3179,8 @@ async function addSub(cat) {
   try {
     await cloudCreateSub(cat, trimmed);
     state.categories[cat].push(trimmed);
+    document.getElementById('catEditModal')?.remove();
+    document.getElementById('catDrillModal')?.remove();
     render();
     toast('Added');
   } catch (err) {
@@ -3097,6 +3201,8 @@ async function renameSub(cat, oldName) {
     state.transactions.forEach(tx => {
       if (tx.category === cat && tx.subcategory === oldName) tx.subcategory = trimmed;
     });
+    document.getElementById('catEditModal')?.remove();
+    document.getElementById('catDrillModal')?.remove();
     render();
     toast('Renamed');
   } catch (err) {
@@ -3116,6 +3222,8 @@ async function deleteSub(cat, name) {
     state.transactions.forEach(tx => {
       if (tx.category === cat && tx.subcategory === name) tx.subcategory = '';
     });
+    document.getElementById('catEditModal')?.remove();
+    document.getElementById('catDrillModal')?.remove();
     render();
     toast('Deleted');
   } catch (err) {
