@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.6 — savings rate chart',
+    BUILD_VERSION: 'v0.6.7 — category card polish',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -691,6 +691,7 @@ let state = {
   txFilters: { month: 'all', category: 'all', account: 'all', type: 'all', search: '' },
   dashRange: 'YTD', // '1M' | '3M' | 'YTD' | 'All'
   dashMonth: null,  // null = all months; 0–11 = filtered to that month
+  catPeriod: 'ytd', // 'thismonth' | 'ytd' — category card toggle (overridden by dashMonth)
   hasData: false,
 };
 
@@ -753,9 +754,13 @@ function fmtEUR(n, opts = {}) {
   if (n == null || isNaN(n)) return '—';
   const abs = Math.abs(n);
   const sign = n < 0 ? '−' : '';
+  const prefix = opts.noSymbol ? '' : '€';
+  if (opts.compact) {
+    if (abs >= 1000) return `${sign}${prefix}${(abs / 1000).toFixed(abs >= 10000 ? 0 : 1)}k`;
+    return `${sign}${prefix}${abs.toFixed(0)}`;
+  }
   const parts = abs.toFixed(2).split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const prefix = opts.noSymbol ? '' : '€';
   return `${sign}${prefix}${parts.join('.')}`;
 }
 
@@ -1552,12 +1557,13 @@ function renderDashboard() {
     return ((inc - exp) / inc) * 100;
   });
 
-  // Category totals — scoped to dashMonth if a bar was clicked, otherwise YTD
+  // Category totals — dashMonth (bar click) takes priority, then card toggle
   const dashMonth = state.dashMonth;
-  const cats = categoryTotals(year, dashMonth);
+  const catMonthFilter = dashMonth != null ? dashMonth : (state.catPeriod === 'thismonth' ? lastMonth : null);
+  const cats = categoryTotals(year, catMonthFilter);
   const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
   const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
-  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : 'YTD';
+  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : (state.catPeriod === 'thismonth' ? MONTHS[lastMonth] : 'YTD');
 
   const main = document.getElementById('main');
   main.innerHTML = `
@@ -1629,15 +1635,25 @@ function renderDashboard() {
 
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">
-          Spending by category
-          <span class="card-title-sub">${catPeriodLabel} · ${fmtEUR(totalCat)}${dashMonth != null ? ' <span style="cursor:pointer;color:var(--accent)" onclick="state.dashMonth=null;renderDashboard()">✕</span>' : ''}</span>
+        <div class="card-title" style="align-items:flex-start;gap:8px;flex-wrap:wrap">
+          <span>Spending by category</span>
+          <span style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
+            ${dashMonth != null
+              ? `<span style="font-size:12px;color:var(--ink-mute);font-weight:400">${catPeriodLabel} · ${fmtEUR(totalCat)} <span style="cursor:pointer;color:var(--accent);margin-left:2px" onclick="state.dashMonth=null;renderDashboard()">✕</span></span>`
+              : `<span class="seg-pills" style="--pill-h:26px;font-size:11px">
+                  <button onclick="state.catPeriod='thismonth';renderDashboard()" class="${state.catPeriod==='thismonth'?'active':''}">This month</button>
+                  <button onclick="state.catPeriod='ytd';renderDashboard()" class="${state.catPeriod==='ytd'?'active':''}">YTD</button>
+                </span>
+                <span style="font-size:12px;color:var(--ink-mute);font-weight:400">${fmtEUR(totalCat)}</span>`
+            }
+          </span>
         </div>
         ${sortedCats.length === 0 ? '<p class="fine">No expenses yet.</p>' : `
           <div style="display:grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: center;">
             <div style="position:relative; height:160px"><canvas id="chartDonut"></canvas></div>
             <div id="catList" style="min-width:0"></div>
           </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--ink-faint);text-align:center">Click any row to drill into transactions →</div>
         `}
       </div>
       <div class="card">
@@ -1886,24 +1902,53 @@ function renderDashboard() {
             }
           }
         }
-      }
+      },
+      plugins: [{
+        id: 'donutCenter',
+        afterDraw(chart) {
+          const { ctx, chartArea: { top, bottom, left, right } } = chart;
+          const cx = (left + right) / 2, cy = (top + bottom) / 2;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '600 15px "Inter Tight", sans-serif';
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillText(fmtEUR(totalCat, { compact: true }), cx, cy - 8);
+          ctx.font = '400 10px "Inter Tight", sans-serif';
+          ctx.fillStyle = '#9d9a95';
+          ctx.fillText(catPeriodLabel, cx, cy + 9);
+          ctx.restore();
+        }
+      }]
     });
 
-    document.getElementById('catList').innerHTML = sortedCats.slice(0, 7).map(([cat, amt]) => {
-      const pct = totalCat ? (amt / totalCat * 100) : 0;
-      const col = categoryColor(cat);
-      return `
-        <div class="dash-cat-row" data-cat="${cat.replace(/"/g,'&quot;')}">
-          <span class="cat-dot" style="background:${col.dot}"></span>
-          <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${cat}</div>
-          <div class="amt">${fmtEUR(amt)}</div>
-          <div class="pct">${pct.toFixed(1)}%</div>
-        </div>
-      `;
-    }).join('');
+    const TOP_N = 5;
+    const topCats = sortedCats.slice(0, TOP_N);
+    const restCount = sortedCats.length - TOP_N;
+    const restAmt = sortedCats.slice(TOP_N).reduce((s, [, v]) => s + v, 0);
+
+    document.getElementById('catList').innerHTML =
+      topCats.map(([cat, amt]) => {
+        const pct = totalCat ? (amt / totalCat * 100) : 0;
+        const col = categoryColor(cat);
+        return `
+          <div class="dash-cat-row" data-cat="${cat.replace(/"/g,'&quot;')}">
+            <span class="cat-dot" style="background:${col.dot}"></span>
+            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${cat}</div>
+            <div class="amt">${fmtEUR(amt)}</div>
+            <div class="pct">${pct.toFixed(0)}%</div>
+          </div>`;
+      }).join('') +
+      (restCount > 0 ? `
+        <div class="dash-cat-row" style="color:var(--ink-mute);cursor:default" onclick="state.activeView='categories';render()">
+          <span class="cat-dot" style="background:var(--ink-faint)"></span>
+          <div>+${restCount} more</div>
+          <div class="amt" style="color:var(--ink-mute)">${fmtEUR(restAmt)}</div>
+          <div class="pct"></div>
+        </div>` : '');
 
     // Click-through to filtered Transactions view (drill-down modal lands in Build 4)
-    document.querySelectorAll('.dash-cat-row').forEach(row => {
+    document.querySelectorAll('.dash-cat-row[data-cat]').forEach(row => {
       row.onclick = () => {
         state.txFilters = { month: 'all', category: row.dataset.cat, account: 'all', type: 'all', search: '' };
         state.activeView = 'transactions';
