@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.7.0 — recent activity + avg fix',
+    BUILD_VERSION: 'v0.7.1 — savings label fix',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -1878,13 +1878,21 @@ function renderDashboard() {
           const meta = chart.getDatasetMeta(0);
           const ctx2 = chart.ctx;
           ctx2.save();
-          ctx2.font = '500 10px "Inter Tight", sans-serif';
+          ctx2.font = '600 11px "Inter Tight", sans-serif';
           ctx2.textAlign = 'center';
+          ctx2.textBaseline = 'bottom';
           meta.data.forEach((point, i) => {
             const val = ds.data[i];
             if (val == null) return;
-            ctx2.fillStyle = i === lastMonth ? '#1a7a4a' : '#8a8a98';
-            ctx2.fillText(val.toFixed(0) + '%', point.x, point.y - 9);
+            const text = val.toFixed(0) + '%';
+            const x = point.x, y = point.y - 7;
+            // White halo for legibility over the line
+            ctx2.lineWidth = 4;
+            ctx2.lineJoin = 'round';
+            ctx2.strokeStyle = '#ffffff';
+            ctx2.strokeText(text, x, y);
+            ctx2.fillStyle = '#4a4a5e';
+            ctx2.fillText(text, x, y);
           });
           ctx2.restore();
         }
