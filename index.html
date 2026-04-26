@@ -17,8 +17,8 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.0 — Modern Soft + new Dashboard',
-    BUILD_DATE: '2026-04-25',
+    BUILD_VERSION: 'v0.6.6 — savings rate chart',
+    BUILD_DATE: '2026-04-26',
   };
 </script>
 <style>
@@ -93,40 +93,39 @@
   }
   .brand {
     font-family: 'Inter Tight', sans-serif;
-    font-weight: 600;
-    font-size: 19px;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    font-size: 17px;
+    letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 10px;
   }
   .brand-mark {
     width: 28px; height: 28px;
-    background: var(--primary); color: #fff;
+    background: var(--ink); color: #fff;
     border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 600; font-family: 'Inter Tight', sans-serif;
+    font-size: 13px; font-weight: 500; font-family: 'Inter Tight', sans-serif;
   }
-  .brand em { font-style: normal; font-weight: 400; color: var(--ink-mute); font-size: 13px; margin-left: 4px; }
+  .brand em { font-style: normal; font-weight: 400; color: var(--ink-faint); font-size: 12px; margin-left: 2px; }
   .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
-  /* Nav tabs */
+  /* Nav — pill-shaped tabs per roadmap §2.3 */
   .nav {
+    background: var(--bg-page);
     border-bottom: 1px solid var(--line);
-    background: var(--paper);
-    padding: 0 32px;
-    display: flex; gap: 2px;
+    padding: 8px 32px;
+    display: flex; gap: 4px;
     position: sticky; top: 57px; z-index: 99;
   }
   .nav-tab {
-    padding: 14px 18px;
-    border: none; background: none; cursor: pointer;
+    padding: 7px 16px;
+    border: none; background: transparent; cursor: pointer;
     font-family: inherit; font-size: 13px; font-weight: 500;
     color: var(--ink-mute);
-    border-bottom: 2px solid transparent;
+    border-radius: var(--radius-pill);
     transition: all 0.15s;
-    letter-spacing: 0.02em;
   }
-  .nav-tab:hover { color: var(--ink); }
-  .nav-tab.active { color: var(--ink); border-bottom-color: var(--primary); }
+  .nav-tab:hover { background: var(--bg-card); color: var(--ink); }
+  .nav-tab.active { background: var(--ink); color: #fff; }
 
   /* Main */
   .main { padding: 32px; max-width: 1400px; margin: 0 auto; }
@@ -202,32 +201,34 @@
   .dash-hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 8px; }
   .dash-hero-label {
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 10px;
-    color: rgba(255,255,255,0.55);
-    font-weight: 600;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: #9c99c6;
+    font-weight: 500;
     margin-bottom: 6px;
   }
   .dash-hero-value {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 44px;
-    font-weight: 600;
-    letter-spacing: -0.025em;
+    font-size: 36px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     line-height: 1.05;
   }
-  .dash-hero-sub { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
-  .dash-hero-spark { height: 56px; margin-top: 14px; }
+  .dash-hero-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+  .dash-hero-delta { font-size: 12px; color: #7de3b1; margin-top: 4px; font-weight: 500; }
+  .dash-hero-spark { height: 50px; margin-top: 16px; }
 
   .seg-pills { display: inline-flex; gap: 4px; padding: 3px; background: rgba(255,255,255,0.08); border-radius: var(--radius-pill); }
   .seg-pills button {
     border: none; background: transparent;
     padding: 5px 12px; font-family: inherit; font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.55);
     border-radius: var(--radius-pill); cursor: pointer;
     transition: all 0.15s;
   }
-  .seg-pills button.active { background: rgba(255,255,255,0.95); color: var(--primary); }
+  /* Active range pill is gold with dark text — matches mockup */
+  .seg-pills button.active { background: var(--accent); color: var(--ink); font-weight: 600; }
   .seg-pills.light { background: var(--bg-2); }
   .seg-pills.light button { color: var(--ink-mute); }
   .seg-pills.light button.active { background: var(--primary); color: #fff; }
@@ -253,8 +254,15 @@
     color: var(--ink);
   }
   .metric-sub { font-size: 11px; color: var(--ink-mute); margin-top: 4px; font-weight: 500; }
-  .metric-sub.pos { color: var(--sage); }
-  .metric-sub.neg { color: var(--terracotta); }
+  .metric-sub.pos { color: var(--success); }
+  .metric-sub.neg { color: var(--danger); }
+  .metric-chip {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 1px 6px; border-radius: var(--radius-pill);
+    margin-left: 6px; vertical-align: middle;
+  }
+  .metric-chip.pos { background: var(--success-soft); color: var(--success); }
+  .metric-chip.neg { background: var(--danger-soft); color: var(--danger); }
 
   .cat-dot {
     display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -475,12 +483,15 @@
   .fx-rate {
     font-size: 11px;
     color: var(--ink-mute);
-    padding: 6px 10px;
-    background: var(--bg-2);
-    border-radius: var(--radius);
+    padding: 5px 12px;
+    background: var(--bg-page);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
     display: inline-flex; align-items: center; gap: 6px;
   }
-  .fx-rate input { width: 70px; padding: 3px 6px; font-size: 12px; }
+  .fx-rate input { width: 62px; padding: 2px 4px; font-size: 11px; border-radius: 4px; }
+  #btnFetchFx { color: var(--ink-faint); font-size: 11px; border: none; background: none; cursor: pointer; padding: 0; }
+  #btnFetchFx:hover { color: var(--ink-mute); }
 
   /* Category rows */
   .cat-row {
@@ -612,12 +623,15 @@
   .user-pill {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 5px 12px;
-    background: var(--bg-2);
-    border-radius: 20px;
-    font-size: 12px;
-    color: var(--ink-soft);
+    background: var(--bg-page);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    color: var(--ink-mute);
   }
-  .user-pill strong { color: var(--ink); font-weight: 600; }
+  .user-pill strong { color: var(--ink); font-weight: 500; }
+  .user-pill a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .user-pill a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -676,6 +690,7 @@ let state = {
   activeView: 'dashboard',
   txFilters: { month: 'all', category: 'all', account: 'all', type: 'all', search: '' },
   dashRange: 'YTD', // '1M' | '3M' | 'YTD' | 'All'
+  dashMonth: null,  // null = all months; 0–11 = filtered to that month
   hasData: false,
 };
 
@@ -828,32 +843,56 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 // Semantic mapping by keyword, fallback to a stable hash so the
 // same category gets the same color everywhere in the app.
 // ============================================================
-const CAT_PALETTE = ['#c44536', '#d8a64a', '#1a7a4a', '#7daad0', '#a07a9a', '#7a8a4a', '#d97a4a', '#5a7aa8', '#b8895a', '#4a8a7a'];
+// Returns { bg, fg, dot } for a category name.
+// Semantic mapping per roadmap §2.2; stable hash fallback for unknowns.
 const CAT_SEMANTIC = [
-  { rx: /food|grocer|restaur|cafe|coffee|takeout|drink/i, color: '#d8a64a' },
-  { rx: /health|medic|pharma|doctor|fitness/i,           color: '#e08a7a' },
-  { rx: /travel|flight|hotel|trip|transit|taxi|uber|train|bus/i, color: '#7daad0' },
-  { rx: /home|rent|utilit|mortgage|furniture/i,           color: '#c44536' },
-  { rx: /bill|subscription|insurance/i,                   color: '#7a9a6a' },
-  { rx: /entertain|music|movie|game|book|netflix|spotify/i, color: '#a07a9a' },
-  { rx: /tech|software|hardware|gadget|computer/i,        color: '#5a7aa8' },
-  { rx: /pet|kent|dog|cat|vet/i,                          color: '#1a7a4a' },
-  { rx: /clothing|cloth|fashion|shopping/i,               color: '#b8895a' },
-  { rx: /salary|income|reimburs/i,                        color: '#1a7a4a' },
+  { rx: /food|grocer|restaur|cafe|coffee|takeout|drink|supermark/i,
+    c: { bg: '#fff3db', fg: '#854f0b', dot: '#d8a64a' } },
+  { rx: /home|rent|utilit|mortgage|furniture|household/i,
+    c: { bg: '#fbe6e0', fg: '#7a2a22', dot: '#c44536' } },
+  { rx: /travel|flight|hotel|trip|airbnb|holiday/i,
+    c: { bg: '#e4edf6', fg: '#0c447c', dot: '#7daad0' } },
+  { rx: /transit|taxi|uber|train|bus|metro|transport|bahn|public/i,
+    c: { bg: '#e8f0ed', fg: '#1f5043', dot: '#6a9d8d' } },
+  { rx: /health|medic|pharma|doctor|fitness|dental|gym|apotheke/i,
+    c: { bg: '#fbe6e6', fg: '#791f1f', dot: '#d8716a' } },
+  { rx: /bill|subscription|insurance|service|fee/i,
+    c: { bg: '#e4ebe2', fg: '#3a4d36', dot: '#7a946d' } },
+  { rx: /entertain|music|movie|cinema|game|book|netflix|spotify|concert/i,
+    c: { bg: '#ede4f0', fg: '#4d2d56', dot: '#9c7daa' } },
+  { rx: /tech|software|hardware|gadget|computer|apple|amazon/i,
+    c: { bg: '#e4e8ed', fg: '#2a3845', dot: '#6a7a8a' } },
+  { rx: /goods|clothing|cloth|fashion|shop|shopping/i,
+    c: { bg: '#edf0e4', fg: '#27500a', dot: '#a3b088' } },
+  { rx: /educ|course|school|university|book|learn/i,
+    c: { bg: '#f3eada', fg: '#5e4612', dot: '#b58e3d' } },
+  { rx: /kent|dog|cat|pet|vet|tier/i,
+    c: { bg: '#e0efd9', fg: '#264a16', dot: '#6da350' } },
+  { rx: /salary|lohn|gehalt/i,
+    c: { bg: '#dcf5e4', fg: '#1a5a3a', dot: '#1a7a4a' } },
+  { rx: /reimburse|erstatt/i,
+    c: { bg: '#e4edf6', fg: '#0c447c', dot: '#7daad0' } },
+  { rx: /adjustment/i,
+    c: { bg: '#ebe8de', fg: '#4a4a5e', dot: '#9d9a95' } },
 ];
+const CAT_DOT_FALLBACK = [
+  '#c44536','#d8a64a','#1a7a4a','#7daad0','#9c7daa',
+  '#a3b088','#d97a4a','#6a7a8a','#b58e3d','#6a9d8d',
+];
+const CAT_MISC = { bg: '#ebe8de', fg: '#4a4a5e', dot: '#9d9a95' };
 const _catColorCache = {};
 function categoryColor(name) {
-  if (!name) return '#8a8a98';
+  if (!name) return CAT_MISC;
   if (_catColorCache[name]) return _catColorCache[name];
   for (const s of CAT_SEMANTIC) {
-    if (s.rx.test(name)) { _catColorCache[name] = s.color; return s.color; }
+    if (s.rx.test(name)) { _catColorCache[name] = s.c; return s.c; }
   }
-  // Stable hash → palette index
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  const c = CAT_PALETTE[h % CAT_PALETTE.length];
-  _catColorCache[name] = c;
-  return c;
+  const dot = CAT_DOT_FALLBACK[h % CAT_DOT_FALLBACK.length];
+  const result = { bg: '#ebe8de', fg: '#4a4a5e', dot };
+  _catColorCache[name] = result;
+  return result;
 }
 
 function accountById(id) { return state.accounts.find(a => a.id === id); }
@@ -1489,6 +1528,9 @@ function renderDashboard() {
 
   // Prev-month deltas
   const prevMonthExp = lastMonth > 0 ? expenses[lastMonth - 1] : 0;
+  const prevMonthInc = lastMonth > 0 ? income[lastMonth - 1] : 0;
+  const prevSavingsRate = prevMonthInc > 0 ? ((prevMonthInc - prevMonthExp) / prevMonthInc * 100) : null;
+  const savingsDelta = prevSavingsRate != null ? (savingsRate - prevSavingsRate) : null;
   const expDelta = prevMonthExp ? ((thisMonthExp - prevMonthExp) / prevMonthExp * 100) : 0;
 
   // Time range pills — affect only the hero balance display label/sparkline window
@@ -1510,22 +1552,24 @@ function renderDashboard() {
     return ((inc - exp) / inc) * 100;
   });
 
-  // Category totals (YTD)
-  const cats = categoryTotals(year, null);
+  // Category totals — scoped to dashMonth if a bar was clicked, otherwise YTD
+  const dashMonth = state.dashMonth;
+  const cats = categoryTotals(year, dashMonth);
   const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
   const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : 'YTD';
 
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="dash-hero">
       <div class="dash-hero-top">
         <div>
-          <div class="dash-hero-label">Total balance</div>
+          <div class="dash-hero-label">Net worth · across ${state.accounts.length} accounts</div>
           <div class="dash-hero-value">${fmtEUR(totalBalance)}</div>
-          <div class="dash-hero-sub">
-            ${state.accounts.length} accounts · base EUR
-            ${balDelta !== 0 ? ` · <span style="color:${balDelta >= 0 ? '#7ad0a8' : '#e8a59b'}">${balDelta >= 0 ? '↑' : '↓'} ${fmtEUR(Math.abs(balDelta))} (${balDeltaPct.toFixed(1)}%)</span>` : ''}
-          </div>
+          ${balDelta !== 0
+            ? `<div class="dash-hero-delta">${balDelta >= 0 ? '+' : ''}${fmtEUR(balDelta)} this year · ${balDelta >= 0 ? '+' : ''}${balDeltaPct.toFixed(1)}%</div>`
+            : `<div class="dash-hero-sub">base EUR</div>`
+          }
         </div>
         <div class="seg-pills" id="dashRangePills">
           ${['1M','3M','YTD','All'].map(r => `<button data-range="${r}" class="${range === r ? 'active' : ''}">${r}</button>`).join('')}
@@ -1549,13 +1593,15 @@ function renderDashboard() {
       </div>
       <div class="metric-tile">
         <div class="metric-label">Savings rate</div>
-        <div class="metric-value" style="color:${savingsRate >= 20 ? 'var(--sage)' : savingsRate >= 0 ? 'var(--ink)' : 'var(--terracotta)'}">${savingsRate.toFixed(0)}%</div>
-        <div class="metric-sub">YTD · ${fmtEUR(ytdInc - ytdExp)} saved</div>
+        <div class="metric-value" style="color:${savingsRate >= 20 ? 'var(--success)' : savingsRate >= 0 ? 'var(--ink)' : 'var(--danger)'}">
+          ${savingsRate.toFixed(0)}%${savingsDelta != null ? `<span class="metric-chip ${savingsDelta >= 0 ? 'pos' : 'neg'}">${savingsDelta >= 0 ? '↑' : '↓'} ${Math.abs(savingsDelta).toFixed(0)}pt</span>` : ''}
+        </div>
+        <div class="metric-sub">of income saved</div>
       </div>
       <div class="metric-tile">
         <div class="metric-label">Projected EOY</div>
-        <div class="metric-value">${fmtEUR(projectedEOY)}</div>
-        <div class="metric-sub">${monthsRemaining > 0 ? `${monthsRemaining} mo to go · ${avgMonthlyNet >= 0 ? '+' : ''}${fmtEUR(avgMonthlyNet)}/mo` : 'year complete'}</div>
+        <div class="metric-value" style="color:var(--accent)">${fmtEUR(projectedEOY)}</div>
+        <div class="metric-sub">${monthsRemaining > 0 ? `at current pace · ${avgMonthlyNet >= 0 ? '+' : ''}${fmtEUR(avgMonthlyNet)}/mo` : 'year complete'}</div>
       </div>
     </div>
 
@@ -1563,7 +1609,11 @@ function renderDashboard() {
       <div class="card">
         <div class="card-title">
           Monthly flow
-          <span class="card-title-sub">${year} · projected in tan</span>
+          <span style="display:inline-flex;gap:10px;align-items:center;font-size:11px;font-weight:400;color:var(--ink-mute)">
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#1a7a4a;display:inline-block"></span>Income</span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#c44536;display:inline-block"></span>Spending</span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#dbd6c4;display:inline-block"></span>Projected</span>
+          </span>
         </div>
         <div class="chart-wrap"><canvas id="chartFlow"></canvas></div>
       </div>
@@ -1573,6 +1623,7 @@ function renderDashboard() {
           <span class="card-title-sub">YTD trend</span>
         </div>
         <div class="chart-wrap"><canvas id="chartSavings"></canvas></div>
+        <div id="savingsInsight" style="margin-top:10px;font-size:12px;color:var(--ink-mute);line-height:1.4;min-height:16px"></div>
       </div>
     </div>
 
@@ -1580,7 +1631,7 @@ function renderDashboard() {
       <div class="card">
         <div class="card-title">
           Spending by category
-          <span class="card-title-sub">YTD · ${fmtEUR(totalCat)}</span>
+          <span class="card-title-sub">${catPeriodLabel} · ${fmtEUR(totalCat)}${dashMonth != null ? ' <span style="cursor:pointer;color:var(--accent)" onclick="state.dashMonth=null;renderDashboard()">✕</span>' : ''}</span>
         </div>
         ${sortedCats.length === 0 ? '<p class="fine">No expenses yet.</p>' : `
           <div style="display:grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: center;">
@@ -1599,36 +1650,47 @@ function renderDashboard() {
     </div>
   `;
 
-  // ---- Sparkline (hero) ----
+  // ---- Sparkline (hero) — mint line, gradient fill, endpoint dot ----
   const sparkCtx = document.getElementById('chartSpark');
+  const sparkGrad = sparkCtx.getContext('2d').createLinearGradient(0, 0, 0, 50);
+  sparkGrad.addColorStop(0, 'rgba(125,227,177,0.28)');
+  sparkGrad.addColorStop(1, 'rgba(125,227,177,0.02)');
+  // Endpoint dot: show only on last point
+  const sparkRadii = sparkSlice.map((_, i) => i === sparkSlice.length - 1 ? 4 : 0);
   new Chart(sparkCtx, {
     type: 'line',
     data: {
       labels: sparkSlice.map((_, i) => i),
       datasets: [{
         data: sparkSlice,
-        borderColor: 'rgba(255,255,255,0.85)',
-        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderColor: '#7de3b1',
+        backgroundColor: sparkGrad,
         fill: true, tension: 0.35, borderWidth: 2,
-        pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fff'
+        pointRadius: sparkRadii,
+        pointHoverRadius: sparkRadii.map(r => r + 2),
+        pointBackgroundColor: '#7de3b1',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => fmtEUR(ctx.parsed.y) } }
+        tooltip: {
+          backgroundColor: 'rgba(26,26,46,0.9)', titleColor: '#fff', bodyColor: '#7de3b1',
+          padding: 8, cornerRadius: 6, displayColors: false,
+          callbacks: { label: (ctx) => fmtEUR(ctx.parsed.y) }
+        }
       },
       scales: { x: { display: false }, y: { display: false } }
     }
   });
 
-  // ---- Monthly flow (with projected future months in muted tan) ----
-  const projectedTan = '#d8c4a4';
-  const incomeColors = income.map((_, i) => i <= lastMonth ? '#1a7a4a' : projectedTan);
-  const expenseColors = expenses.map((_, i) => i <= lastMonth ? '#c44536' : projectedTan);
+  // ---- Monthly flow — two-tone projected, custom legend, click-to-filter ----
+  const incomeColors = income.map((_, i) => i <= lastMonth ? '#1a7a4a' : '#dbd6c4');
+  const expenseColors = expenses.map((_, i) => i <= lastMonth ? '#c44536' : '#e8dccd');
 
-  // Project future months using YTD averages
   const avgInc = monthsWithData > 0 ? ytdInc / monthsWithData : 0;
   const avgExp = monthsWithData > 0 ? ytdExp / monthsWithData : 0;
   const incomeFull = income.map((v, i) => i <= lastMonth ? v : avgInc);
@@ -1640,22 +1702,26 @@ function renderDashboard() {
     data: {
       labels: MONTHS_SHORT,
       datasets: [
-        { label: 'Income', data: incomeFull, backgroundColor: incomeColors, borderRadius: 6, borderSkipped: false },
-        { label: 'Expenses', data: expensesFull.map(e => -e), backgroundColor: expenseColors, borderRadius: 6, borderSkipped: false },
+        { label: 'Income',   data: incomeFull,             backgroundColor: incomeColors,  borderRadius: 6, borderSkipped: false },
+        { label: 'Spending', data: expensesFull.map(e => -e), backgroundColor: expenseColors, borderRadius: 6, borderSkipped: false },
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      onClick: (e, elements) => {
+        if (!elements.length) return;
+        const m = elements[0].index;
+        state.dashMonth = (state.dashMonth === m) ? null : m; // toggle
+        renderDashboard();
+      },
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, font: { family: 'Inter Tight', size: 11 }, color: '#4a4a5a' } },
+        legend: { display: false },
         tooltip: {
           backgroundColor: '#1a1a2e', titleColor: '#fff', bodyColor: '#fff',
           padding: 10, cornerRadius: 8, displayColors: false,
           callbacks: {
-            label: (ctx) => {
-              const isProj = ctx.dataIndex > lastMonth;
-              return ctx.dataset.label + ': ' + fmtEUR(Math.abs(ctx.parsed.y)) + (isProj ? ' (projected)' : '');
-            }
+            title: (items) => MONTHS[items[0].dataIndex] + (items[0].dataIndex > lastMonth ? ' (projected)' : ''),
+            label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(Math.abs(ctx.parsed.y)),
           }
         }
       },
@@ -1667,37 +1733,129 @@ function renderDashboard() {
   });
 
   // ---- Savings rate trend ----
-  const ctxSav = document.getElementById('chartSavings');
-  new Chart(ctxSav, {
-    type: 'line',
-    data: {
-      labels: MONTHS_SHORT,
-      datasets: [{
-        label: 'Savings rate',
-        data: savingsSeries,
-        borderColor: '#1a7a4a',
-        backgroundColor: 'rgba(26,122,74,0.10)',
-        fill: true, tension: 0.35, borderWidth: 2.5,
-        pointRadius: 3, pointBackgroundColor: '#1a7a4a',
-        spanGaps: true,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a1a2e', titleColor: '#fff', bodyColor: '#fff',
-          padding: 10, cornerRadius: 8, displayColors: false,
-          callbacks: { label: (ctx) => ctx.parsed.y == null ? '—' : ctx.parsed.y.toFixed(1) + '%' }
+  (() => {
+    const ctxSav = document.getElementById('chartSavings');
+    if (!ctxSav) return;
+
+    // YTD average reference value
+    const validRates = savingsSeries.filter(v => v != null);
+    const ytdAvgRate = validRates.length ? validRates.reduce((a, b) => a + b, 0) / validRates.length : null;
+
+    // Per-point style: current month = solid fill, past = hollow
+    const ptBg = savingsSeries.map((v, i) => {
+      if (v == null) return 'transparent';
+      return i === lastMonth ? '#1a7a4a' : '#fff';
+    });
+    const ptBorder = savingsSeries.map((v) => v == null ? 'transparent' : '#1a7a4a');
+    const ptRadius = savingsSeries.map((v, i) => v == null ? 0 : (i === lastMonth ? 5 : 4));
+
+    // Reference line dataset at YTD avg
+    const refLine = ytdAvgRate != null ? Array(12).fill(null).map((_, i) => i <= lastMonth ? ytdAvgRate : null) : Array(12).fill(null);
+
+    new Chart(ctxSav, {
+      type: 'line',
+      data: {
+        labels: MONTHS_SHORT,
+        datasets: [
+          {
+            label: 'Savings rate',
+            data: savingsSeries,
+            borderColor: '#1a7a4a',
+            backgroundColor: 'rgba(26,122,74,0.08)',
+            fill: true, tension: 0.35, borderWidth: 2.5,
+            pointRadius: ptRadius,
+            pointBackgroundColor: ptBg,
+            pointBorderColor: ptBorder,
+            pointBorderWidth: 2,
+            spanGaps: true,
+            order: 1,
+          },
+          {
+            label: 'YTD avg',
+            data: refLine,
+            borderColor: 'rgba(26,122,74,0.35)',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            spanGaps: true,
+            order: 2,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 350 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a2e', titleColor: '#fff', bodyColor: '#e0dff5',
+            padding: 10, cornerRadius: 8, displayColors: false,
+            filter: (item) => item.datasetIndex === 0,
+            callbacks: {
+              title: (items) => MONTHS[items[0].dataIndex],
+              label: (ctx) => ctx.parsed.y == null ? '—' : 'Rate: ' + ctx.parsed.y.toFixed(1) + '%'
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Inter Tight', size: 11 }, color: '#8a8a98' } },
+          y: {
+            grid: { color: '#f0ece4' },
+            ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#8a8a98', callback: (v) => v + '%' }
+          }
         }
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'Inter Tight', size: 11 }, color: '#8a8a98' } },
-        y: { grid: { color: '#f0ece4' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#8a8a98', callback: (v) => v + '%' } }
+      plugins: [{
+        id: 'savingsLabels',
+        afterDatasetsDraw(chart) {
+          const ds = chart.data.datasets[0];
+          const meta = chart.getDatasetMeta(0);
+          const ctx2 = chart.ctx;
+          ctx2.save();
+          ctx2.font = '500 10px "Inter Tight", sans-serif';
+          ctx2.textAlign = 'center';
+          meta.data.forEach((point, i) => {
+            const val = ds.data[i];
+            if (val == null) return;
+            ctx2.fillStyle = i === lastMonth ? '#1a7a4a' : '#8a8a98';
+            ctx2.fillText(val.toFixed(0) + '%', point.x, point.y - 9);
+          });
+          ctx2.restore();
+        }
+      }]
+    });
+
+    // Dynamic insight footer
+    const insightEl = document.getElementById('savingsInsight');
+    if (insightEl && validRates.length) {
+      const bestIdx = savingsSeries.reduce((best, v, i) => (v != null && (best === -1 || v > savingsSeries[best])) ? i : best, -1);
+      const bestRate = savingsSeries[bestIdx];
+      const isBestCurrent = bestIdx === lastMonth;
+      let streakCount = 0;
+      for (let i = lastMonth; i >= 0; i--) {
+        if (savingsSeries[i] != null && savingsSeries[i] > 0) streakCount++;
+        else break;
       }
+      let msg = '';
+      if (isBestCurrent && bestRate != null) {
+        msg = `Best month yet — ${MONTHS_SHORT[bestIdx]} at ${bestRate.toFixed(0)}%`;
+      } else if (streakCount >= 2) {
+        msg = `${streakCount} months positive in a row`;
+      } else if (ytdAvgRate != null) {
+        msg = `YTD avg: ${ytdAvgRate.toFixed(0)}%`;
+      }
+      if (ytdAvgRate != null && !isBestCurrent) {
+        const cur = savingsSeries[lastMonth];
+        if (cur != null && cur > ytdAvgRate) {
+          msg += (msg ? ' · ' : '') + `${MONTHS_SHORT[lastMonth]} above average`;
+        }
+      }
+      insightEl.textContent = msg;
     }
-  });
+  })();
 
   // ---- Category donut + list ----
   if (sortedCats.length > 0) {
@@ -1708,7 +1866,7 @@ function renderDashboard() {
         labels: sortedCats.map(([c]) => c),
         datasets: [{
           data: sortedCats.map(([, v]) => v),
-          backgroundColor: sortedCats.map(([c]) => categoryColor(c)),
+          backgroundColor: sortedCats.map(([c]) => categoryColor(c).dot),
           borderColor: '#fff', borderWidth: 2,
         }]
       },
@@ -1733,10 +1891,10 @@ function renderDashboard() {
 
     document.getElementById('catList').innerHTML = sortedCats.slice(0, 7).map(([cat, amt]) => {
       const pct = totalCat ? (amt / totalCat * 100) : 0;
-      const color = categoryColor(cat);
+      const col = categoryColor(cat);
       return `
         <div class="dash-cat-row" data-cat="${cat.replace(/"/g,'&quot;')}">
-          <span class="cat-dot" style="background:${color}"></span>
+          <span class="cat-dot" style="background:${col.dot}"></span>
           <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${cat}</div>
           <div class="amt">${fmtEUR(amt)}</div>
           <div class="pct">${pct.toFixed(1)}%</div>
@@ -1765,10 +1923,10 @@ function renderDashboard() {
       const sign = tx.type === 'expense' ? '−' : tx.type === 'income' ? '+' : (tx.amount >= 0 ? '+' : '−');
       const amtClass = tx.type === 'expense' ? 'amt-exp' : tx.type === 'income' ? 'amt-inc' : 'amt-adj';
       const amtEUR = toEUR(Math.abs(tx.amount), tx.currency);
-      const color = categoryColor(tx.category);
+      const col = categoryColor(tx.category);
       return `
         <div class="recent-row" onclick="openEditTx('${tx.id}')">
-          <span class="cat-dot" style="background:${color}"></span>
+          <span class="cat-dot" style="background:${col.dot}"></span>
           <div class="recent-meta">
             <span class="recent-cat">${tx.category}${tx.subcategory ? ' · ' + tx.subcategory : ''}</span>
             <span class="recent-sub">${dateDisplay(tx.date)}${acc ? ' · ' + acc.name : ''}${tx.comment ? ' · ' + tx.comment : ''}</span>
