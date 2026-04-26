@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.7 — category card polish',
+    BUILD_VERSION: 'v0.6.8 — dashboard bug fixes',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -217,7 +217,7 @@
   }
   .dash-hero-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
   .dash-hero-delta { font-size: 12px; color: #7de3b1; margin-top: 4px; font-weight: 500; }
-  .dash-hero-spark { height: 50px; margin-top: 16px; }
+  .dash-hero-spark { height: 90px; margin-top: 16px; }
 
   .seg-pills { display: inline-flex; gap: 4px; padding: 3px; background: rgba(255,255,255,0.08); border-radius: var(--radius-pill); }
   .seg-pills button {
@@ -229,7 +229,7 @@
   }
   /* Active range pill is gold with dark text — matches mockup */
   .seg-pills button.active { background: var(--accent); color: var(--ink); font-weight: 600; }
-  .seg-pills.light { background: var(--bg-2); }
+  .seg-pills.light { background: rgba(26,26,46,0.07); }
   .seg-pills.light button { color: var(--ink-mute); }
   .seg-pills.light button.active { background: var(--primary); color: #fff; }
 
@@ -1546,6 +1546,13 @@ function renderDashboard() {
   else if (range === '3M') sparkSlice = sparkSlice.slice(-3);
   // 'YTD' / 'All' = full slice for now (we only have one year of data)
 
+  // Labels for sparkline x-axis — month names matching the slice window
+  const fullSparkLabels = MONTHS_SHORT.slice(0, lastMonth + 1);
+  let sparkLabels;
+  if (range === '1M') sparkLabels = fullSparkLabels.slice(-2);
+  else if (range === '3M') sparkLabels = fullSparkLabels.slice(-3);
+  else sparkLabels = fullSparkLabels;
+
   const balDelta = sparkSlice.length >= 2 ? (totalBalance - sparkSlice[0]) : 0;
   const balDeltaPct = sparkSlice.length >= 2 && sparkSlice[0] ? (balDelta / Math.abs(sparkSlice[0]) * 100) : 0;
 
@@ -1637,12 +1644,12 @@ function renderDashboard() {
       <div class="card">
         <div class="card-title" style="align-items:flex-start;gap:8px;flex-wrap:wrap">
           <span>Spending by category</span>
-          <span style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
+          <span id="catCardTitleSub" style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
             ${dashMonth != null
-              ? `<span style="font-size:12px;color:var(--ink-mute);font-weight:400">${catPeriodLabel} · ${fmtEUR(totalCat)} <span style="cursor:pointer;color:var(--accent);margin-left:2px" onclick="state.dashMonth=null;renderDashboard()">✕</span></span>`
-              : `<span class="seg-pills" style="--pill-h:26px;font-size:11px">
-                  <button onclick="state.catPeriod='thismonth';renderDashboard()" class="${state.catPeriod==='thismonth'?'active':''}">This month</button>
-                  <button onclick="state.catPeriod='ytd';renderDashboard()" class="${state.catPeriod==='ytd'?'active':''}">YTD</button>
+              ? `<span style="font-size:12px;color:var(--ink-mute);font-weight:400">${catPeriodLabel} · ${fmtEUR(totalCat)} <span style="cursor:pointer;color:var(--accent);margin-left:2px" onclick="state.dashMonth=null;_updateCategoryCard()">✕</span></span>`
+              : `<span class="seg-pills light" style="--pill-h:26px;font-size:11px">
+                  <button onclick="state.catPeriod='thismonth';_updateCategoryCard()" class="${state.catPeriod==='thismonth'?'active':''}">This month</button>
+                  <button onclick="state.catPeriod='ytd';_updateCategoryCard()" class="${state.catPeriod==='ytd'?'active':''}">YTD</button>
                 </span>
                 <span style="font-size:12px;color:var(--ink-mute);font-weight:400">${fmtEUR(totalCat)}</span>`
             }
@@ -1666,17 +1673,16 @@ function renderDashboard() {
     </div>
   `;
 
-  // ---- Sparkline (hero) — mint line, gradient fill, endpoint dot ----
+  // ---- Sparkline (hero) — mint line, gradient fill, axes ----
   const sparkCtx = document.getElementById('chartSpark');
-  const sparkGrad = sparkCtx.getContext('2d').createLinearGradient(0, 0, 0, 50);
-  sparkGrad.addColorStop(0, 'rgba(125,227,177,0.28)');
-  sparkGrad.addColorStop(1, 'rgba(125,227,177,0.02)');
-  // Endpoint dot: show only on last point
-  const sparkRadii = sparkSlice.map((_, i) => i === sparkSlice.length - 1 ? 4 : 0);
+  const sparkGrad = sparkCtx.getContext('2d').createLinearGradient(0, 0, 0, 90);
+  sparkGrad.addColorStop(0, 'rgba(125,227,177,0.22)');
+  sparkGrad.addColorStop(1, 'rgba(125,227,177,0.01)');
+  const sparkRadii = sparkSlice.map((_, i) => i === sparkSlice.length - 1 ? 5 : 3);
   new Chart(sparkCtx, {
     type: 'line',
     data: {
-      labels: sparkSlice.map((_, i) => i),
+      labels: sparkLabels,
       datasets: [{
         data: sparkSlice,
         borderColor: '#7de3b1',
@@ -1685,21 +1691,41 @@ function renderDashboard() {
         pointRadius: sparkRadii,
         pointHoverRadius: sparkRadii.map(r => r + 2),
         pointBackgroundColor: '#7de3b1',
-        pointBorderColor: '#fff',
+        pointBorderColor: 'rgba(26,26,46,0.6)',
         pointBorderWidth: 1.5,
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 4 } },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: 'rgba(26,26,46,0.9)', titleColor: '#fff', bodyColor: '#7de3b1',
           padding: 8, cornerRadius: 6, displayColors: false,
-          callbacks: { label: (ctx) => fmtEUR(ctx.parsed.y) }
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (ctx) => fmtEUR(ctx.parsed.y)
+          }
         }
       },
-      scales: { x: { display: false }, y: { display: false } }
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { family: 'Inter Tight', size: 10 }, color: 'rgba(255,255,255,0.4)', maxRotation: 0 },
+          border: { display: false }
+        },
+        y: {
+          position: 'right',
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: {
+            font: { family: 'JetBrains Mono', size: 9 }, color: 'rgba(255,255,255,0.4)',
+            maxTicksLimit: 3,
+            callback: (v) => fmtEUR(v, { compact: true })
+          },
+          border: { display: false }
+        }
+      }
     }
   });
 
@@ -1718,8 +1744,8 @@ function renderDashboard() {
     data: {
       labels: MONTHS_SHORT,
       datasets: [
-        { label: 'Income',   data: incomeFull,             backgroundColor: incomeColors,  borderRadius: 6, borderSkipped: false },
-        { label: 'Spending', data: expensesFull.map(e => -e), backgroundColor: expenseColors, borderRadius: 6, borderSkipped: false },
+        { label: 'Income',   data: incomeFull,                backgroundColor: incomeColors,  borderRadius: 6, borderSkipped: false, stack: 'bar' },
+        { label: 'Spending', data: expensesFull.map(e => -e), backgroundColor: expenseColors, borderRadius: 6, borderSkipped: false, stack: 'bar' },
       ]
     },
     options: {
@@ -1727,8 +1753,8 @@ function renderDashboard() {
       onClick: (e, elements) => {
         if (!elements.length) return;
         const m = elements[0].index;
-        state.dashMonth = (state.dashMonth === m) ? null : m; // toggle
-        renderDashboard();
+        state.dashMonth = (state.dashMonth === m) ? null : m;
+        _updateCategoryCard();
       },
       plugins: {
         legend: { display: false },
@@ -1742,8 +1768,8 @@ function renderDashboard() {
         }
       },
       scales: {
-        x: { stacked: false, grid: { display: false }, ticks: { font: { family: 'Inter Tight', size: 11 }, color: '#8a8a98' } },
-        y: { grid: { color: '#f0ece4' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#8a8a98', callback: (v) => fmtEUR(v, {noSymbol: true}) } }
+        x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Inter Tight', size: 11 }, color: '#8a8a98' } },
+        y: { stacked: true, grid: { color: '#f0ece4' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#8a8a98', callback: (v) => fmtEUR(v, {noSymbol: true}) } }
       }
     }
   });
@@ -1757,12 +1783,13 @@ function renderDashboard() {
     const validRates = savingsSeries.filter(v => v != null);
     const ytdAvgRate = validRates.length ? validRates.reduce((a, b) => a + b, 0) / validRates.length : null;
 
-    // Per-point style: current month = solid fill, past = hollow
+    // Per-point style: current month = solid, past = hollow; red when ≤ 0
+    const savColor = (v) => (v != null && v <= 0) ? '#c44536' : '#1a7a4a';
     const ptBg = savingsSeries.map((v, i) => {
       if (v == null) return 'transparent';
-      return i === lastMonth ? '#1a7a4a' : '#fff';
+      return i === lastMonth ? savColor(v) : '#fff';
     });
-    const ptBorder = savingsSeries.map((v) => v == null ? 'transparent' : '#1a7a4a');
+    const ptBorder = savingsSeries.map((v) => v == null ? 'transparent' : savColor(v));
     const ptRadius = savingsSeries.map((v, i) => v == null ? 0 : (i === lastMonth ? 5 : 4));
 
     // Reference line dataset at YTD avg
@@ -1779,6 +1806,16 @@ function renderDashboard() {
             borderColor: '#1a7a4a',
             backgroundColor: 'rgba(26,122,74,0.08)',
             fill: true, tension: 0.35, borderWidth: 2.5,
+            segment: {
+              borderColor: (ctx) => {
+                const v = savingsSeries[ctx.p1DataIndex];
+                return (v != null && v <= 0) ? '#c44536' : '#1a7a4a';
+              },
+              backgroundColor: (ctx) => {
+                const v = savingsSeries[ctx.p1DataIndex];
+                return (v != null && v <= 0) ? 'rgba(196,69,54,0.08)' : 'rgba(26,122,74,0.08)';
+              },
+            },
             pointRadius: ptRadius,
             pointBackgroundColor: ptBg,
             pointBorderColor: ptBorder,
@@ -1913,10 +1950,10 @@ function renderDashboard() {
           ctx.textBaseline = 'middle';
           ctx.font = '600 15px "Inter Tight", sans-serif';
           ctx.fillStyle = '#1a1a2e';
-          ctx.fillText(fmtEUR(totalCat, { compact: true }), cx, cy - 8);
+          ctx.fillText(fmtEUR(chart.ledgerCatTotal ?? totalCat, { compact: true }), cx, cy - 8);
           ctx.font = '400 10px "Inter Tight", sans-serif';
           ctx.fillStyle = '#9d9a95';
-          ctx.fillText(catPeriodLabel, cx, cy + 9);
+          ctx.fillText(chart.ledgerCatLabel ?? catPeriodLabel, cx, cy + 9);
           ctx.restore();
         }
       }]
@@ -2012,6 +2049,84 @@ function txRow(tx, opts = {}) {
       <td style="text-align:right; color:var(--ink-mute); font-size:11px" class="mono">${fmtEUR(amtEUR)}</td>
     </tr>
   `;
+}
+
+// ------------- CATEGORY CARD PARTIAL UPDATE -------------
+function _updateCategoryCard() {
+  const year = currentYear();
+  const txsThisYear = (state.transactions || []).filter(t => yearOfDate(t.date) === year);
+  const lastMonth = txsThisYear.length
+    ? Math.max(...txsThisYear.map(t => monthOfDate(t.date) - 1).filter(m => m >= 0 && m < 12))
+    : new Date().getMonth();
+
+  const dashMonth = state.dashMonth;
+  const catMonthFilter = dashMonth != null ? dashMonth : (state.catPeriod === 'thismonth' ? lastMonth : null);
+  const cats = categoryTotals(year, catMonthFilter);
+  const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
+  const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : (state.catPeriod === 'thismonth' ? MONTHS[lastMonth] : 'YTD');
+
+  // Update title sub
+  const titleSub = document.getElementById('catCardTitleSub');
+  if (titleSub) {
+    if (dashMonth != null) {
+      titleSub.innerHTML = `<span style="font-size:12px;color:var(--ink-mute);font-weight:400">${catPeriodLabel} · ${fmtEUR(totalCat)} <span style="cursor:pointer;color:var(--accent);margin-left:2px" onclick="state.dashMonth=null;_updateCategoryCard()">✕</span></span>`;
+    } else {
+      titleSub.innerHTML = `
+        <span class="seg-pills light" style="--pill-h:26px;font-size:11px">
+          <button onclick="state.catPeriod='thismonth';_updateCategoryCard()" class="${state.catPeriod==='thismonth'?'active':''}">This month</button>
+          <button onclick="state.catPeriod='ytd';_updateCategoryCard()" class="${state.catPeriod==='ytd'?'active':''}">YTD</button>
+        </span>
+        <span style="font-size:12px;color:var(--ink-mute);font-weight:400">${fmtEUR(totalCat)}</span>`;
+    }
+  }
+
+  // Update donut in place
+  const donutCanvas = document.getElementById('chartDonut');
+  if (donutCanvas && sortedCats.length > 0) {
+    const chart = Chart.getChart(donutCanvas);
+    if (chart) {
+      chart.data.labels = sortedCats.map(([c]) => c);
+      chart.data.datasets[0].data = sortedCats.map(([, v]) => v);
+      chart.data.datasets[0].backgroundColor = sortedCats.map(([c]) => categoryColor(c).dot);
+      chart.ledgerCatTotal = totalCat;
+      chart.ledgerCatLabel = catPeriodLabel;
+      chart.update('none');
+    }
+  }
+
+  // Update list
+  const catListEl = document.getElementById('catList');
+  if (catListEl) {
+    const TOP_N = 5;
+    const topCats = sortedCats.slice(0, TOP_N);
+    const restCount = sortedCats.length - TOP_N;
+    const restAmt = sortedCats.slice(TOP_N).reduce((s, [, v]) => s + v, 0);
+    catListEl.innerHTML =
+      topCats.map(([cat, amt]) => {
+        const pct = totalCat ? (amt / totalCat * 100) : 0;
+        const col = categoryColor(cat);
+        return `<div class="dash-cat-row" data-cat="${cat.replace(/"/g,'&quot;')}">
+          <span class="cat-dot" style="background:${col.dot}"></span>
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cat}</div>
+          <div class="amt">${fmtEUR(amt)}</div>
+          <div class="pct">${pct.toFixed(0)}%</div>
+        </div>`;
+      }).join('') +
+      (restCount > 0 ? `<div class="dash-cat-row" style="color:var(--ink-mute);cursor:default" onclick="state.activeView='categories';render()">
+          <span class="cat-dot" style="background:var(--ink-faint)"></span>
+          <div>+${restCount} more</div>
+          <div class="amt" style="color:var(--ink-mute)">${fmtEUR(restAmt)}</div>
+          <div class="pct"></div>
+        </div>` : '');
+    catListEl.querySelectorAll('.dash-cat-row[data-cat]').forEach(row => {
+      row.onclick = () => {
+        state.txFilters = { month: 'all', category: row.dataset.cat, account: 'all', type: 'all', search: '' };
+        state.activeView = 'transactions';
+        render();
+      };
+    });
+  }
 }
 
 // ------------- TRANSACTIONS -------------
