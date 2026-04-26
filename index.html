@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.2 — Phase 5: members & sharing',
+    BUILD_VERSION: 'v0.9.3 — Sparkasse CSV importer',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -553,6 +553,38 @@
   }
   .drop-zone-icon { font-size: 40px; margin-bottom: 12px; }
 
+  /* Sparkasse CSV import */
+  .csv-modal { max-width: 960px; }
+  .csv-review-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .csv-review-table th { text-align: left; padding: 7px 10px; font-size: 11px; font-weight: 600; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #fff; z-index: 1; }
+  .csv-review-table td { padding: 5px 6px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  .csv-review-table tr.excluded td { opacity: .4; }
+  .csv-review-table tr:last-child td { border-bottom: none; }
+  .csv-cell-input { width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 4px 7px; font-family: inherit; font-size: 13px; background: transparent; color: var(--ink); }
+  .csv-cell-input:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .csv-cell-select { width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 4px 7px; font-family: inherit; font-size: 13px; background: transparent; color: var(--ink); cursor: pointer; }
+  .csv-cell-select:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .csv-amount-pos { color: var(--success); font-weight: 600; }
+  .csv-amount-neg { color: var(--danger); font-weight: 600; }
+  .csv-balance-bar { background: var(--bg-page); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
+  .csv-balance-item { display: flex; flex-direction: column; gap: 2px; }
+  .csv-balance-label { font-size: 11px; color: var(--ink-mute); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+  .csv-balance-val { font-size: 18px; font-weight: 600; color: var(--ink); }
+  .csv-balance-val.pos { color: var(--success); }
+  .csv-balance-val.neg { color: var(--danger); }
+  .csv-scroll { max-height: 52vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .csv-step1-form { display: flex; flex-direction: column; gap: 16px; padding: 4px 0; }
+  .csv-step1-row { display: flex; gap: 12px; align-items: flex-end; }
+  .csv-step1-field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+  .csv-step1-field label { font-size: 12px; font-weight: 500; color: var(--ink-mute); }
+  .csv-step1-field select, .csv-step1-field input { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; font-family: inherit; font-size: 14px; color: var(--ink); background: #fff; }
+  .csv-step1-field select:focus, .csv-step1-field input:focus { outline: none; border-color: var(--accent); }
+  .csv-drop { border: 2px dashed var(--line); border-radius: 12px; padding: 36px 24px; text-align: center; cursor: pointer; transition: all .15s; background: var(--bg-page); }
+  .csv-drop:hover, .csv-drop.dragover { border-color: var(--accent); background: #fdfbf7; }
+  .csv-drop-icon { font-size: 32px; margin-bottom: 8px; }
+  .csv-drop p { margin: 0; font-size: 13px; color: var(--ink-mute); }
+  .csv-pending-badge { display: inline-block; background: var(--accent); color: #fff; border-radius: 99px; font-size: 10px; font-weight: 600; padding: 1px 6px; margin-left: 4px; }
+
   /* FX rate display */
   .fx-rate {
     font-size: 11px;
@@ -783,6 +815,7 @@
       <button class="btn btn-sm btn-ghost" id="btnFetchFx" title="Fetch live USD→EUR rate" style="padding:3px 8px; font-size:11px">↻ live</button>
     </span>
     <button class="btn btn-sm" id="btnAddTx">+ Transaction</button>
+    <button class="btn btn-sm btn-ghost" id="btnImportCSV" onclick="openSparkasseImport()">↑ Import CSV</button>
     <button class="btn btn-sm btn-ghost" id="btnExport">Export</button>
     <button class="btn btn-sm btn-ghost" id="btnReset">Reset</button>
   </div>
@@ -4694,6 +4727,391 @@ async function cloudUpdateTx(id, tx) {
 async function cloudDeleteTx(id) {
   const { error } = await sb.from('transactions').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ---- Sparkasse CSV import ----
+
+let _csvParsed = []; // [{date,merchant,amount,include,category,subcategory,dateRaw}]
+
+function parseSemicolonLine(line) {
+  const fields = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"' && !inQ) { inQ = true; }
+    else if (c === '"' && inQ) {
+      if (line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = false;
+    } else if (c === ';' && !inQ) { fields.push(cur); cur = ''; }
+    else cur += c;
+  }
+  fields.push(cur);
+  return fields;
+}
+
+function parseDateFromVZ(vz) {
+  // look for ISO datetime like 2026-04-24T16:22
+  const m = vz.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+
+function parseGermanDate(s) {
+  // DD.MM.YY or DD.MM.YYYY
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{2,4})$/);
+  if (!m) return null;
+  let y = parseInt(m[3]);
+  if (y < 100) y += 2000;
+  const mo = m[2].padStart(2,'0');
+  const d = m[1].padStart(2,'0');
+  return `${y}-${mo}-${d}`;
+}
+
+function parseEuroAmount(s) {
+  // "−26,14" or "-26,14" or "1.234,56"
+  const clean = s.replace(/−/g,'-').replace(/\./g,'').replace(',','.');
+  return parseFloat(clean);
+}
+
+function cleanMerchant(s) {
+  // "Kaufland Bad Aibling//Bad Aibling/DE" → "Kaufland Bad Aibling"
+  return s.replace(/\/\/.*/,'').replace(/\s+/,' ').trim();
+}
+
+function parseSparkasseCSV(text, filterMonth, filterYear) {
+  // strip BOM
+  text = text.replace(/^﻿/, '');
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  // find header row (contains "Buchungstag")
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('Buchungstag')) { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) return [];
+
+  const headers = parseSemicolonLine(lines[headerIdx]).map(h => h.trim());
+  const col = name => headers.indexOf(name);
+  const iB = col('Buchungstag');
+  const iV = col('Valutadatum');
+  const iVZ = col('Verwendungszweck');
+  const iBeg = col('Beguenstigter/Zahlungspflichtiger');
+  const iBet = col('Betrag');
+  const iInfo = col('Info');
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const f = parseSemicolonLine(lines[i]);
+    if (f.length < 5) continue;
+
+    const betragStr = f[iBet] ? f[iBet].trim() : '';
+    if (!betragStr) continue;
+    const amount = parseEuroAmount(betragStr);
+    if (isNaN(amount)) continue;
+
+    const vz = iVZ >= 0 ? (f[iVZ] || '').trim() : '';
+    const buchTag = iB >= 0 ? (f[iB] || '').trim() : '';
+    const valuta = iV >= 0 ? (f[iV] || '').trim() : '';
+    const info = iInfo >= 0 ? (f[iInfo] || '').trim() : '';
+
+    // skip pending
+    if (info && info.toLowerCase().includes('vorgemerkt')) continue;
+
+    // resolve date
+    let dateISO = parseDateFromVZ(vz) || parseGermanDate(valuta) || parseGermanDate(buchTag) || null;
+
+    // filter by month if specified
+    if (filterMonth !== null && dateISO) {
+      const parts = dateISO.split('-');
+      const txYear = parseInt(parts[0]);
+      const txMonth = parseInt(parts[1]) - 1; // 0-based
+      if (txYear !== filterYear || txMonth !== filterMonth) continue;
+    }
+
+    const beg = iBeg >= 0 ? (f[iBeg] || '').trim() : '';
+    const merchant = cleanMerchant(beg) || vz.slice(0, 60) || 'Unknown';
+
+    rows.push({
+      date: dateISO || '',
+      dateRaw: buchTag,
+      merchant,
+      amount,
+      include: true,
+      category: '',
+      subcategory: '',
+    });
+  }
+  return rows;
+}
+
+function openSparkasseImport() {
+  if (!state.hasData) { toast('Load budget data first'); return; }
+  const now = new Date();
+  const curMonth = now.getMonth();
+  const curYear = now.getFullYear();
+
+  const monthOpts = Array.from({length: 12}, (_,i) => {
+    const name = new Date(2000, i, 1).toLocaleString('en', {month:'long'});
+    return `<option value="${i}" ${i === curMonth ? 'selected' : ''}>${name}</option>`;
+  }).join('');
+
+  const accOpts = state.accounts.map(a =>
+    `<option value="${a.id}">${escapeHtml(a.name)}</option>`
+  ).join('');
+
+  const html = `
+  <div class="modal-overlay" id="csvStep1Modal" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <span class="modal-title">Import Sparkasse CSV</span>
+        <button class="modal-close" onclick="document.getElementById('csvStep1Modal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="csv-step1-form">
+          <div class="csv-step1-row">
+            <div class="csv-step1-field">
+              <label>Month</label>
+              <select id="csvMonth">${monthOpts}</select>
+            </div>
+            <div class="csv-step1-field" style="max-width:110px">
+              <label>Year</label>
+              <input type="number" id="csvYear" value="${curYear}" min="2020" max="2030">
+            </div>
+          </div>
+          <div class="csv-step1-field">
+            <label>Import into account</label>
+            <select id="csvAccount">${accOpts}</select>
+          </div>
+          <div class="csv-drop" id="csvDrop" onclick="document.getElementById('csvFileInput').click()"
+            ondragover="event.preventDefault();this.classList.add('dragover')"
+            ondragleave="this.classList.remove('dragover')"
+            ondrop="event.preventDefault();this.classList.remove('dragover');handleCSVDrop(event)">
+            <div class="csv-drop-icon">📂</div>
+            <p>Drop your Sparkasse CSV here<br>or click to browse</p>
+            <p id="csvFileName" style="margin-top:8px;font-weight:600;color:var(--ink)"></p>
+          </div>
+          <input type="file" id="csvFileInput" accept=".csv,.CSV" style="display:none" onchange="handleCSVFile(this.files[0])">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="document.getElementById('csvStep1Modal').remove()">Cancel</button>
+        <button class="btn" id="csvStep1Next" onclick="csvStep1Next()" disabled>Review transactions →</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('modalRoot').insertAdjacentHTML('beforeend', html);
+}
+
+let _csvFileText = null;
+
+function handleCSVDrop(e) {
+  const f = e.dataTransfer.files[0];
+  if (f) handleCSVFile(f);
+}
+
+function handleCSVFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _csvFileText = e.target.result;
+    document.getElementById('csvFileName').textContent = file.name;
+    document.getElementById('csvStep1Next').disabled = false;
+  };
+  // try UTF-8 first; Sparkasse sometimes uses latin-1 but modern exports are UTF-8
+  reader.readAsText(file, 'UTF-8');
+}
+
+function csvStep1Next() {
+  if (!_csvFileText) return;
+  const month = parseInt(document.getElementById('csvMonth').value);
+  const year = parseInt(document.getElementById('csvYear').value);
+  const accountId = document.getElementById('csvAccount').value;
+  _csvParsed = parseSparkasseCSV(_csvFileText, month, year);
+  if (_csvParsed.length === 0) {
+    toast('No transactions found for that month — check file or try a different month');
+    return;
+  }
+  document.getElementById('csvStep1Modal').remove();
+  showCSVReview(_csvParsed, accountId, month, year);
+}
+
+function showCSVReview(rows, accountId, month, year) {
+  const acc = state.accounts.find(a => a.id === accountId);
+  const catOpts = Object.keys(state.categories).map(c =>
+    `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`
+  ).join('');
+
+  const buildRows = () => rows.map((r, i) => {
+    const subOpts = r.category && state.categories[r.category]
+      ? state.categories[r.category].map(s => `<option value="${escapeHtml(s)}" ${r.subcategory===s?'selected':''}>${escapeHtml(s)}</option>`).join('')
+      : '';
+    const amtClass = r.amount >= 0 ? 'csv-amount-pos' : 'csv-amount-neg';
+    const amtSign = r.amount >= 0 ? '+' : '';
+    return `<tr class="${r.include?'':'excluded'}" id="csvRow_${i}">
+      <td><input type="checkbox" ${r.include?'checked':''} onchange="_csvToggleRow(${i},this.checked)"></td>
+      <td><input class="csv-cell-input" style="width:105px" value="${r.date}" oninput="_csvDate(${i},this.value)"></td>
+      <td><input class="csv-cell-input" style="min-width:160px" value="${escapeHtml(r.merchant)}" oninput="_csvMerchant(${i},this.value)"></td>
+      <td class="${amtClass}" style="text-align:right;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px">${amtSign}${Math.abs(r.amount).toFixed(2)}</td>
+      <td>
+        <select class="csv-cell-select" style="min-width:130px" onchange="_csvCat(${i},this.value)">
+          <option value="">— category —</option>
+          ${catOpts.replace(`value="${escapeHtml(r.category)}"`,`value="${escapeHtml(r.category)}" selected`)}
+        </select>
+      </td>
+      <td>
+        <select class="csv-cell-select" style="min-width:130px" onchange="_csvSub(${i},this.value)" id="csvSub_${i}">
+          <option value="">— sub —</option>
+          ${subOpts}
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const buildBalance = () => {
+    const now = new Date();
+    const curM = now.getMonth(); const curY = now.getFullYear();
+    const currentBal = accountBalanceNative(accountId, curM, curY);
+    const included = rows.filter(r => r.include);
+    const delta = included.reduce((s, r) => s + r.amount, 0);
+    const afterBal = currentBal + delta;
+    const deltaClass = delta >= 0 ? 'pos' : 'neg';
+    const afterClass = afterBal >= 0 ? '' : 'neg';
+    return `
+      <div class="csv-balance-item">
+        <span class="csv-balance-label">Current balance</span>
+        <span class="csv-balance-val">${currentBal.toFixed(2)} ${acc ? acc.currency : 'EUR'}</span>
+      </div>
+      <div class="csv-balance-item">
+        <span class="csv-balance-label">Import total (${included.length} tx)</span>
+        <span class="csv-balance-val ${deltaClass}">${delta>=0?'+':''}${delta.toFixed(2)} ${acc ? acc.currency : 'EUR'}</span>
+      </div>
+      <div class="csv-balance-item">
+        <span class="csv-balance-label">Balance after import</span>
+        <span class="csv-balance-val ${afterClass}">${afterBal.toFixed(2)} ${acc ? acc.currency : 'EUR'}</span>
+      </div>`;
+  };
+
+  const monthName = new Date(year, month, 1).toLocaleString('en', {month:'long'});
+
+  const html = `
+  <div class="modal-overlay" id="csvReviewModal" onclick="if(event.target===this)this.remove()">
+    <div class="modal csv-modal">
+      <div class="modal-header">
+        <span class="modal-title">Review — ${monthName} ${year} <span style="font-weight:400;color:var(--ink-mute)">(${rows.length} transactions)</span></span>
+        <button class="modal-close" onclick="document.getElementById('csvReviewModal').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="padding-bottom:0">
+        <div class="csv-scroll">
+          <table class="csv-review-table">
+            <thead><tr>
+              <th style="width:28px"><input type="checkbox" checked onchange="_csvToggleAll(this.checked)" title="Toggle all"></th>
+              <th>Date</th><th>Merchant / note</th><th style="text-align:right">Amount</th>
+              <th>Category</th><th>Subcategory</th>
+            </tr></thead>
+            <tbody id="csvTbody">${buildRows()}</tbody>
+          </table>
+        </div>
+        <div class="csv-balance-bar" id="csvBalanceBar">${buildBalance()}</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="document.getElementById('csvReviewModal').remove()">Cancel</button>
+        <button class="btn" onclick="submitCSVImport('${accountId}')">Import transactions</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('modalRoot').insertAdjacentHTML('beforeend', html);
+}
+
+function _csvRefreshBalance(accountId) {
+  const el = document.getElementById('csvBalanceBar');
+  if (!el) return;
+  const acc = state.accounts.find(a => a.id === accountId);
+  const now = new Date();
+  const currentBal = accountBalanceNative(accountId, now.getMonth(), now.getFullYear());
+  const included = _csvParsed.filter(r => r.include);
+  const delta = included.reduce((s, r) => s + r.amount, 0);
+  const afterBal = currentBal + delta;
+  const deltaClass = delta >= 0 ? 'pos' : 'neg';
+  const afterClass = afterBal >= 0 ? '' : 'neg';
+  const cur = acc ? acc.currency : 'EUR';
+  el.innerHTML = `
+    <div class="csv-balance-item"><span class="csv-balance-label">Current balance</span><span class="csv-balance-val">${currentBal.toFixed(2)} ${cur}</span></div>
+    <div class="csv-balance-item"><span class="csv-balance-label">Import total (${included.length} tx)</span><span class="csv-balance-val ${deltaClass}">${delta>=0?'+':''}${delta.toFixed(2)} ${cur}</span></div>
+    <div class="csv-balance-item"><span class="csv-balance-label">Balance after import</span><span class="csv-balance-val ${afterClass}">${afterBal.toFixed(2)} ${cur}</span></div>`;
+}
+
+function _csvToggleRow(i, checked) {
+  _csvParsed[i].include = checked;
+  const row = document.getElementById(`csvRow_${i}`);
+  if (row) row.classList.toggle('excluded', !checked);
+  // re-read accountId from submit button
+  const submitBtn = document.querySelector('#csvReviewModal .btn:not(.btn-ghost)');
+  const accId = submitBtn ? submitBtn.getAttribute('onclick').match(/'([^']+)'/)?.[1] : null;
+  if (accId) _csvRefreshBalance(accId);
+}
+
+function _csvToggleAll(checked) {
+  _csvParsed.forEach((r, i) => {
+    r.include = checked;
+    const row = document.getElementById(`csvRow_${i}`);
+    if (row) row.classList.toggle('excluded', !checked);
+  });
+  const submitBtn = document.querySelector('#csvReviewModal .btn:not(.btn-ghost)');
+  const accId = submitBtn ? submitBtn.getAttribute('onclick').match(/'([^']+)'/)?.[1] : null;
+  if (accId) _csvRefreshBalance(accId);
+}
+
+function _csvDate(i, v) { _csvParsed[i].date = v.trim(); }
+function _csvMerchant(i, v) { _csvParsed[i].merchant = v; }
+
+function _csvCat(i, v) {
+  _csvParsed[i].category = v;
+  _csvParsed[i].subcategory = '';
+  const subSel = document.getElementById(`csvSub_${i}`);
+  if (!subSel) return;
+  const subs = (v && state.categories[v]) ? state.categories[v] : [];
+  subSel.innerHTML = '<option value="">— sub —</option>' +
+    subs.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+}
+
+function _csvSub(i, v) { _csvParsed[i].subcategory = v; }
+
+async function submitCSVImport(accountId) {
+  const toImport = _csvParsed.filter(r => r.include);
+  if (toImport.length === 0) { toast('Nothing selected to import'); return; }
+
+  const btn = document.querySelector('#csvReviewModal .btn:not(.btn-ghost)');
+  if (btn) { btn.disabled = true; btn.textContent = 'Importing…'; }
+
+  let ok = 0, fail = 0;
+  for (const r of toImport) {
+    const amt = Math.abs(r.amount);
+    const txType = r.amount < 0 ? 'expense' : 'income';
+    const tx = {
+      date: r.date || dateToLocalISO(new Date()),
+      type: txType,
+      amount: amt,
+      currency: 'EUR',
+      fx_rate: null,
+      category: r.category || 'Uncategorized',
+      subcategory: r.subcategory || '',
+      account: accountId,
+      comment: r.merchant,
+    };
+    try {
+      const created = await cloudCreateTx(tx);
+      state.transactions.push({ ...tx, id: created.id });
+      ok++;
+    } catch(e) {
+      console.error('CSV import row failed:', e, r);
+      fail++;
+    }
+  }
+
+  document.getElementById('csvReviewModal')?.remove();
+  _csvFileText = null;
+  _csvParsed = [];
+  render();
+  toast(`Imported ${ok} transaction${ok!==1?'s':''}${fail ? ` (${fail} failed)` : ''}`);
 }
 
 // ---- Bulk import from xlsx ----
