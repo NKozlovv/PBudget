@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.3 — hero refinement',
+    BUILD_VERSION: 'v0.6.4 — metric tile polish',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -254,8 +254,15 @@
     color: var(--ink);
   }
   .metric-sub { font-size: 11px; color: var(--ink-mute); margin-top: 4px; font-weight: 500; }
-  .metric-sub.pos { color: var(--sage); }
-  .metric-sub.neg { color: var(--terracotta); }
+  .metric-sub.pos { color: var(--success); }
+  .metric-sub.neg { color: var(--danger); }
+  .metric-chip {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 1px 6px; border-radius: var(--radius-pill);
+    margin-left: 6px; vertical-align: middle;
+  }
+  .metric-chip.pos { background: var(--success-soft); color: var(--success); }
+  .metric-chip.neg { background: var(--danger-soft); color: var(--danger); }
 
   .cat-dot {
     display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -1520,6 +1527,9 @@ function renderDashboard() {
 
   // Prev-month deltas
   const prevMonthExp = lastMonth > 0 ? expenses[lastMonth - 1] : 0;
+  const prevMonthInc = lastMonth > 0 ? income[lastMonth - 1] : 0;
+  const prevSavingsRate = prevMonthInc > 0 ? ((prevMonthInc - prevMonthExp) / prevMonthInc * 100) : null;
+  const savingsDelta = prevSavingsRate != null ? (savingsRate - prevSavingsRate) : null;
   const expDelta = prevMonthExp ? ((thisMonthExp - prevMonthExp) / prevMonthExp * 100) : 0;
 
   // Time range pills — affect only the hero balance display label/sparkline window
@@ -1580,13 +1590,15 @@ function renderDashboard() {
       </div>
       <div class="metric-tile">
         <div class="metric-label">Savings rate</div>
-        <div class="metric-value" style="color:${savingsRate >= 20 ? 'var(--sage)' : savingsRate >= 0 ? 'var(--ink)' : 'var(--terracotta)'}">${savingsRate.toFixed(0)}%</div>
-        <div class="metric-sub">YTD · ${fmtEUR(ytdInc - ytdExp)} saved</div>
+        <div class="metric-value" style="color:${savingsRate >= 20 ? 'var(--success)' : savingsRate >= 0 ? 'var(--ink)' : 'var(--danger)'}">
+          ${savingsRate.toFixed(0)}%${savingsDelta != null ? `<span class="metric-chip ${savingsDelta >= 0 ? 'pos' : 'neg'}">${savingsDelta >= 0 ? '↑' : '↓'} ${Math.abs(savingsDelta).toFixed(0)}pt</span>` : ''}
+        </div>
+        <div class="metric-sub">of income saved</div>
       </div>
       <div class="metric-tile">
         <div class="metric-label">Projected EOY</div>
-        <div class="metric-value">${fmtEUR(projectedEOY)}</div>
-        <div class="metric-sub">${monthsRemaining > 0 ? `${monthsRemaining} mo to go · ${avgMonthlyNet >= 0 ? '+' : ''}${fmtEUR(avgMonthlyNet)}/mo` : 'year complete'}</div>
+        <div class="metric-value" style="color:var(--accent)">${fmtEUR(projectedEOY)}</div>
+        <div class="metric-sub">${monthsRemaining > 0 ? `at current pace · ${avgMonthlyNet >= 0 ? '+' : ''}${fmtEUR(avgMonthlyNet)}/mo` : 'year complete'}</div>
       </div>
     </div>
 
