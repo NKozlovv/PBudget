@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.8 — dashboard bug fixes',
+    BUILD_VERSION: 'v0.6.9 — category avg toggle',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -1566,11 +1566,18 @@ function renderDashboard() {
 
   // Category totals — dashMonth (bar click) takes priority, then card toggle
   const dashMonth = state.dashMonth;
-  const catMonthFilter = dashMonth != null ? dashMonth : (state.catPeriod === 'thismonth' ? lastMonth : null);
-  const cats = categoryTotals(year, catMonthFilter);
+  const catPeriod = state.catPeriod || 'ytd';
+  const catMonthFilter = dashMonth != null ? dashMonth : (catPeriod === 'thismonth' ? lastMonth : null);
+  const catsRaw = categoryTotals(year, catMonthFilter);
+  const cats = catPeriod === 'avg' && dashMonth == null
+    ? Object.fromEntries(Object.entries(catsRaw).map(([k, v]) => [k, v / monthsWithData]))
+    : catsRaw;
   const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
   const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
-  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : (state.catPeriod === 'thismonth' ? MONTHS[lastMonth] : 'YTD');
+  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth]
+    : catPeriod === 'thismonth' ? MONTHS[lastMonth]
+    : catPeriod === 'avg' ? 'Monthly avg'
+    : 'YTD';
 
   const main = document.getElementById('main');
   main.innerHTML = `
@@ -1648,8 +1655,9 @@ function renderDashboard() {
             ${dashMonth != null
               ? `<span style="font-size:12px;color:var(--ink-mute);font-weight:400">${catPeriodLabel} · ${fmtEUR(totalCat)} <span style="cursor:pointer;color:var(--accent);margin-left:2px" onclick="state.dashMonth=null;_updateCategoryCard()">✕</span></span>`
               : `<span class="seg-pills light" style="--pill-h:26px;font-size:11px">
-                  <button onclick="state.catPeriod='thismonth';_updateCategoryCard()" class="${state.catPeriod==='thismonth'?'active':''}">This month</button>
-                  <button onclick="state.catPeriod='ytd';_updateCategoryCard()" class="${state.catPeriod==='ytd'?'active':''}">YTD</button>
+                  <button onclick="state.catPeriod='thismonth';_updateCategoryCard()" class="${catPeriod==='thismonth'?'active':''}">This month</button>
+                  <button onclick="state.catPeriod='ytd';_updateCategoryCard()" class="${catPeriod==='ytd'?'active':''}">YTD</button>
+                  <button onclick="state.catPeriod='avg';_updateCategoryCard()" class="${catPeriod==='avg'?'active':''}">Avg</button>
                 </span>
                 <span style="font-size:12px;color:var(--ink-mute);font-weight:400">${fmtEUR(totalCat)}</span>`
             }
@@ -2060,11 +2068,23 @@ function _updateCategoryCard() {
     : new Date().getMonth();
 
   const dashMonth = state.dashMonth;
-  const catMonthFilter = dashMonth != null ? dashMonth : (state.catPeriod === 'thismonth' ? lastMonth : null);
-  const cats = categoryTotals(year, catMonthFilter);
+  const period = state.catPeriod || 'ytd';
+
+  // Compute months with data for AVG
+  const { expenses: expArr, income: incArr } = monthlyTotals(year);
+  const monthsWithData = expArr.slice(0, lastMonth + 1).filter((e, i) => e > 0 || incArr[i] > 0).length || 1;
+
+  const catMonthFilter = dashMonth != null ? dashMonth : (period === 'thismonth' ? lastMonth : null);
+  const catsRaw = categoryTotals(year, catMonthFilter);
+  const cats = period === 'avg' && dashMonth == null
+    ? Object.fromEntries(Object.entries(catsRaw).map(([k, v]) => [k, v / monthsWithData]))
+    : catsRaw;
   const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
   const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
-  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : (state.catPeriod === 'thismonth' ? MONTHS[lastMonth] : 'YTD');
+  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth]
+    : period === 'thismonth' ? MONTHS[lastMonth]
+    : period === 'avg' ? 'Monthly avg'
+    : 'YTD';
 
   // Update title sub
   const titleSub = document.getElementById('catCardTitleSub');
@@ -2074,8 +2094,9 @@ function _updateCategoryCard() {
     } else {
       titleSub.innerHTML = `
         <span class="seg-pills light" style="--pill-h:26px;font-size:11px">
-          <button onclick="state.catPeriod='thismonth';_updateCategoryCard()" class="${state.catPeriod==='thismonth'?'active':''}">This month</button>
-          <button onclick="state.catPeriod='ytd';_updateCategoryCard()" class="${state.catPeriod==='ytd'?'active':''}">YTD</button>
+          <button onclick="state.catPeriod='thismonth';_updateCategoryCard()" class="${period==='thismonth'?'active':''}">This month</button>
+          <button onclick="state.catPeriod='ytd';_updateCategoryCard()" class="${period==='ytd'?'active':''}">YTD</button>
+          <button onclick="state.catPeriod='avg';_updateCategoryCard()" class="${period==='avg'?'active':''}">Avg</button>
         </span>
         <span style="font-size:12px;color:var(--ink-mute);font-weight:400">${fmtEUR(totalCat)}</span>`;
     }
