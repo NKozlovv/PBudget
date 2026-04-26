@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.9 — category avg toggle',
+    BUILD_VERSION: 'v0.7.0 — recent activity + avg fix',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -306,7 +306,7 @@
     border-radius: 8px;
     transition: background 0.15s;
   }
-  .recent-row:hover { background: var(--bg-2); padding-left: 8px; padding-right: 8px; }
+  .recent-row:hover { background: var(--bg-page); padding-left: 8px; padding-right: 8px; }
   .recent-row:last-child { border-bottom: none; }
   .recent-meta { display: flex; flex-direction: column; min-width: 0; }
   .recent-cat { font-weight: 500; color: var(--ink); }
@@ -1674,7 +1674,9 @@ function renderDashboard() {
       <div class="card">
         <div class="card-title">
           Recent activity
-          <span class="card-title-sub">last 8</span>
+          <span class="card-title-sub" style="margin-left:auto">
+            <span style="cursor:pointer;color:var(--accent);font-weight:500" onclick="state.activeView='transactions';state.txFilters={month:'all',category:'all',account:'all',type:'all',search:''};render()">View all →</span>
+          </span>
         </div>
         <div id="recentTx"></div>
       </div>
@@ -2005,7 +2007,7 @@ function renderDashboard() {
   // ---- Recent activity ----
   const recent = [...state.transactions]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 8);
+    .slice(0, 5);
   document.getElementById('recentTx').innerHTML = recent.length === 0
     ? '<p class="fine">No transactions.</p>'
     : recent.map(tx => {
@@ -2014,12 +2016,14 @@ function renderDashboard() {
       const amtClass = tx.type === 'expense' ? 'amt-exp' : tx.type === 'income' ? 'amt-inc' : 'amt-adj';
       const amtEUR = toEUR(Math.abs(tx.amount), tx.currency);
       const col = categoryColor(tx.category);
+      const primary = tx.comment || tx.category;
+      const subParts = [tx.category, tx.subcategory, acc ? acc.name : null, dateDisplay(tx.date)].filter(Boolean);
       return `
         <div class="recent-row" onclick="openEditTx('${tx.id}')">
           <span class="cat-dot" style="background:${col.dot}"></span>
           <div class="recent-meta">
-            <span class="recent-cat">${tx.category}${tx.subcategory ? ' · ' + tx.subcategory : ''}</span>
-            <span class="recent-sub">${dateDisplay(tx.date)}${acc ? ' · ' + acc.name : ''}${tx.comment ? ' · ' + tx.comment : ''}</span>
+            <span class="recent-cat">${primary}</span>
+            <span class="recent-sub">${subParts.join(' · ')}</span>
           </div>
           <span class="amt ${amtClass}">${sign}${fmtEUR(amtEUR)}</span>
         </div>
@@ -2064,7 +2068,7 @@ function _updateCategoryCard() {
   const year = currentYear();
   const txsThisYear = (state.transactions || []).filter(t => yearOfDate(t.date) === year);
   const lastMonth = txsThisYear.length
-    ? Math.max(...txsThisYear.map(t => monthOfDate(t.date) - 1).filter(m => m >= 0 && m < 12))
+    ? Math.max(...txsThisYear.map(t => monthOfDate(t.date)).filter(m => m >= 0 && m < 12))
     : new Date().getMonth();
 
   const dashMonth = state.dashMonth;
