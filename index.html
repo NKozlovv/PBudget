@@ -4796,7 +4796,6 @@ function parseSparkasseCSV(text, filterMonth, filterYear) {
   const iVZ = col('Verwendungszweck');
   const iBeg = col('Beguenstigter/Zahlungspflichtiger');
   const iBet = col('Betrag');
-  const iInfo = col('Info');
 
   const rows = [];
   for (let i = headerIdx + 1; i < lines.length; i++) {
@@ -4811,11 +4810,6 @@ function parseSparkasseCSV(text, filterMonth, filterYear) {
     const vz = iVZ >= 0 ? (f[iVZ] || '').trim() : '';
     const buchTag = iB >= 0 ? (f[iB] || '').trim() : '';
     const valuta = iV >= 0 ? (f[iV] || '').trim() : '';
-    const info = iInfo >= 0 ? (f[iInfo] || '').trim() : '';
-
-    // skip pending
-    if (info && info.toLowerCase().includes('vorgemerkt')) continue;
-
     // resolve date
     let dateISO = parseDateFromVZ(vz) || parseGermanDate(valuta) || parseGermanDate(buchTag) || null;
 
