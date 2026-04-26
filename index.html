@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.1 — category color system',
+    BUILD_VERSION: 'v0.6.2 — topbar & nav pills',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -93,40 +93,39 @@
   }
   .brand {
     font-family: 'Inter Tight', sans-serif;
-    font-weight: 600;
-    font-size: 19px;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    font-size: 17px;
+    letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 10px;
   }
   .brand-mark {
     width: 28px; height: 28px;
-    background: var(--primary); color: #fff;
+    background: var(--ink); color: #fff;
     border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 600; font-family: 'Inter Tight', sans-serif;
+    font-size: 13px; font-weight: 500; font-family: 'Inter Tight', sans-serif;
   }
-  .brand em { font-style: normal; font-weight: 400; color: var(--ink-mute); font-size: 13px; margin-left: 4px; }
+  .brand em { font-style: normal; font-weight: 400; color: var(--ink-faint); font-size: 12px; margin-left: 2px; }
   .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
-  /* Nav tabs */
+  /* Nav — pill-shaped tabs per roadmap §2.3 */
   .nav {
+    background: var(--bg-page);
     border-bottom: 1px solid var(--line);
-    background: var(--paper);
-    padding: 0 32px;
-    display: flex; gap: 2px;
+    padding: 8px 32px;
+    display: flex; gap: 4px;
     position: sticky; top: 57px; z-index: 99;
   }
   .nav-tab {
-    padding: 14px 18px;
-    border: none; background: none; cursor: pointer;
+    padding: 7px 16px;
+    border: none; background: transparent; cursor: pointer;
     font-family: inherit; font-size: 13px; font-weight: 500;
     color: var(--ink-mute);
-    border-bottom: 2px solid transparent;
+    border-radius: var(--radius-pill);
     transition: all 0.15s;
-    letter-spacing: 0.02em;
   }
-  .nav-tab:hover { color: var(--ink); }
-  .nav-tab.active { color: var(--ink); border-bottom-color: var(--primary); }
+  .nav-tab:hover { background: var(--bg-card); color: var(--ink); }
+  .nav-tab.active { background: var(--ink); color: #fff; }
 
   /* Main */
   .main { padding: 32px; max-width: 1400px; margin: 0 auto; }
@@ -475,12 +474,15 @@
   .fx-rate {
     font-size: 11px;
     color: var(--ink-mute);
-    padding: 6px 10px;
-    background: var(--bg-2);
-    border-radius: var(--radius);
+    padding: 5px 12px;
+    background: var(--bg-page);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
     display: inline-flex; align-items: center; gap: 6px;
   }
-  .fx-rate input { width: 70px; padding: 3px 6px; font-size: 12px; }
+  .fx-rate input { width: 62px; padding: 2px 4px; font-size: 11px; border-radius: 4px; }
+  #btnFetchFx { color: var(--ink-faint); font-size: 11px; border: none; background: none; cursor: pointer; padding: 0; }
+  #btnFetchFx:hover { color: var(--ink-mute); }
 
   /* Category rows */
   .cat-row {
@@ -612,12 +614,15 @@
   .user-pill {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 5px 12px;
-    background: var(--bg-2);
-    border-radius: 20px;
-    font-size: 12px;
-    color: var(--ink-soft);
+    background: var(--bg-page);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    color: var(--ink-mute);
   }
-  .user-pill strong { color: var(--ink); font-weight: 600; }
+  .user-pill strong { color: var(--ink); font-weight: 500; }
+  .user-pill a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .user-pill a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
