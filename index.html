@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.4 — metric tile polish',
+    BUILD_VERSION: 'v0.6.5 — monthly flow chart',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -690,6 +690,7 @@ let state = {
   activeView: 'dashboard',
   txFilters: { month: 'all', category: 'all', account: 'all', type: 'all', search: '' },
   dashRange: 'YTD', // '1M' | '3M' | 'YTD' | 'All'
+  dashMonth: null,  // null = all months; 0–11 = filtered to that month
   hasData: false,
 };
 
@@ -1551,10 +1552,12 @@ function renderDashboard() {
     return ((inc - exp) / inc) * 100;
   });
 
-  // Category totals (YTD)
-  const cats = categoryTotals(year, null);
+  // Category totals — scoped to dashMonth if a bar was clicked, otherwise YTD
+  const dashMonth = state.dashMonth;
+  const cats = categoryTotals(year, dashMonth);
   const totalCat = Object.values(cats).reduce((s, v) => s + v, 0);
   const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  const catPeriodLabel = dashMonth != null ? MONTHS[dashMonth] : 'YTD';
 
   const main = document.getElementById('main');
   main.innerHTML = `
@@ -1606,7 +1609,11 @@ function renderDashboard() {
       <div class="card">
         <div class="card-title">
           Monthly flow
-          <span class="card-title-sub">${year} · projected in tan</span>
+          <span style="display:inline-flex;gap:10px;align-items:center;font-size:11px;font-weight:400;color:var(--ink-mute)">
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#1a7a4a;display:inline-block"></span>Income</span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#c44536;display:inline-block"></span>Spending</span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#dbd6c4;display:inline-block"></span>Projected</span>
+          </span>
         </div>
         <div class="chart-wrap"><canvas id="chartFlow"></canvas></div>
       </div>
@@ -1623,7 +1630,7 @@ function renderDashboard() {
       <div class="card">
         <div class="card-title">
           Spending by category
-          <span class="card-title-sub">YTD · ${fmtEUR(totalCat)}</span>
+          <span class="card-title-sub">${catPeriodLabel} · ${fmtEUR(totalCat)}${dashMonth != null ? ' <span style="cursor:pointer;color:var(--accent)" onclick="state.dashMonth=null;renderDashboard()">✕</span>' : ''}</span>
         </div>
         ${sortedCats.length === 0 ? '<p class="fine">No expenses yet.</p>' : `
           <div style="display:grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: center;">
@@ -1679,12 +1686,10 @@ function renderDashboard() {
     }
   });
 
-  // ---- Monthly flow (with projected future months in muted tan) ----
-  const projectedTan = '#d8c4a4';
-  const incomeColors = income.map((_, i) => i <= lastMonth ? '#1a7a4a' : projectedTan);
-  const expenseColors = expenses.map((_, i) => i <= lastMonth ? '#c44536' : projectedTan);
+  // ---- Monthly flow — two-tone projected, custom legend, click-to-filter ----
+  const incomeColors = income.map((_, i) => i <= lastMonth ? '#1a7a4a' : '#dbd6c4');
+  const expenseColors = expenses.map((_, i) => i <= lastMonth ? '#c44536' : '#e8dccd');
 
-  // Project future months using YTD averages
   const avgInc = monthsWithData > 0 ? ytdInc / monthsWithData : 0;
   const avgExp = monthsWithData > 0 ? ytdExp / monthsWithData : 0;
   const incomeFull = income.map((v, i) => i <= lastMonth ? v : avgInc);
@@ -1696,22 +1701,26 @@ function renderDashboard() {
     data: {
       labels: MONTHS_SHORT,
       datasets: [
-        { label: 'Income', data: incomeFull, backgroundColor: incomeColors, borderRadius: 6, borderSkipped: false },
-        { label: 'Expenses', data: expensesFull.map(e => -e), backgroundColor: expenseColors, borderRadius: 6, borderSkipped: false },
+        { label: 'Income',   data: incomeFull,             backgroundColor: incomeColors,  borderRadius: 6, borderSkipped: false },
+        { label: 'Spending', data: expensesFull.map(e => -e), backgroundColor: expenseColors, borderRadius: 6, borderSkipped: false },
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      onClick: (e, elements) => {
+        if (!elements.length) return;
+        const m = elements[0].index;
+        state.dashMonth = (state.dashMonth === m) ? null : m; // toggle
+        renderDashboard();
+      },
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, font: { family: 'Inter Tight', size: 11 }, color: '#4a4a5a' } },
+        legend: { display: false },
         tooltip: {
           backgroundColor: '#1a1a2e', titleColor: '#fff', bodyColor: '#fff',
           padding: 10, cornerRadius: 8, displayColors: false,
           callbacks: {
-            label: (ctx) => {
-              const isProj = ctx.dataIndex > lastMonth;
-              return ctx.dataset.label + ': ' + fmtEUR(Math.abs(ctx.parsed.y)) + (isProj ? ' (projected)' : '');
-            }
+            title: (items) => MONTHS[items[0].dataIndex] + (items[0].dataIndex > lastMonth ? ' (projected)' : ''),
+            label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(Math.abs(ctx.parsed.y)),
           }
         }
       },
