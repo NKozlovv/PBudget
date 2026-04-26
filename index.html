@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.2 — topbar & nav pills',
+    BUILD_VERSION: 'v0.6.3 — hero refinement',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -201,32 +201,34 @@
   .dash-hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 8px; }
   .dash-hero-label {
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 10px;
-    color: rgba(255,255,255,0.55);
-    font-weight: 600;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: #9c99c6;
+    font-weight: 500;
     margin-bottom: 6px;
   }
   .dash-hero-value {
     font-family: 'Inter Tight', sans-serif;
-    font-size: 44px;
-    font-weight: 600;
-    letter-spacing: -0.025em;
+    font-size: 36px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     line-height: 1.05;
   }
-  .dash-hero-sub { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
-  .dash-hero-spark { height: 56px; margin-top: 14px; }
+  .dash-hero-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+  .dash-hero-delta { font-size: 12px; color: #7de3b1; margin-top: 4px; font-weight: 500; }
+  .dash-hero-spark { height: 50px; margin-top: 16px; }
 
   .seg-pills { display: inline-flex; gap: 4px; padding: 3px; background: rgba(255,255,255,0.08); border-radius: var(--radius-pill); }
   .seg-pills button {
     border: none; background: transparent;
     padding: 5px 12px; font-family: inherit; font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.55);
     border-radius: var(--radius-pill); cursor: pointer;
     transition: all 0.15s;
   }
-  .seg-pills button.active { background: rgba(255,255,255,0.95); color: var(--primary); }
+  /* Active range pill is gold with dark text — matches mockup */
+  .seg-pills button.active { background: var(--accent); color: var(--ink); font-weight: 600; }
   .seg-pills.light { background: var(--bg-2); }
   .seg-pills.light button { color: var(--ink-mute); }
   .seg-pills.light button.active { background: var(--primary); color: #fff; }
@@ -1549,12 +1551,12 @@ function renderDashboard() {
     <div class="dash-hero">
       <div class="dash-hero-top">
         <div>
-          <div class="dash-hero-label">Total balance</div>
+          <div class="dash-hero-label">Net worth · across ${state.accounts.length} accounts</div>
           <div class="dash-hero-value">${fmtEUR(totalBalance)}</div>
-          <div class="dash-hero-sub">
-            ${state.accounts.length} accounts · base EUR
-            ${balDelta !== 0 ? ` · <span style="color:${balDelta >= 0 ? '#7ad0a8' : '#e8a59b'}">${balDelta >= 0 ? '↑' : '↓'} ${fmtEUR(Math.abs(balDelta))} (${balDeltaPct.toFixed(1)}%)</span>` : ''}
-          </div>
+          ${balDelta !== 0
+            ? `<div class="dash-hero-delta">${balDelta >= 0 ? '+' : ''}${fmtEUR(balDelta)} this year · ${balDelta >= 0 ? '+' : ''}${balDeltaPct.toFixed(1)}%</div>`
+            : `<div class="dash-hero-sub">base EUR</div>`
+          }
         </div>
         <div class="seg-pills" id="dashRangePills">
           ${['1M','3M','YTD','All'].map(r => `<button data-range="${r}" class="${range === r ? 'active' : ''}">${r}</button>`).join('')}
@@ -1628,25 +1630,38 @@ function renderDashboard() {
     </div>
   `;
 
-  // ---- Sparkline (hero) ----
+  // ---- Sparkline (hero) — mint line, gradient fill, endpoint dot ----
   const sparkCtx = document.getElementById('chartSpark');
+  const sparkGrad = sparkCtx.getContext('2d').createLinearGradient(0, 0, 0, 50);
+  sparkGrad.addColorStop(0, 'rgba(125,227,177,0.28)');
+  sparkGrad.addColorStop(1, 'rgba(125,227,177,0.02)');
+  // Endpoint dot: show only on last point
+  const sparkRadii = sparkSlice.map((_, i) => i === sparkSlice.length - 1 ? 4 : 0);
   new Chart(sparkCtx, {
     type: 'line',
     data: {
       labels: sparkSlice.map((_, i) => i),
       datasets: [{
         data: sparkSlice,
-        borderColor: 'rgba(255,255,255,0.85)',
-        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderColor: '#7de3b1',
+        backgroundColor: sparkGrad,
         fill: true, tension: 0.35, borderWidth: 2,
-        pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fff'
+        pointRadius: sparkRadii,
+        pointHoverRadius: sparkRadii.map(r => r + 2),
+        pointBackgroundColor: '#7de3b1',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => fmtEUR(ctx.parsed.y) } }
+        tooltip: {
+          backgroundColor: 'rgba(26,26,46,0.9)', titleColor: '#fff', bodyColor: '#7de3b1',
+          padding: 8, cornerRadius: 6, displayColors: false,
+          callbacks: { label: (ctx) => fmtEUR(ctx.parsed.y) }
+        }
       },
       scales: { x: { display: false }, y: { display: false } }
     }
