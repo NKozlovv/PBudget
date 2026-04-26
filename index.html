@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.8.1 — categories page: rich cards + edit modal + %',
+    BUILD_VERSION: 'v0.8.2 — category cards: tx count + sort by amount/name/count',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -2414,6 +2414,7 @@ async function bulkChangeAccountSave() {
 // CATEGORY DRILL-DOWN MODAL
 // ============================================================
 let _drillSort = 'amount'; // 'amount' | 'name' | 'count'
+const _catSort = {}; // catName → 'amount' | 'name' | 'count'
 
 function openCategoryDrill(catName) {
   const year = currentYear();
@@ -2590,11 +2591,53 @@ function drillSetSort(sort) {
   _drillSort = sort;
   const el = document.getElementById('catDrillModal');
   if (!el) return;
-  // Update active button
   el.querySelectorAll('.drill-sort-btn').forEach(b => {
     b.classList.toggle('active', b.textContent.toLowerCase() === sort);
   });
   document.getElementById('drillSubList').innerHTML = el._renderSubRows(sort);
+}
+
+function catCardSetSort(idx, catName, sort) {
+  _catSort[catName] = sort;
+  const listEl = document.getElementById('catSubList_' + idx);
+  if (!listEl) return;
+  // Update active buttons in this card
+  listEl.closest('.card').querySelectorAll('.cat-sort-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === sort);
+  });
+
+  const year = currentYear();
+  const cats = categoryTotals(year, null);
+  const catSum = cats[catName] || 0;
+  const col = categoryColor(catName);
+  const subTotals = subcategoryTotals(year, null, catName);
+
+  const withCounts = Object.entries(subTotals).map(([sub, amt]) => {
+    const count = state.transactions.filter(t =>
+      t.type === 'expense' && t.category === catName &&
+      (t.subcategory || '(uncategorised)') === sub && yearOfDate(t.date) === year
+    ).length;
+    return { sub, amt, count };
+  });
+
+  const sorted = withCounts.sort((a, b) => {
+    if (sort === 'name') return a.sub.localeCompare(b.sub);
+    if (sort === 'count') return b.count - a.count;
+    return b.amt - a.amt;
+  });
+
+  const maxAmt = Math.max(...sorted.map(r => r.amt), 1);
+  listEl.innerHTML = sorted.map(({ sub, amt, count }) => {
+    const subPct = catSum ? (amt / catSum * 100) : 0;
+    const barPct = Math.round(amt / maxAmt * 100);
+    return `<div class="drill-sub-row">
+      <div style="min-width:110px;font-size:12px;font-weight:500;color:var(--ink)">${escapeHtml(sub)}</div>
+      <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
+      <div class="amt" style="min-width:72px;text-align:right;font-size:12px">${fmtEUR(amt)}</div>
+      <div style="min-width:34px;text-align:right;font-size:11px;color:var(--ink-mute)">${subPct.toFixed(0)}%</div>
+      <div style="min-width:28px;text-align:right;font-size:11px;color:var(--ink-faint)">${count}×</div>
+    </div>`;
+  }).join('') || '<p style="font-size:12px;color:var(--ink-mute);margin:0">No sub-categories.</p>';
 }
 
 function renderTransactions() {
@@ -2987,8 +3030,22 @@ function renderCategories() {
         const safeId = 'ccat_' + idx;
 
         const subTotals = subcategoryTotals(year, null, cat);
-        const subEntries = Object.entries(subTotals).sort((a, b) => b[1] - a[1]);
-        const maxSub = subEntries[0]?.[1] || 1;
+        const curSort = _catSort[cat] || 'amount';
+        const withCounts = Object.entries(subTotals).map(([sub, amt]) => {
+          const count = state.transactions.filter(t =>
+            t.type === 'expense' && t.category === cat &&
+            (t.subcategory || '(uncategorised)') === sub && yearOfDate(t.date) === year
+          ).length;
+          return { sub, amt, count };
+        });
+        const subsSorted = withCounts.sort((a, b) =>
+          curSort === 'name' ? a.sub.localeCompare(b.sub) :
+          curSort === 'count' ? b.count - a.count : b.amt - a.amt
+        );
+        const maxSub = Math.max(...subsSorted.map(r => r.amt), 1);
+        const totalTxCat = state.transactions.filter(t =>
+          t.type === 'expense' && t.category === cat && yearOfDate(t.date) === year
+        ).length;
 
         return `
           <div class="card">
@@ -2997,7 +3054,7 @@ function renderCategories() {
                 <div style="width:11px;height:11px;border-radius:50%;background:${col.dot};flex-shrink:0;margin-top:2px"></div>
                 <div>
                   <div style="font-size:16px;font-weight:600;letter-spacing:-0.02em;color:var(--ink)">${escapeHtml(cat)}</div>
-                  <div style="font-size:12px;color:var(--ink-mute);margin-top:1px">${totalPct.toFixed(1)}% of total spend</div>
+                  <div style="font-size:12px;color:var(--ink-mute);margin-top:1px">${totalPct.toFixed(1)}% of total · ${totalTxCat} transactions</div>
                 </div>
               </div>
               <button class="btn btn-sm btn-ghost" onclick="openCategoryEdit('${catId}')" style="flex-shrink:0;margin-left:8px">Edit</button>
@@ -3013,16 +3070,28 @@ function renderCategories() {
               <canvas id="${safeId}"></canvas>
             </div>
 
-            ${subEntries.length > 0 ? subEntries.map(([sub, amt]) => {
-              const subPct = catSum ? (amt / catSum * 100) : 0;
-              const barPct = Math.round(amt / maxSub * 100);
-              return `<div class="drill-sub-row">
-                <div style="min-width:110px;font-size:12px;font-weight:500;color:var(--ink)">${escapeHtml(sub)}</div>
-                <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
-                <div class="amt" style="min-width:72px;text-align:right;font-size:12px">${fmtEUR(amt)}</div>
-                <div style="min-width:34px;text-align:right;font-size:11px;color:var(--ink-mute)">${subPct.toFixed(0)}%</div>
-              </div>`;
-            }).join('') : '<p style="font-size:12px;color:var(--ink-mute);margin:0">No sub-categories.</p>'}
+            ${subsSorted.length > 0 ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-mute)">Subcategories</span>
+              <div style="display:flex;gap:3px">
+                <button class="drill-sort-btn cat-sort-btn ${curSort==='amount'?'active':''}" data-sort="amount" onclick="catCardSetSort(${idx},'${catId}','amount')">Amount</button>
+                <button class="drill-sort-btn cat-sort-btn ${curSort==='name'?'active':''}" data-sort="name" onclick="catCardSetSort(${idx},'${catId}','name')">Name</button>
+                <button class="drill-sort-btn cat-sort-btn ${curSort==='count'?'active':''}" data-sort="count" onclick="catCardSetSort(${idx},'${catId}','count')">Count</button>
+              </div>
+            </div>
+            <div id="catSubList_${idx}">
+              ${subsSorted.map(({ sub, amt, count }) => {
+                const subPct = catSum ? (amt / catSum * 100) : 0;
+                const barPct = Math.round(amt / maxSub * 100);
+                return `<div class="drill-sub-row">
+                  <div style="min-width:110px;font-size:12px;font-weight:500;color:var(--ink)">${escapeHtml(sub)}</div>
+                  <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
+                  <div class="amt" style="min-width:72px;text-align:right;font-size:12px">${fmtEUR(amt)}</div>
+                  <div style="min-width:34px;text-align:right;font-size:11px;color:var(--ink-mute)">${subPct.toFixed(0)}%</div>
+                  <div style="min-width:28px;text-align:right;font-size:11px;color:var(--ink-faint)">${count}×</div>
+                </div>`;
+              }).join('')}
+            </div>` : '<p style="font-size:12px;color:var(--ink-mute);margin:0">No sub-categories.</p>'}
           </div>
         `;
       }).join('')}
