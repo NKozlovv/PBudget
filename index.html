@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.7.2 — modal fix + subcategory filter',
+    BUILD_VERSION: 'v0.7.3 — tx height, accounts wider, income icon btns',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -129,6 +129,7 @@
 
   /* Main */
   .main { padding: 32px; max-width: 1400px; margin: 0 auto; }
+  .main.full-width { max-width: 1900px; }
 
   /* Buttons */
   .btn {
@@ -557,7 +558,7 @@
   }
 
   /* Scrollable transaction table */
-  .tx-table-wrap { max-height: 600px; overflow-y: auto; }
+  .tx-table-wrap { max-height: calc(100vh - 300px); overflow-y: auto; }
   .tx-table-wrap thead { position: sticky; top: 0; z-index: 2; }
 
   /* Sortable column headers */
@@ -1490,6 +1491,7 @@ function render() {
     return;
   }
 
+  document.getElementById('main').classList.remove('full-width');
   switch (state.activeView) {
     case 'dashboard': renderDashboard(); break;
     case 'transactions': renderTransactions(); break;
@@ -2529,6 +2531,7 @@ function renderTransactions() {
 function renderAccounts() {
   const year = currentYear();
   const main = document.getElementById('main');
+  main.classList.add('full-width');
 
   const rows = state.accounts.map(acc => {
     const balsEUR = Array(12).fill(0).map((_, m) => accountBalanceAtMonth(acc.id, m, year));
@@ -2742,8 +2745,8 @@ function renderCategories() {
               <div class="amt">${fmtEUR(amt)}</div>
               <div class="tag-n">${pct.toFixed(0)}%</div>
               <div style="display:flex; gap:4px; justify-content:flex-end">
-                <button class="btn btn-sm btn-ghost" onclick="renameIncomeType('${escapeAttr(t)}')">Rename</button>
-                <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteIncomeType('${escapeAttr(t)}')">Delete</button>
+                <button class="btn btn-sm btn-ghost" onclick="renameIncomeType('${escapeAttr(t)}')" title="Rename">✎</button>
+                <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteIncomeType('${escapeAttr(t)}')" title="Delete">✕</button>
               </div>
             </div>
           `;
