@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.8.2 — category cards: tx count + sort by amount/name/count',
+    BUILD_VERSION: 'v0.9.0 — Build 5: accounts + forecast refresh',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -2778,28 +2778,32 @@ function renderTransactions() {
 }
 
 // ------------- ACCOUNTS -------------
+const ACC_PALETTE = ['#c44536','#d8a64a','#1a7a4a','#7daad0','#9c4a97','#6a8a4a','#457b9d','#b08968','#588b8b','#a4161a','#8a6b94','#725e54'];
+
 function renderAccounts() {
   const year = currentYear();
   const main = document.getElementById('main');
   main.classList.add('full-width');
 
-  const rows = state.accounts.map(acc => {
+  const rows = state.accounts.map((acc, i) => {
     const balsEUR = Array(12).fill(0).map((_, m) => accountBalanceAtMonth(acc.id, m, year));
     const balsNative = Array(12).fill(0).map((_, m) => accountBalanceNative(acc.id, m, year));
     const openingNative = state.openingBalances[acc.id] || 0;
     const openingEUR = toEUR(openingNative, acc.currency);
     const latestEUR = balsEUR[11];
     const latestNative = balsNative[11];
-    return { acc, balsEUR, balsNative, openingNative, openingEUR, latestEUR, latestNative };
+    const color = ACC_PALETTE[i % ACC_PALETTE.length];
+    return { acc, balsEUR, balsNative, openingNative, openingEUR, latestEUR, latestNative, color };
   });
 
   const total = rows.reduce((s, r) => s + r.latestEUR, 0);
   const totalOpening = rows.reduce((s, r) => s + r.openingEUR, 0);
+  const ytdChange = total - totalOpening;
 
   main.innerHTML = `
     <div class="stat-row">
       <div class="stat-item">
-        <div class="stat-label">Total current</div>
+        <div class="stat-label">Total balance</div>
         <div class="stat-value">${fmtEUR(total)}</div>
       </div>
       <div class="stat-item">
@@ -2808,54 +2812,78 @@ function renderAccounts() {
       </div>
       <div class="stat-item">
         <div class="stat-label">Change YTD</div>
-        <div class="stat-value ${total >= totalOpening ? 'flow-up' : 'flow-down'}">${total - totalOpening >= 0 ? '+' : ''}${fmtEUR(total - totalOpening)}</div>
+        <div class="stat-value" style="color:${ytdChange >= 0 ? 'var(--green)' : 'var(--red)'}">${ytdChange >= 0 ? '+' : ''}${fmtEUR(ytdChange)}</div>
       </div>
       <div class="stat-item">
-        <div class="stat-label">FX rate</div>
-        <div class="stat-value mono" style="font-family:'JetBrains Mono', monospace; font-size:20px">€${state.fxRate.toFixed(4)}</div>
-        <div class="fine">per $1</div>
+        <div class="stat-label">USD/EUR rate</div>
+        <div class="stat-value" style="font-family:'JetBrains Mono',monospace;font-size:20px">${state.fxRate.toFixed(4)}</div>
+        <div class="fine">€ per $1</div>
       </div>
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; margin-top:16px">
-      <h3 style="font-family: 'Fraunces', serif; font-weight:600; font-size:18px;">All accounts</h3>
-      <button class="btn btn-sm" onclick="openAccountModal()">+ Add account</button>
+    <!-- Account summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:24px">
+      ${rows.map(r => {
+        const change = r.latestEUR - r.openingEUR;
+        const initials = r.acc.name.split(/[\s,]+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+        return `<div class="card" style="cursor:pointer;transition:transform 0.15s,box-shadow 0.15s" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(20,15,10,0.10)'" onmouseleave="this.style.transform='';this.style.boxShadow=''" onclick="openAccountModal('${r.acc.id}')">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:36px;height:36px;border-radius:10px;background:${r.color}22;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${r.color};flex-shrink:0">${initials}</div>
+            <div style="min-width:0">
+              <div style="font-weight:600;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.acc.name}</div>
+              <div style="font-size:11px;color:var(--ink-mute)">${r.acc.currency}</div>
+            </div>
+          </div>
+          <div style="font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--ink);margin-bottom:4px">${fmtAmt(r.latestNative, r.acc.currency)}</div>
+          ${r.acc.currency === 'USD' ? `<div style="font-size:12px;color:var(--ink-mute);font-family:'JetBrains Mono',monospace">${fmtEUR(r.latestEUR)}</div>` : ''}
+          <div style="font-size:12px;margin-top:6px;color:${change >= 0 ? 'var(--green)' : 'var(--red)'}">${change >= 0 ? '▲' : '▼'} ${change >= 0 ? '+' : ''}${fmtEUR(change)} YTD</div>
+        </div>`;
+      }).join('')}
+      <div class="card" style="cursor:pointer;border:1px dashed var(--line);background:transparent;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--ink-mute);font-size:13px;min-height:110px;transition:background 0.15s" onmouseenter="this.style.background='var(--bg-page)'" onmouseleave="this.style.background='transparent'" onclick="openAccountModal()">
+        <span style="font-size:18px;line-height:1">+</span> Add account
+      </div>
     </div>
 
-    <div class="card" style="padding:0; overflow-x: auto">
+    <!-- Monthly balance table -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="font-weight:600;font-size:18px;letter-spacing:-0.01em">Monthly balances</h3>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto;margin-bottom:20px">
       <table>
         <thead>
           <tr>
-            <th style="min-width:150px">Account</th>
+            <th style="min-width:160px">Account</th>
             <th style="width:55px">Curr.</th>
-            <th style="text-align:right; min-width:110px">Opening</th>
-            ${MONTHS_SHORT.map(m => `<th style="text-align:right; min-width:100px">${m}</th>`).join('')}
+            <th style="text-align:right;min-width:110px">Opening</th>
+            ${MONTHS_SHORT.map(m => `<th style="text-align:right;min-width:90px">${m}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
-          ${rows.map(({ acc, balsEUR, balsNative, openingNative, openingEUR }) => `
-            <tr>
+          ${rows.map(r => `
+            <tr style="cursor:pointer" onclick="openAccountModal('${r.acc.id}')">
               <td>
-                <strong style="cursor:pointer" onclick="openAccountModal('${acc.id}')" title="Edit account">${acc.name}</strong>
-                <button class="btn btn-sm btn-ghost" onclick="openAccountModal('${acc.id}')" style="padding:2px 6px; font-size:10px; margin-left:6px; opacity:0.6">edit</button>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0"></div>
+                  <strong>${r.acc.name}</strong>
+                </div>
               </td>
-              <td><span class="acc-ccy">${acc.currency}</span></td>
+              <td><span class="acc-ccy">${r.acc.currency}</span></td>
               <td style="text-align:right">
-                <div class="amt">${fmtAmt(openingNative, acc.currency)}</div>
-                ${acc.currency === 'USD' ? `<div class="fine mono">${fmtEUR(openingEUR)}</div>` : ''}
+                <div class="amt">${fmtAmt(r.openingNative, r.acc.currency)}</div>
+                ${r.acc.currency === 'USD' ? `<div class="fine mono">${fmtEUR(r.openingEUR)}</div>` : ''}
               </td>
-              ${balsEUR.map((bEUR, m) => {
-                const bNative = balsNative[m];
-                const noActivity = Math.abs(bNative - openingNative) < 0.005;
+              ${r.balsEUR.map((bEUR, m) => {
+                const bNative = r.balsNative[m];
+                const noActivity = Math.abs(bNative - r.openingNative) < 0.005;
                 return `<td style="text-align:right">
-                  <div class="amt" ${noActivity ? 'style="color:var(--ink-mute)"' : ''}>${fmtAmt(bNative, acc.currency)}</div>
-                  ${acc.currency === 'USD' ? `<div class="fine mono">${fmtEUR(bEUR)}</div>` : ''}
+                  <div class="amt" style="${noActivity ? 'color:var(--ink-mute)' : ''}">${fmtAmt(bNative, r.acc.currency)}</div>
+                  ${r.acc.currency === 'USD' ? `<div class="fine mono">${fmtEUR(bEUR)}</div>` : ''}
                 </td>`;
               }).join('')}
             </tr>
           `).join('')}
-          <tr style="background:var(--bg-2); font-weight:600">
-            <td colspan="2"><strong>TOTAL (EUR)</strong></td>
+          <tr style="background:var(--bg-page);font-weight:600;border-top:2px solid var(--line)">
+            <td colspan="2" style="color:var(--ink-mute);font-size:12px;text-transform:uppercase;letter-spacing:0.04em">Total (EUR)</td>
             <td style="text-align:right" class="amt">${fmtEUR(totalOpening)}</td>
             ${MONTHS_SHORT.map((_, m) => {
               const t = rows.reduce((s, r) => s + r.balsEUR[m], 0);
@@ -2866,33 +2894,32 @@ function renderAccounts() {
       </table>
     </div>
 
-    <div class="grid-2" style="margin-top:16px">
+    <div class="grid-2">
       <div class="card">
         <div class="card-title">Distribution <span class="card-title-sub">current EUR balance</span></div>
         <div class="chart-wrap"><canvas id="chartDonut"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Top account trajectories</div>
+        <div class="card-title">Balance trajectories</div>
         <div class="chart-wrap"><canvas id="chartAccLines"></canvas></div>
       </div>
     </div>
   `;
 
   const visible = rows.filter(r => Math.abs(r.latestEUR) > 1).sort((a, b) => b.latestEUR - a.latestEUR);
-  const palette = ['#c44536','#e09f3e','#1d3557','#2d6a4f','#9c4a97','#6a7f4a','#a4161a','#457b9d','#b08968','#588b8b','#8a6b94','#725e54'];
   new Chart(document.getElementById('chartDonut'), {
     type: 'doughnut',
     data: {
       labels: visible.map(r => r.acc.name),
-      datasets: [{ data: visible.map(r => r.latestEUR), backgroundColor: visible.map((_, i) => palette[i % palette.length]), borderWidth: 1, borderColor: '#fff' }]
+      datasets: [{ data: visible.map(r => r.latestEUR), backgroundColor: visible.map(r => r.color), borderWidth: 2, borderColor: '#fff' }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 11 } } },
-        tooltip: { callbacks: { label: (ctx) => ctx.label + ': ' + fmtEUR(ctx.parsed) } }
+        legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 11 }, padding: 10 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmtEUR(ctx.parsed)}` } }
       },
-      cutout: '55%',
+      cutout: '60%',
     }
   });
 
@@ -2901,23 +2928,24 @@ function renderAccounts() {
     type: 'line',
     data: {
       labels: MONTHS_SHORT,
-      datasets: interesting.map((r, i) => ({
+      datasets: interesting.map(r => ({
         label: r.acc.name,
         data: r.balsEUR,
-        borderColor: palette[i % palette.length],
-        backgroundColor: 'transparent',
-        tension: 0.3, borderWidth: 2, pointRadius: 2
+        borderColor: r.color,
+        backgroundColor: r.color + '18',
+        fill: false,
+        tension: 0.3, borderWidth: 2, pointRadius: 2, pointHoverRadius: 4
       }))
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 10 } } },
-        tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(ctx.parsed.y) } }
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 10 }, padding: 12 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtEUR(ctx.parsed.y)}` } }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
-        y: { grid: { color: '#f0ead9' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, callback: (v) => fmtEUR(v, {noSymbol: true}) } }
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, border: { display: false }, ticks: { font: { size: 10 }, callback: v => fmtEUR(v, { compact: true }) } }
       }
     }
   });
@@ -3507,39 +3535,64 @@ function renderForecast() {
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-bottom:16px">
       <div class="card-title">Projected balance <span class="card-title-sub">actuals + forecast</span></div>
       <div class="chart-wrap-lg"><canvas id="chartProj"></canvas></div>
     </div>
 
-    <div class="grid-2" style="margin-top:16px">
+    <div class="grid-2" style="margin-bottom:16px">
       <div class="card">
-        <div class="card-title">Category burn rate <span class="card-title-sub">€ / month average</span></div>
+        <div class="card-title">Category burn rate <span class="card-title-sub">avg € / month</span></div>
         ${sortedCats.map(([c, v]) => {
+          const col = categoryColor(c);
           const pct = totalAvg ? (v.avgMonthly / totalAvg * 100) : 0;
+          const maxAvg = sortedCats[0]?.[1].avgMonthly || 1;
+          const barPct = Math.round(v.avgMonthly / maxAvg * 100);
           const remaining = (11 - forecast.lastActual) * v.avgMonthly;
-          return `<div class="cat-row">
-            <div>${c}<div class="fine">€${fmtNum(remaining)} expected thru year-end</div></div>
-            <div class="amt">${fmtEUR(v.avgMonthly)}</div>
-            <div class="tag-n">${pct.toFixed(0)}%</div>
-            <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%"></div></div>
+          return `<div class="drill-sub-row">
+            <div style="display:flex;align-items:center;gap:8px;min-width:140px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${col.dot};flex-shrink:0"></div>
+              <div>
+                <div style="font-weight:500;font-size:13px">${escapeHtml(c)}</div>
+                <div style="font-size:10px;color:var(--ink-mute)">${fmtEUR(remaining)} thru year-end</div>
+              </div>
+            </div>
+            <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${barPct}%;background:${col.dot}"></div></div>
+            <div class="amt" style="min-width:72px;text-align:right;font-size:13px">${fmtEUR(v.avgMonthly)}</div>
+            <div style="min-width:34px;text-align:right;font-size:11px;color:var(--ink-mute)">${pct.toFixed(0)}%</div>
           </div>`;
         }).join('')}
       </div>
       <div class="card">
-        <div class="card-title">Year outlook <span class="card-title-sub">projected spend</span></div>
+        <div class="card-title">Monthly spend <span class="card-title-sub">actual vs projected</span></div>
         <div class="chart-wrap"><canvas id="chartYearProj"></canvas></div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:16px">
-      <div class="card-title">Forecast notes</div>
-      <p>The forecast assumes you'll continue spending at your current <strong>average monthly rate of ${fmtEUR(avgExp)}</strong> across ${sortedCats.length} categories. Income is projected at <strong>${fmtEUR(avgIncome)}/month</strong>, giving a net savings rate of <strong>${fmtEUR(avgIncome - avgExp)}/month</strong>.</p>
-      <p style="margin-top:10px" class="fine">Projections update automatically as you add more transactions. Based on ${forecast.monthsCount} completed month${forecast.monthsCount > 1 ? 's' : ''}.</p>
+    <div class="card" style="background:var(--bg-page);border-style:dashed">
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-mute);margin-bottom:4px">Avg monthly spend</div>
+          <div style="font-size:15px;font-weight:600;color:var(--red)">${fmtEUR(avgExp)}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-mute);margin-bottom:4px">Avg monthly income</div>
+          <div style="font-size:15px;font-weight:600;color:var(--green)">${fmtEUR(avgIncome)}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-mute);margin-bottom:4px">Net monthly</div>
+          <div style="font-size:15px;font-weight:600;color:${avgIncome - avgExp >= 0 ? 'var(--green)' : 'var(--red)'}">${avgIncome - avgExp >= 0 ? '+' : ''}${fmtEUR(avgIncome - avgExp)}</div>
+        </div>
+        <div style="margin-left:auto;color:var(--ink-mute);font-size:12px;align-self:center">Based on ${forecast.monthsCount} month${forecast.monthsCount > 1 ? 's' : ''} of data</div>
+      </div>
     </div>
   `;
 
-  // Projected balance chart
+  const scaleOpts = {
+    x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+    y: { grid: { color: 'rgba(0,0,0,0.04)' }, border: { display: false }, ticks: { font: { size: 10 }, callback: v => fmtEUR(v, { compact: true }) } }
+  };
+
   new Chart(document.getElementById('chartProj'), {
     type: 'line',
     data: {
@@ -3548,31 +3601,27 @@ function renderForecast() {
         {
           label: 'Actual',
           data: projBalance.map((v, i) => i <= forecast.lastActual ? v : null),
-          borderColor: '#1d3557', backgroundColor: 'rgba(29,53,87,0.08)',
-          fill: true, tension: 0.3, borderWidth: 2.5, pointRadius: 3
+          borderColor: '#1a1a2e', backgroundColor: 'rgba(26,26,46,0.06)',
+          fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5
         },
         {
           label: 'Projected',
           data: projBalance.map((v, i) => i >= forecast.lastActual ? v : null),
-          borderColor: '#e09f3e', backgroundColor: 'rgba(224,159,62,0.08)',
-          fill: true, tension: 0.3, borderWidth: 2.5, pointRadius: 3, borderDash: [6, 4]
+          borderColor: '#d8a64a', backgroundColor: 'rgba(216,166,74,0.08)',
+          fill: true, tension: 0.35, borderWidth: 2, pointRadius: 2, borderDash: [5, 4]
         }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 11 } } },
-        tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(ctx.parsed.y) } }
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 11 }, padding: 14 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtEUR(ctx.parsed.y)}` } }
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
-        y: { grid: { color: '#f0ead9' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, callback: (v) => fmtEUR(v, {noSymbol: true}) } }
-      }
+      scales: scaleOpts
     }
   });
 
-  // Year overview - actual vs projected bars
   new Chart(document.getElementById('chartYearProj'), {
     type: 'bar',
     data: {
@@ -3581,25 +3630,22 @@ function renderForecast() {
         {
           label: 'Actual',
           data: expenses.map((v, i) => i <= forecast.lastActual ? v : null),
-          backgroundColor: '#c44536', borderRadius: 2
+          backgroundColor: '#c44536cc', borderRadius: 4
         },
         {
           label: 'Projected',
           data: forecast.perMonth.map((v, i) => i > forecast.lastActual ? v : null),
-          backgroundColor: 'rgba(224,159,62,0.7)', borderRadius: 2
+          backgroundColor: 'rgba(216,166,74,0.55)', borderRadius: 4
         }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 11 } } },
-        tooltip: { callbacks: { label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(ctx.parsed.y) } }
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { family: 'Inter Tight', size: 11 }, padding: 14 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtEUR(ctx.parsed.y)}` } }
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
-        y: { grid: { color: '#f0ead9' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, callback: (v) => fmtEUR(v, {noSymbol: true}) } }
-      }
+      scales: scaleOpts
     }
   });
 }
