@@ -17,8 +17,8 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.0 — Modern Soft + new Dashboard',
-    BUILD_DATE: '2026-04-25',
+    BUILD_VERSION: 'v0.6.1 — category color system',
+    BUILD_DATE: '2026-04-26',
   };
 </script>
 <style>
@@ -828,32 +828,56 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 // Semantic mapping by keyword, fallback to a stable hash so the
 // same category gets the same color everywhere in the app.
 // ============================================================
-const CAT_PALETTE = ['#c44536', '#d8a64a', '#1a7a4a', '#7daad0', '#a07a9a', '#7a8a4a', '#d97a4a', '#5a7aa8', '#b8895a', '#4a8a7a'];
+// Returns { bg, fg, dot } for a category name.
+// Semantic mapping per roadmap §2.2; stable hash fallback for unknowns.
 const CAT_SEMANTIC = [
-  { rx: /food|grocer|restaur|cafe|coffee|takeout|drink/i, color: '#d8a64a' },
-  { rx: /health|medic|pharma|doctor|fitness/i,           color: '#e08a7a' },
-  { rx: /travel|flight|hotel|trip|transit|taxi|uber|train|bus/i, color: '#7daad0' },
-  { rx: /home|rent|utilit|mortgage|furniture/i,           color: '#c44536' },
-  { rx: /bill|subscription|insurance/i,                   color: '#7a9a6a' },
-  { rx: /entertain|music|movie|game|book|netflix|spotify/i, color: '#a07a9a' },
-  { rx: /tech|software|hardware|gadget|computer/i,        color: '#5a7aa8' },
-  { rx: /pet|kent|dog|cat|vet/i,                          color: '#1a7a4a' },
-  { rx: /clothing|cloth|fashion|shopping/i,               color: '#b8895a' },
-  { rx: /salary|income|reimburs/i,                        color: '#1a7a4a' },
+  { rx: /food|grocer|restaur|cafe|coffee|takeout|drink|supermark/i,
+    c: { bg: '#fff3db', fg: '#854f0b', dot: '#d8a64a' } },
+  { rx: /home|rent|utilit|mortgage|furniture|household/i,
+    c: { bg: '#fbe6e0', fg: '#7a2a22', dot: '#c44536' } },
+  { rx: /travel|flight|hotel|trip|airbnb|holiday/i,
+    c: { bg: '#e4edf6', fg: '#0c447c', dot: '#7daad0' } },
+  { rx: /transit|taxi|uber|train|bus|metro|transport|bahn|public/i,
+    c: { bg: '#e8f0ed', fg: '#1f5043', dot: '#6a9d8d' } },
+  { rx: /health|medic|pharma|doctor|fitness|dental|gym|apotheke/i,
+    c: { bg: '#fbe6e6', fg: '#791f1f', dot: '#d8716a' } },
+  { rx: /bill|subscription|insurance|service|fee/i,
+    c: { bg: '#e4ebe2', fg: '#3a4d36', dot: '#7a946d' } },
+  { rx: /entertain|music|movie|cinema|game|book|netflix|spotify|concert/i,
+    c: { bg: '#ede4f0', fg: '#4d2d56', dot: '#9c7daa' } },
+  { rx: /tech|software|hardware|gadget|computer|apple|amazon/i,
+    c: { bg: '#e4e8ed', fg: '#2a3845', dot: '#6a7a8a' } },
+  { rx: /goods|clothing|cloth|fashion|shop|shopping/i,
+    c: { bg: '#edf0e4', fg: '#27500a', dot: '#a3b088' } },
+  { rx: /educ|course|school|university|book|learn/i,
+    c: { bg: '#f3eada', fg: '#5e4612', dot: '#b58e3d' } },
+  { rx: /kent|dog|cat|pet|vet|tier/i,
+    c: { bg: '#e0efd9', fg: '#264a16', dot: '#6da350' } },
+  { rx: /salary|lohn|gehalt/i,
+    c: { bg: '#dcf5e4', fg: '#1a5a3a', dot: '#1a7a4a' } },
+  { rx: /reimburse|erstatt/i,
+    c: { bg: '#e4edf6', fg: '#0c447c', dot: '#7daad0' } },
+  { rx: /adjustment/i,
+    c: { bg: '#ebe8de', fg: '#4a4a5e', dot: '#9d9a95' } },
 ];
+const CAT_DOT_FALLBACK = [
+  '#c44536','#d8a64a','#1a7a4a','#7daad0','#9c7daa',
+  '#a3b088','#d97a4a','#6a7a8a','#b58e3d','#6a9d8d',
+];
+const CAT_MISC = { bg: '#ebe8de', fg: '#4a4a5e', dot: '#9d9a95' };
 const _catColorCache = {};
 function categoryColor(name) {
-  if (!name) return '#8a8a98';
+  if (!name) return CAT_MISC;
   if (_catColorCache[name]) return _catColorCache[name];
   for (const s of CAT_SEMANTIC) {
-    if (s.rx.test(name)) { _catColorCache[name] = s.color; return s.color; }
+    if (s.rx.test(name)) { _catColorCache[name] = s.c; return s.c; }
   }
-  // Stable hash → palette index
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  const c = CAT_PALETTE[h % CAT_PALETTE.length];
-  _catColorCache[name] = c;
-  return c;
+  const dot = CAT_DOT_FALLBACK[h % CAT_DOT_FALLBACK.length];
+  const result = { bg: '#ebe8de', fg: '#4a4a5e', dot };
+  _catColorCache[name] = result;
+  return result;
 }
 
 function accountById(id) { return state.accounts.find(a => a.id === id); }
@@ -1708,7 +1732,7 @@ function renderDashboard() {
         labels: sortedCats.map(([c]) => c),
         datasets: [{
           data: sortedCats.map(([, v]) => v),
-          backgroundColor: sortedCats.map(([c]) => categoryColor(c)),
+          backgroundColor: sortedCats.map(([c]) => categoryColor(c).dot),
           borderColor: '#fff', borderWidth: 2,
         }]
       },
@@ -1733,10 +1757,10 @@ function renderDashboard() {
 
     document.getElementById('catList').innerHTML = sortedCats.slice(0, 7).map(([cat, amt]) => {
       const pct = totalCat ? (amt / totalCat * 100) : 0;
-      const color = categoryColor(cat);
+      const col = categoryColor(cat);
       return `
         <div class="dash-cat-row" data-cat="${cat.replace(/"/g,'&quot;')}">
-          <span class="cat-dot" style="background:${color}"></span>
+          <span class="cat-dot" style="background:${col.dot}"></span>
           <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${cat}</div>
           <div class="amt">${fmtEUR(amt)}</div>
           <div class="pct">${pct.toFixed(1)}%</div>
@@ -1765,10 +1789,10 @@ function renderDashboard() {
       const sign = tx.type === 'expense' ? '−' : tx.type === 'income' ? '+' : (tx.amount >= 0 ? '+' : '−');
       const amtClass = tx.type === 'expense' ? 'amt-exp' : tx.type === 'income' ? 'amt-inc' : 'amt-adj';
       const amtEUR = toEUR(Math.abs(tx.amount), tx.currency);
-      const color = categoryColor(tx.category);
+      const col = categoryColor(tx.category);
       return `
         <div class="recent-row" onclick="openEditTx('${tx.id}')">
-          <span class="cat-dot" style="background:${color}"></span>
+          <span class="cat-dot" style="background:${col.dot}"></span>
           <div class="recent-meta">
             <span class="recent-cat">${tx.category}${tx.subcategory ? ' · ' + tx.subcategory : ''}</span>
             <span class="recent-sub">${dateDisplay(tx.date)}${acc ? ' · ' + acc.name : ''}${tx.comment ? ' · ' + tx.comment : ''}</span>
