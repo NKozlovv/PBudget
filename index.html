@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.6.5 — monthly flow chart',
+    BUILD_VERSION: 'v0.6.6 — savings rate chart',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -1623,6 +1623,7 @@ function renderDashboard() {
           <span class="card-title-sub">YTD trend</span>
         </div>
         <div class="chart-wrap"><canvas id="chartSavings"></canvas></div>
+        <div id="savingsInsight" style="margin-top:10px;font-size:12px;color:var(--ink-mute);line-height:1.4;min-height:16px"></div>
       </div>
     </div>
 
@@ -1732,37 +1733,129 @@ function renderDashboard() {
   });
 
   // ---- Savings rate trend ----
-  const ctxSav = document.getElementById('chartSavings');
-  new Chart(ctxSav, {
-    type: 'line',
-    data: {
-      labels: MONTHS_SHORT,
-      datasets: [{
-        label: 'Savings rate',
-        data: savingsSeries,
-        borderColor: '#1a7a4a',
-        backgroundColor: 'rgba(26,122,74,0.10)',
-        fill: true, tension: 0.35, borderWidth: 2.5,
-        pointRadius: 3, pointBackgroundColor: '#1a7a4a',
-        spanGaps: true,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a1a2e', titleColor: '#fff', bodyColor: '#fff',
-          padding: 10, cornerRadius: 8, displayColors: false,
-          callbacks: { label: (ctx) => ctx.parsed.y == null ? '—' : ctx.parsed.y.toFixed(1) + '%' }
+  (() => {
+    const ctxSav = document.getElementById('chartSavings');
+    if (!ctxSav) return;
+
+    // YTD average reference value
+    const validRates = savingsSeries.filter(v => v != null);
+    const ytdAvgRate = validRates.length ? validRates.reduce((a, b) => a + b, 0) / validRates.length : null;
+
+    // Per-point style: current month = solid fill, past = hollow
+    const ptBg = savingsSeries.map((v, i) => {
+      if (v == null) return 'transparent';
+      return i === lastMonth ? '#1a7a4a' : '#fff';
+    });
+    const ptBorder = savingsSeries.map((v) => v == null ? 'transparent' : '#1a7a4a');
+    const ptRadius = savingsSeries.map((v, i) => v == null ? 0 : (i === lastMonth ? 5 : 4));
+
+    // Reference line dataset at YTD avg
+    const refLine = ytdAvgRate != null ? Array(12).fill(null).map((_, i) => i <= lastMonth ? ytdAvgRate : null) : Array(12).fill(null);
+
+    new Chart(ctxSav, {
+      type: 'line',
+      data: {
+        labels: MONTHS_SHORT,
+        datasets: [
+          {
+            label: 'Savings rate',
+            data: savingsSeries,
+            borderColor: '#1a7a4a',
+            backgroundColor: 'rgba(26,122,74,0.08)',
+            fill: true, tension: 0.35, borderWidth: 2.5,
+            pointRadius: ptRadius,
+            pointBackgroundColor: ptBg,
+            pointBorderColor: ptBorder,
+            pointBorderWidth: 2,
+            spanGaps: true,
+            order: 1,
+          },
+          {
+            label: 'YTD avg',
+            data: refLine,
+            borderColor: 'rgba(26,122,74,0.35)',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            spanGaps: true,
+            order: 2,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 350 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a2e', titleColor: '#fff', bodyColor: '#e0dff5',
+            padding: 10, cornerRadius: 8, displayColors: false,
+            filter: (item) => item.datasetIndex === 0,
+            callbacks: {
+              title: (items) => MONTHS[items[0].dataIndex],
+              label: (ctx) => ctx.parsed.y == null ? '—' : 'Rate: ' + ctx.parsed.y.toFixed(1) + '%'
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Inter Tight', size: 11 }, color: '#8a8a98' } },
+          y: {
+            grid: { color: '#f0ece4' },
+            ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#8a8a98', callback: (v) => v + '%' }
+          }
         }
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'Inter Tight', size: 11 }, color: '#8a8a98' } },
-        y: { grid: { color: '#f0ece4' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#8a8a98', callback: (v) => v + '%' } }
+      plugins: [{
+        id: 'savingsLabels',
+        afterDatasetsDraw(chart) {
+          const ds = chart.data.datasets[0];
+          const meta = chart.getDatasetMeta(0);
+          const ctx2 = chart.ctx;
+          ctx2.save();
+          ctx2.font = '500 10px "Inter Tight", sans-serif';
+          ctx2.textAlign = 'center';
+          meta.data.forEach((point, i) => {
+            const val = ds.data[i];
+            if (val == null) return;
+            ctx2.fillStyle = i === lastMonth ? '#1a7a4a' : '#8a8a98';
+            ctx2.fillText(val.toFixed(0) + '%', point.x, point.y - 9);
+          });
+          ctx2.restore();
+        }
+      }]
+    });
+
+    // Dynamic insight footer
+    const insightEl = document.getElementById('savingsInsight');
+    if (insightEl && validRates.length) {
+      const bestIdx = savingsSeries.reduce((best, v, i) => (v != null && (best === -1 || v > savingsSeries[best])) ? i : best, -1);
+      const bestRate = savingsSeries[bestIdx];
+      const isBestCurrent = bestIdx === lastMonth;
+      let streakCount = 0;
+      for (let i = lastMonth; i >= 0; i--) {
+        if (savingsSeries[i] != null && savingsSeries[i] > 0) streakCount++;
+        else break;
       }
+      let msg = '';
+      if (isBestCurrent && bestRate != null) {
+        msg = `Best month yet — ${MONTHS_SHORT[bestIdx]} at ${bestRate.toFixed(0)}%`;
+      } else if (streakCount >= 2) {
+        msg = `${streakCount} months positive in a row`;
+      } else if (ytdAvgRate != null) {
+        msg = `YTD avg: ${ytdAvgRate.toFixed(0)}%`;
+      }
+      if (ytdAvgRate != null && !isBestCurrent) {
+        const cur = savingsSeries[lastMonth];
+        if (cur != null && cur > ytdAvgRate) {
+          msg += (msg ? ' · ' : '') + `${MONTHS_SHORT[lastMonth]} above average`;
+        }
+      }
+      insightEl.textContent = msg;
     }
-  });
+  })();
 
   // ---- Category donut + list ----
   if (sortedCats.length > 0) {
