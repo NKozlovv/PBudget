@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.7.1 — savings labels + Build 3 transactions',
+    BUILD_VERSION: 'v0.7.2 — modal fix + subcategory filter',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -731,7 +731,7 @@ let state = {
   fxRate: 0.854,      // 1 USD = X EUR
   baseCurrency: 'EUR',
   activeView: 'dashboard',
-  txFilters: { month: 'all', category: 'all', account: 'all', type: 'all', search: '' },
+  txFilters: { month: 'all', category: 'all', subcategory: 'all', account: 'all', type: 'all', search: '' },
   txSort: { col: 'date', dir: 'desc' },
   dashRange: 'YTD', // '1M' | '3M' | 'YTD' | 'All'
   dashMonth: null,  // null = all months; 0–11 = filtered to that month
@@ -2305,21 +2305,24 @@ function bulkRecategorize() {
   if (!_txSelected.size) return;
   const n = _txSelected.size;
   const catOpts = Object.keys(state.categories).map(c => `<option value="${c}">${c}</option>`).join('');
-  _bulkModal(`<div class="modal-box" style="max-width:360px">
-    <div class="modal-title">Recategorize ${n} transaction${n>1?'s':''}</div>
-    <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
-      <div>
-        <label class="form-label">Category</label>
-        <select id="bCat" class="form-input">${catOpts}</select>
+  _bulkModal(`<div class="modal" style="max-width:380px;width:90%">
+    <div class="modal-header">
+      <h3>Recategorize ${n} transaction${n>1?'s':''}</h3>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bulkModal').remove()" style="padding:4px 8px;font-size:16px">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-row" style="margin-bottom:0">
+        <label>Category</label>
+        <select id="bCat" style="width:100%;margin-top:4px">${catOpts}</select>
       </div>
-      <div>
-        <label class="form-label">Subcategory</label>
-        <select id="bSub" class="form-input"><option value="">— none —</option></select>
+      <div class="form-row" style="margin-bottom:0">
+        <label>Subcategory</label>
+        <select id="bSub" style="width:100%;margin-top:4px"><option value="">— none —</option></select>
       </div>
     </div>
-    <div class="modal-actions">
+    <div class="modal-footer" style="justify-content:flex-end;gap:8px">
       <button class="btn btn-sm" onclick="document.getElementById('bulkModal').remove()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="bulkRecategorizeSave()">Apply</button>
+      <button class="btn btn-sm btn-primary" onclick="bulkRecategorizeSave()">Apply</button>
     </div>
   </div>`);
   const catEl = document.getElementById('bCat');
@@ -2352,15 +2355,20 @@ function bulkChangeAccount() {
   if (!_txSelected.size) return;
   const n = _txSelected.size;
   const accOpts = state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-  _bulkModal(`<div class="modal-box" style="max-width:320px">
-    <div class="modal-title">Move ${n} transaction${n>1?'s':''}</div>
-    <div style="margin-top:14px">
-      <label class="form-label">Account</label>
-      <select id="bAcc" class="form-input">${accOpts}</select>
+  _bulkModal(`<div class="modal" style="max-width:360px;width:90%">
+    <div class="modal-header">
+      <h3>Move ${n} transaction${n>1?'s':''}</h3>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bulkModal').remove()" style="padding:4px 8px;font-size:16px">✕</button>
     </div>
-    <div class="modal-actions">
+    <div class="modal-body">
+      <div class="form-row" style="margin-bottom:0">
+        <label>Account</label>
+        <select id="bAcc" style="width:100%;margin-top:4px">${accOpts}</select>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;gap:8px">
       <button class="btn btn-sm" onclick="document.getElementById('bulkModal').remove()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="bulkChangeAccountSave()">Apply</button>
+      <button class="btn btn-sm btn-primary" onclick="bulkChangeAccountSave()">Apply</button>
     </div>
   </div>`);
 }
@@ -2389,6 +2397,7 @@ function renderTransactions() {
     if (yearOfDate(tx.date) !== year) return false;
     if (f.month !== 'all' && monthOfDate(tx.date) !== parseInt(f.month)) return false;
     if (f.category !== 'all' && tx.category !== f.category) return false;
+    if (f.subcategory !== 'all' && (tx.subcategory || '') !== f.subcategory) return false;
     if (f.account !== 'all' && tx.account !== f.account) return false;
     if (f.type !== 'all' && tx.type !== f.type) return false;
     if (f.search) {
@@ -2430,6 +2439,13 @@ function renderTransactions() {
         <select id="fCat">
           <option value="all">All</option>
           ${cats.map(c=>`<option value="${c}" ${f.category===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Subcategory</label>
+        <select id="fSub" ${f.category==='all'?'disabled':''}>
+          <option value="all">All</option>
+          ${f.category!=='all' ? (state.categories[f.category]||[]).map(s=>`<option value="${s}" ${f.subcategory===s?'selected':''}>${s}</option>`).join('') : ''}
         </select>
       </div>
       <div class="filter-group">
@@ -2484,22 +2500,27 @@ function renderTransactions() {
     </div>
   `;
 
-  ['fSearch','fMonth','fCat','fAcc','fType'].forEach(id => {
+  ['fMonth','fAcc','fType','fSub'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
-      f.search = document.getElementById('fSearch').value;
       f.month  = document.getElementById('fMonth').value;
-      f.category = document.getElementById('fCat').value;
       f.account  = document.getElementById('fAcc').value;
       f.type     = document.getElementById('fType').value;
+      f.subcategory = document.getElementById('fSub').value;
       renderTransactions();
     });
+  });
+  // Category change resets subcategory
+  document.getElementById('fCat').addEventListener('change', () => {
+    f.category = document.getElementById('fCat').value;
+    f.subcategory = 'all';
+    renderTransactions();
   });
   document.getElementById('fSearch').addEventListener('input', () => {
     f.search = document.getElementById('fSearch').value;
     renderTransactions();
   });
   document.getElementById('fClear').onclick = () => {
-    state.txFilters = { month:'all', category:'all', account:'all', type:'all', search:'' };
+    state.txFilters = { month:'all', category:'all', subcategory:'all', account:'all', type:'all', search:'' };
     renderTransactions();
   };
 }
