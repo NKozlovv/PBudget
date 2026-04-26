@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.7.3 — tx height, accounts wider, income icon btns',
+    BUILD_VERSION: 'v0.8.0 — Build 4: category drill-down modal',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -442,6 +442,34 @@
   }
   .form-row { margin-bottom: 14px; }
   .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Category drill-down modal */
+  .modal.modal-wide { max-width: 700px; }
+  .drill-header {
+    padding: 22px 24px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .drill-header-left { display: flex; align-items: center; gap: 12px; }
+  .drill-cat-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .drill-cat-name { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+  .drill-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px 24px 0; }
+  .drill-stat { background: var(--bg-page); border-radius: 10px; padding: 14px 16px; }
+  .drill-stat-label { font-size: 11px; color: var(--ink-mute); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .drill-stat-val { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; font-family: 'Inter Tight', sans-serif; }
+  .drill-stat-sub { font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+  .drill-section { padding: 16px 24px 0; }
+  .drill-section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-mute); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+  .drill-chart-wrap { height: 120px; position: relative; margin-bottom: 4px; }
+  .drill-sub-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+  .drill-sub-row:last-child { border-bottom: none; }
+  .drill-sub-bar-wrap { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .drill-sub-bar { height: 100%; border-radius: 2px; }
+  .drill-tx-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; cursor: pointer; border-radius: 6px; transition: background 0.12s; }
+  .drill-tx-row:hover { background: var(--bg-page); }
+  .drill-tx-row:last-child { border-bottom: none; }
+  .drill-sort-btn { font-size: 11px; padding: 3px 8px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: transparent; color: var(--ink-mute); cursor: pointer; font-family: inherit; }
+  .drill-sort-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
   /* Amount formatting */
   .amt { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-weight: 500; }
@@ -2053,11 +2081,7 @@ function renderDashboard() {
 
     // Click-through to filtered Transactions view (drill-down modal lands in Build 4)
     document.querySelectorAll('.dash-cat-row[data-cat]').forEach(row => {
-      row.onclick = () => {
-        state.txFilters = { month: 'all', category: row.dataset.cat, account: 'all', type: 'all', search: '' };
-        state.activeView = 'transactions';
-        render();
-      };
+      row.onclick = () => openCategoryDrill(row.dataset.cat);
     });
   }
 
@@ -2108,7 +2132,7 @@ function txRow(tx, opts = {}) {
       </tr>
     `;
   }
-  const catPill = `<span class="cat-pill" style="background:${col.bg};color:${col.fg}">${tx.category}${tx.subcategory ? `<span class="sub-part"> · ${tx.subcategory}</span>` : ''}</span>`;
+  const catPill = `<span class="cat-pill" style="background:${col.bg};color:${col.fg};cursor:pointer" onclick="event.stopPropagation();openCategoryDrill('${escapeAttr(tx.category)}')">${tx.category}${tx.subcategory ? `<span class="sub-part"> · ${tx.subcategory}</span>` : ''}</span>`;
   const typeBadge = tx.type !== 'expense' ? `<span class="pill pill-${tx.type === 'income' ? 'income' : 'adjust'}" style="margin-right:4px">${tx.type}</span>` : '';
   return `
     <tr class="tx-row" onclick="openEditTx('${tx.id}')">
@@ -2207,11 +2231,7 @@ function _updateCategoryCard() {
           <div class="pct"></div>
         </div>` : '');
     catListEl.querySelectorAll('.dash-cat-row[data-cat]').forEach(row => {
-      row.onclick = () => {
-        state.txFilters = { month: 'all', category: row.dataset.cat, account: 'all', type: 'all', search: '' };
-        state.activeView = 'transactions';
-        render();
-      };
+      row.onclick = () => openCategoryDrill(row.dataset.cat);
     });
   }
 }
@@ -2388,6 +2408,190 @@ async function bulkChangeAccountSave() {
     _txSelected.clear();
     renderTransactions();
   } catch(e) { alert('Failed: ' + e.message); }
+}
+
+// ============================================================
+// CATEGORY DRILL-DOWN MODAL
+// ============================================================
+let _drillSort = 'amount'; // 'amount' | 'name' | 'count'
+
+function openCategoryDrill(catName) {
+  const year = currentYear();
+  const col = categoryColor(catName);
+  const { expenses, income } = monthlyTotals(year);
+
+  // Months with any data
+  const monthsWithData = expenses.reduce((n, e, i) => n + (e > 0 || income[i] > 0 ? 1 : 0), 0) || 1;
+  const currentM = new Date().getMonth(); // 0-indexed
+  const lastDataMonth = Math.max(...expenses.map((e, i) => e > 0 ? i : -1));
+
+  // Per-month totals for this category
+  const monthly12 = Array(12).fill(0);
+  state.transactions.forEach(tx => {
+    if (tx.type !== 'expense') return;
+    if (tx.category !== catName) return;
+    if (yearOfDate(tx.date) !== year) return;
+    monthly12[monthOfDate(tx.date)] += txToEUR(tx);
+  });
+
+  const ytd = monthly12.reduce((s, v) => s + v, 0);
+  const monthsSpent = monthly12.filter(v => v > 0).length || 1;
+  const avg = ytd / monthsWithData;
+  const thisMonth = monthly12[lastDataMonth] || 0;
+
+  // Subcategory totals
+  const subTotals = subcategoryTotals(year, null, catName);
+  const subEntries = Object.entries(subTotals);
+
+  // Recent 5 transactions for this category
+  const catTxs = state.transactions
+    .filter(tx => tx.type === 'expense' && tx.category === catName && yearOfDate(tx.date) === year)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const recentTxs = catTxs.slice(0, 5);
+  const totalTxCount = catTxs.length;
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function renderSubRows(sort) {
+    const sorted = [...subEntries].sort((a, b) => {
+      if (sort === 'amount') return b[1] - a[1];
+      if (sort === 'name') return a[0].localeCompare(b[0]);
+      if (sort === 'count') {
+        const ca = state.transactions.filter(t => t.type==='expense' && t.category===catName && (t.subcategory||'(uncategorised)')===a[0] && yearOfDate(t.date)===year).length;
+        const cb = state.transactions.filter(t => t.type==='expense' && t.category===catName && (t.subcategory||'(uncategorised)')===b[0] && yearOfDate(t.date)===year).length;
+        return cb - ca;
+      }
+      return 0;
+    });
+    const maxAmt = sorted[0]?.[1] || 1;
+    return sorted.map(([sub, amt]) => {
+      const pct = Math.round(amt / maxAmt * 100);
+      const count = state.transactions.filter(t => t.type==='expense' && t.category===catName && (t.subcategory||'(uncategorised)')===sub && yearOfDate(t.date)===year).length;
+      return `<div class="drill-sub-row">
+        <div style="min-width:130px;font-weight:500;color:var(--ink)">${escapeHtml(sub)}</div>
+        <div class="drill-sub-bar-wrap"><div class="drill-sub-bar" style="width:${pct}%;background:${col.dot}"></div></div>
+        <div class="amt" style="min-width:80px;text-align:right">${fmtEUR(amt)}</div>
+        <div style="min-width:36px;text-align:right;color:var(--ink-mute);font-size:11px">${count}×</div>
+      </div>`;
+    }).join('');
+  }
+
+  const el = document.createElement('div');
+  el.className = 'modal-overlay';
+  el.id = 'catDrillModal';
+  el.onclick = e => { if (e.target === el) el.remove(); };
+
+  el.innerHTML = `
+    <div class="modal modal-wide">
+      <div class="drill-header" style="background:${col.bg};border-bottom:1px solid rgba(0,0,0,0.06)">
+        <div class="drill-header-left">
+          <div class="drill-cat-dot" style="background:${col.dot}"></div>
+          <div class="drill-cat-name" style="color:${col.fg}">${escapeHtml(catName)}</div>
+        </div>
+        <button class="btn-close" onclick="document.getElementById('catDrillModal').remove()" style="background:rgba(0,0,0,0.08);border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;color:${col.fg}">✕</button>
+      </div>
+
+      <div class="drill-stats">
+        <div class="drill-stat">
+          <div class="drill-stat-label">This month</div>
+          <div class="drill-stat-val">${fmtEUR(thisMonth)}</div>
+          <div class="drill-stat-sub">${MONTHS[lastDataMonth]}</div>
+        </div>
+        <div class="drill-stat">
+          <div class="drill-stat-label">Monthly avg</div>
+          <div class="drill-stat-val">${fmtEUR(avg)}</div>
+          <div class="drill-stat-sub">over ${monthsWithData} months</div>
+        </div>
+        <div class="drill-stat">
+          <div class="drill-stat-label">YTD total</div>
+          <div class="drill-stat-val">${fmtEUR(ytd)}</div>
+          <div class="drill-stat-sub">${totalTxCount} transactions</div>
+        </div>
+      </div>
+
+      <div class="drill-section">
+        <div class="drill-section-title">Monthly trend</div>
+        <div class="drill-chart-wrap"><canvas id="drillChart"></canvas></div>
+      </div>
+
+      ${subEntries.length > 0 ? `
+      <div class="drill-section">
+        <div class="drill-section-title">
+          <span>Subcategories</span>
+          <div style="display:flex;gap:4px">
+            <button class="drill-sort-btn ${_drillSort==='amount'?'active':''}" onclick="drillSetSort('amount')">Amount</button>
+            <button class="drill-sort-btn ${_drillSort==='name'?'active':''}" onclick="drillSetSort('name')">Name</button>
+            <button class="drill-sort-btn ${_drillSort==='count'?'active':''}" onclick="drillSetSort('count')">Count</button>
+          </div>
+        </div>
+        <div id="drillSubList">${renderSubRows(_drillSort)}</div>
+      </div>` : ''}
+
+      <div class="drill-section" style="padding-bottom:20px">
+        <div class="drill-section-title">
+          <span>Recent transactions</span>
+          ${totalTxCount > 5 ? `<span style="font-size:12px;color:var(--accent);cursor:pointer;font-weight:500;text-transform:none;letter-spacing:0" onclick="document.getElementById('catDrillModal').remove();state.txFilters={month:'all',category:'${escapeAttr(catName)}',subcategory:'all',account:'all',type:'all',search:''};state.activeView='transactions';render()">Show all ${totalTxCount} →</span>` : ''}
+        </div>
+        ${recentTxs.map(tx => {
+          const acc = accountById(tx.account);
+          const amtEUR = txToEUR(tx);
+          return `<div class="drill-tx-row" onclick="document.getElementById('catDrillModal').remove();openEditTx('${tx.id}')">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:500;color:var(--ink)">${escapeHtml(tx.comment || tx.subcategory || catName)}</div>
+              <div style="font-size:11px;color:var(--ink-mute)">${dateDisplay(tx.date)}${acc ? ' · ' + acc.name : ''}${tx.subcategory ? ' · ' + tx.subcategory : ''}</div>
+            </div>
+            <div class="amt" style="color:var(--danger)">−${fmtEUR(amtEUR)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  document.body.appendChild(el);
+
+  // Draw mini bar chart
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById('drillChart');
+    if (!canvas) return;
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: MONTHS,
+        datasets: [{
+          data: monthly12,
+          backgroundColor: monthly12.map((v, i) =>
+            i > lastDataMonth ? 'rgba(180,165,140,0.3)' : col.dot + 'cc'
+          ),
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: ctx => fmtEUR(ctx.raw) }
+        }},
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 10 }, callback: v => fmtEUR(v, { compact: true }) }, border: { display: false } }
+        }
+      }
+    });
+  });
+
+  // store catName and subEntries for sort re-render
+  el._catName = catName;
+  el._subEntries = subEntries;
+  el._renderSubRows = renderSubRows;
+}
+
+function drillSetSort(sort) {
+  _drillSort = sort;
+  const el = document.getElementById('catDrillModal');
+  if (!el) return;
+  // Update active button
+  el.querySelectorAll('.drill-sort-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase() === sort);
+  });
+  document.getElementById('drillSubList').innerHTML = el._renderSubRows(sort);
 }
 
 function renderTransactions() {
@@ -2768,7 +2972,7 @@ function renderCategories() {
         return `
           <div class="card">
             <div class="card-title">
-              <span>
+              <span style="cursor:pointer" onclick="openCategoryDrill('${catId}')" title="View details">
                 ${cat}
                 <span class="card-title-sub" style="margin-left:6px">${fmtEUR(catSum)} · ${pct.toFixed(1)}%</span>
               </span>
@@ -2804,6 +3008,7 @@ function renderCategories() {
 }
 
 function escapeAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function addCategory() {
   const name = prompt('New category name:');
