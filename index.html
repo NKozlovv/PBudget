@@ -4442,7 +4442,13 @@ async function sendInvite() {
     });
     if (error) throw error;
     if (input) input.value = '';
-    if (msgEl) { msgEl.textContent = `Invite sent to ${email}. They'll get access when they sign up (or next time they log in).`; msgEl.style.color = 'var(--green)'; }
+    // Open user's email client with a pre-written invite (no backend → mailto is our mailer)
+    const subject = encodeURIComponent(`You've been invited to a Ledger budget`);
+    const body = encodeURIComponent(
+      `Hi!\n\nI've added you to my Ledger budget ("${state.budgetName}").\n\nSign up (or log in) at https://p-budget.vercel.app using this email address and you'll automatically get access.\n\nCheers`
+    );
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    if (msgEl) { msgEl.textContent = `Invite recorded. Your email app should have opened — send the message to notify ${email}.`; msgEl.style.color = 'var(--ink-mute)'; }
     // Refresh the pending list
     await openManageMembers();
   } catch (err) {
