@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.8 — historical FX correctness for account balances',
+    BUILD_VERSION: 'v0.9.9 — historical FX for transaction EUR display',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -2264,7 +2264,7 @@ async function renderDashboard() {
       const acc = accountById(tx.account);
       const sign = tx.type === 'expense' ? '−' : tx.type === 'income' ? '+' : (tx.amount >= 0 ? '+' : '−');
       const amtClass = tx.type === 'expense' ? 'amt-exp' : tx.type === 'income' ? 'amt-inc' : 'amt-adj';
-      const amtEUR = toEUR(Math.abs(tx.amount), tx.currency);
+      const amtEUR = txToEUR(tx); // uses stored historical fx_rate, not today's
       const col = categoryColor(tx.category);
       const primary = tx.comment || tx.category;
       const subParts = [tx.category, tx.subcategory, acc ? acc.name : null, dateDisplay(tx.date)].filter(Boolean);
@@ -2290,7 +2290,7 @@ function txRow(tx, opts = {}) {
   const acc = accountById(tx.account);
   const amtClass = tx.type === 'expense' ? 'amt-exp' : tx.type === 'income' ? 'amt-inc' : 'amt-adj';
   const sign = tx.type === 'expense' ? '−' : tx.type === 'income' ? '+' : (tx.amount >= 0 ? '+' : '−');
-  const amtEUR = toEUR(Math.abs(tx.amount), tx.currency);
+  const amtEUR = txToEUR(tx); // uses stored historical fx_rate, not today's
   const col = categoryColor(tx.category);
   if (opts.compact) {
     return `
