@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v1.0.0 — transfer modal with fees & cross-currency',
+    BUILD_VERSION: 'v1.0.1 — capitalize Adjustment type badge',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -2302,7 +2302,7 @@ function txRow(tx, opts = {}) {
     `;
   }
   const catPill = `<span class="cat-pill" style="background:${col.bg};color:${col.fg};cursor:pointer" onclick="event.stopPropagation();openCategoryDrill('${escapeAttr(tx.category)}')">${tx.category}${tx.subcategory ? `<span class="sub-part"> · ${tx.subcategory}</span>` : ''}</span>`;
-  const typeBadge = tx.type !== 'expense' ? `<span class="pill pill-${tx.type === 'income' ? 'income' : 'adjust'}" style="margin-right:4px">${tx.type}</span>` : '';
+  const typeBadge = tx.type !== 'expense' ? `<span class="pill pill-${tx.type === 'income' ? 'income' : 'adjust'}" style="margin-right:4px">${tx.type === 'income' ? 'Income' : 'Adjustment'}</span>` : '';
   return `
     <tr class="tx-row" onclick="openEditTx('${tx.id}')">
       <td class="cb-td" onclick="event.stopPropagation()">
@@ -4105,11 +4105,11 @@ async function saveTx(editId) {
         });
 
         // tx1: debit from account
-        const tx1data = { date, type: 'adjustment', amount: -fromAmount, currency: fromAcc.currency, fx_rate: fxFrom, category: 'Transfer', subcategory: '', account: fromAccId, comment: label };
+        const tx1data = { date, type: 'adjustment', amount: -fromAmount, currency: fromAcc.currency, fx_rate: fxFrom, category: 'Adjustment', subcategory: '', account: fromAccId, comment: label };
         pushTx(await cloudCreateTx(tx1data), tx1data);
 
         // tx2: credit to account
-        const tx2data = { date, type: 'adjustment', amount: toAmount, currency: toAcc.currency, fx_rate: fxTo, category: 'Transfer', subcategory: '', account: toAccId, comment: label };
+        const tx2data = { date, type: 'adjustment', amount: toAmount, currency: toAcc.currency, fx_rate: fxTo, category: 'Adjustment', subcategory: '', account: toAccId, comment: label };
         pushTx(await cloudCreateTx(tx2data), tx2data);
 
         // tx3 (optional): fee expense on to-account → Bills → Fees
