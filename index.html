@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.9 — historical FX for transaction EUR display',
+    BUILD_VERSION: 'v1.0.0 — transfer modal with fees & cross-currency',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -3862,9 +3862,9 @@ function openAddTx(editTx = null) {
           <div class="form-row">
             <label>Type</label>
             <div class="segment" style="width:100%">
-              <button type="button" class="${tx.type === 'expense' ? 'active' : ''}" onclick="setTxType('expense')" style="flex:1">Expense</button>
-              <button type="button" class="${tx.type === 'income' ? 'active' : ''}" onclick="setTxType('income')" style="flex:1">Income</button>
-              <button type="button" class="${tx.type === 'adjustment' ? 'active' : ''}" onclick="setTxType('adjustment')" style="flex:1">Adjustment</button>
+              <button type="button" data-type="expense" class="${tx.type === 'expense' ? 'active' : ''}" onclick="setTxType('expense')" style="flex:1">Expense</button>
+              <button type="button" data-type="income" class="${tx.type === 'income' ? 'active' : ''}" onclick="setTxType('income')" style="flex:1">Income</button>
+              <button type="button" data-type="adjustment" class="${tx.type === 'adjustment' ? 'active' : ''}" onclick="setTxType('adjustment')" style="flex:1">Transfer</button>
             </div>
           </div>
           <div class="form-grid-2">
@@ -3902,10 +3902,34 @@ function openAddTx(editTx = null) {
             </div>
           </div>
           <div class="form-row">
-            <label>Account</label>
+            <label id="fromAccLabel">${tx.type === 'adjustment' ? 'From account' : 'Account'}</label>
             <select id="txAccount">
               ${state.accounts.map(a => `<option value="${a.id}" ${tx.account === a.id ? 'selected' : ''}>${a.name} (${a.currency})</option>`).join('')}
             </select>
+          </div>
+          <!-- Transfer-only fields: shown when type = adjustment/transfer -->
+          <div id="transferFields" style="${tx.type === 'adjustment' ? '' : 'display:none'}">
+            <div class="form-row">
+              <label>To account</label>
+              <select id="txToAccount" onchange="onToAccountChange()">
+                <option value="">— balance adjustment only —</option>
+                ${state.accounts.map(a => `<option value="${a.id}">${a.name} (${a.currency})</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-row" id="txRateRow" style="display:none">
+              <label id="txRateLabel">Exchange rate</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" step="0.0001" min="0.0001" id="txTransferRate" style="flex:1" placeholder="1.0000">
+                <span id="txRateHint" style="font-size:12px;color:var(--ink-mute);white-space:nowrap;min-width:100px"></span>
+              </div>
+            </div>
+            <div class="form-row" id="txFeeRow" style="display:none">
+              <label>Transaction fee <span style="font-weight:400;color:var(--ink-mute);font-size:11px">(Bills → Fees)</span></label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" step="0.01" min="0" id="txFee" style="flex:1" placeholder="0.00">
+                <span id="txFeeCurrency" style="font-size:13px;color:var(--ink-mute);white-space:nowrap;min-width:40px"></span>
+              </div>
+            </div>
           </div>
           <div class="form-row">
             <label>Notes</label>
@@ -3936,68 +3960,211 @@ function openAddTx(editTx = null) {
     }
   });
 
-  // When account changes, auto-select currency
+  // When from-account changes, auto-select currency and refresh transfer rate hint
   document.getElementById('txAccount').addEventListener('change', (e) => {
     const acc = accountById(e.target.value);
     if (acc) document.getElementById('txCurrency').value = acc.currency;
+    if (pendingTxType === 'adjustment') onToAccountChange();
   });
 }
 
 let pendingTxType = 'expense';
 function setTxType(type) {
   pendingTxType = type;
-  // Redraw fields
-  const editBtns = document.querySelectorAll('.modal .segment button');
-  editBtns.forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === type));
+  document.querySelectorAll('.modal .segment button[data-type]').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === type)
+  );
 
-  const catSel = document.getElementById('txCategory');
-  if (type === 'expense') {
-    catSel.innerHTML = Object.keys(state.categories).map(c => `<option value="${c}">${c}</option>`).join('');
-    document.getElementById('subField').style.display = '';
-    // Refresh subs
-    const subs = state.categories[catSel.value] || [];
-    document.getElementById('txSub').innerHTML = '<option value="">—</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+  const catFields = document.getElementById('catFields');
+  const transferFields = document.getElementById('transferFields');
+  const fromAccLabel = document.getElementById('fromAccLabel');
+
+  if (type === 'adjustment') {
+    if (catFields) catFields.style.display = 'none';
+    if (transferFields) transferFields.style.display = '';
+    if (fromAccLabel) fromAccLabel.textContent = 'From account';
   } else {
-    catSel.innerHTML = state.incomeTypes.map(c => `<option value="${c}">${c}</option>`).join('');
-    document.getElementById('subField').style.display = 'none';
+    if (transferFields) transferFields.style.display = 'none';
+    if (catFields) catFields.style.display = '';
+    if (fromAccLabel) fromAccLabel.textContent = 'Account';
+
+    const catSel = document.getElementById('txCategory');
+    if (type === 'expense') {
+      catSel.innerHTML = Object.keys(state.categories).map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('subField').style.display = '';
+      const subs = state.categories[catSel.value] || [];
+      document.getElementById('txSub').innerHTML = '<option value="">—</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+    } else {
+      catSel.innerHTML = state.incomeTypes.map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('subField').style.display = 'none';
+    }
   }
 }
 function getCurrentTxType() { return pendingTxType; }
 
+function onToAccountChange() {
+  const toAccId = document.getElementById('txToAccount')?.value;
+  const fromAccId = document.getElementById('txAccount')?.value;
+  const toAcc = accountById(toAccId);
+  const fromAcc = accountById(fromAccId);
+  const rateRow = document.getElementById('txRateRow');
+  const feeRow = document.getElementById('txFeeRow');
+
+  if (!toAccId) {
+    rateRow.style.display = 'none';
+    feeRow.style.display = 'none';
+    return;
+  }
+
+  // Fee field: always shown when a to-account is selected
+  feeRow.style.display = '';
+  document.getElementById('txFeeCurrency').textContent = toAcc ? toAcc.currency : '';
+
+  // Exchange rate: only when currencies differ
+  if (fromAcc && toAcc && fromAcc.currency !== toAcc.currency) {
+    rateRow.style.display = '';
+    document.getElementById('txRateHint').textContent = `1 ${fromAcc.currency} = ? ${toAcc.currency}`;
+  } else {
+    rateRow.style.display = 'none';
+  }
+}
+
+// Ensures Bills category + Fees subcategory exist in state and DB.
+// Called before saving a fee transaction so it appears in category breakdowns.
+async function ensureBillsFees() {
+  if (!state.categories['Bills']) {
+    const { data, error } = await sb.from('categories')
+      .insert({ budget_id: state.budgetId, name: 'Bills', kind: 'expense', sort_order: 999 })
+      .select().single();
+    if (!error && data) {
+      state.categories['Bills'] = [];
+      await sb.from('subcategories').insert({ category_id: data.id, name: 'Fees', sort_order: 0 });
+      state.categories['Bills'] = ['Fees'];
+    }
+  } else if (!state.categories['Bills'].includes('Fees')) {
+    const { data: cat } = await sb.from('categories').select('id')
+      .eq('budget_id', state.budgetId).eq('name', 'Bills').single();
+    if (cat) {
+      await sb.from('subcategories').insert({ category_id: cat.id, name: 'Fees', sort_order: state.categories['Bills'].length });
+      state.categories['Bills'].push('Fees');
+    }
+  }
+}
+
 async function saveTx(editId) {
   const type = pendingTxType;
+  const date = document.getElementById('txDate').value;
+  const comment = document.getElementById('txComment').value;
+  if (!date) { toast('Date required'); return; }
+
+  // ── TRANSFER (adjustment with a to-account) ──────────────────────────────
+  if (type === 'adjustment' && !editId) {
+    const toAccId = document.getElementById('txToAccount')?.value || '';
+    const fromAccId = document.getElementById('txAccount').value;
+    const fromAcc = accountById(fromAccId);
+    const toAcc = accountById(toAccId);
+    const fromAmount = Math.abs(parseFloat(document.getElementById('txAmount').value) || 0);
+    if (!fromAmount) { toast('Amount required'); return; }
+
+    if (toAccId) {
+      // ── 2 or 3 transaction transfer ─────────────────────────────────────
+      const diffCcy = fromAcc.currency !== toAcc.currency;
+      const transferRate = diffCcy
+        ? (parseFloat(document.getElementById('txTransferRate')?.value) || 1)
+        : 1;
+      const fee = parseFloat(document.getElementById('txFee')?.value) || 0;
+      const toAmount = fromAmount * transferRate;
+      const label = comment || `${fromAcc.name} → ${toAcc.name}`;
+
+      const btn = document.querySelector('#modalRoot .btn-primary');
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+      try {
+        // Helper: fetch fx_rate for a USD tx, derive from transfer rate if possible
+        const fxForCcy = async (ccy) => {
+          if (ccy !== 'USD') return null;
+          return await fetchHistoricalFxRate(date) || state.fxRate;
+        };
+        // For cross-currency, derive the counter fx_rate from the user's transfer rate
+        // rather than fetching again, so the pair is internally consistent.
+        let fxFrom = null, fxTo = null;
+        if (fromAcc.currency === 'USD' && toAcc.currency === 'EUR') {
+          fxFrom = transferRate; // rate = EUR per USD = USD→EUR
+        } else if (fromAcc.currency === 'EUR' && toAcc.currency === 'USD') {
+          fxTo = transferRate > 0 ? 1 / transferRate : await fxForCcy('USD');
+        } else {
+          fxFrom = await fxForCcy(fromAcc.currency);
+          fxTo   = await fxForCcy(toAcc.currency);
+        }
+
+        // Helper: push a newly created DB row into local state with the correct shape
+        const pushTx = (row, local) => state.transactions.push({
+          id: row.id, date, type: local.type, amount: local.amount,
+          currency: local.currency, fx_rate: local.fx_rate ?? null,
+          category: local.category, subcategory: local.subcategory || '',
+          account: local.account, comment: local.comment || '',
+        });
+
+        // tx1: debit from account
+        const tx1data = { date, type: 'adjustment', amount: -fromAmount, currency: fromAcc.currency, fx_rate: fxFrom, category: 'Transfer', subcategory: '', account: fromAccId, comment: label };
+        pushTx(await cloudCreateTx(tx1data), tx1data);
+
+        // tx2: credit to account
+        const tx2data = { date, type: 'adjustment', amount: toAmount, currency: toAcc.currency, fx_rate: fxTo, category: 'Transfer', subcategory: '', account: toAccId, comment: label };
+        pushTx(await cloudCreateTx(tx2data), tx2data);
+
+        // tx3 (optional): fee expense on to-account → Bills → Fees
+        if (fee > 0) {
+          await ensureBillsFees();
+          const tx3data = { date, type: 'expense', amount: fee, currency: toAcc.currency, fx_rate: await fxForCcy(toAcc.currency), category: 'Bills', subcategory: 'Fees', account: toAccId, comment: `${label} — fee` };
+          pushTx(await cloudCreateTx(tx3data), tx3data);
+        }
+
+        closeModal();
+        render();
+        toast(`Transfer saved · ${fee > 0 ? '3 transactions (incl. fee)' : '2 transactions'}`);
+      } catch(err) {
+        toast('Transfer failed: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+      }
+      return;
+    }
+
+    // ── Simple balance adjustment (no to-account) ────────────────────────
+    const rawAmount = parseFloat(document.getElementById('txAmount').value);
+    const fxRate = fromAcc?.currency === 'USD'
+      ? (await fetchHistoricalFxRate(date) || state.fxRate) : null;
+    try {
+      const adjData = { date, type: 'adjustment', amount: rawAmount, currency: fromAcc?.currency || 'EUR', fx_rate: fxRate, category: 'Adjustment', subcategory: '', account: fromAccId, comment };
+      const inserted = await cloudCreateTx(adjData);
+      state.transactions.push({ id: inserted.id, ...adjData });
+      closeModal(); render(); toast('Adjustment saved');
+    } catch(err) { toast('Save failed: ' + err.message); }
+    return;
+  }
+
+  // ── EXPENSE / INCOME (and edit of any type) ───────────────────────────────
   const tx = {
-    date: document.getElementById('txDate').value,
+    date,
     type,
     amount: parseFloat(document.getElementById('txAmount').value) || 0,
     currency: document.getElementById('txCurrency').value,
-    category: document.getElementById('txCategory').value,
+    category: type === 'adjustment' ? 'Adjustment' : document.getElementById('txCategory').value,
     subcategory: type === 'expense' ? document.getElementById('txSub').value : '',
     account: document.getElementById('txAccount').value,
-    comment: document.getElementById('txComment').value,
+    comment,
   };
-  if (!tx.amount || !tx.date) { toast('Date and amount required'); return; }
+  if (!tx.amount) { toast('Amount required'); return; }
+  tx.amount = type === 'adjustment'
+    ? parseFloat(document.getElementById('txAmount').value)
+    : Math.abs(tx.amount);
 
-  // Normalize sign for adjustments: allow negative entry in UI
-  if (type === 'adjustment') {
-    // For adjustment, accept the raw amount (can be negative or positive)
-    tx.amount = parseFloat(document.getElementById('txAmount').value);
-  } else {
-    tx.amount = Math.abs(tx.amount);
-  }
-
-  // FX rate handling:
-  // - If USD and no stored rate exists (new tx), fetch the rate for this date
-  // - Otherwise (editing), preserve the original rate unless currency changed
+  // FX rate: preserve existing rate when editing, fetch for new USD tx
   if (tx.currency === 'USD') {
     if (editId) {
       const existing = state.transactions.find(t => t.id === editId);
-      if (existing && existing.currency === 'USD' && existing.fx_rate != null) {
-        tx.fx_rate = existing.fx_rate;
-      } else {
-        // Currency changed to USD or new tx - fetch rate
-        tx.fx_rate = await fetchHistoricalFxRate(tx.date) || state.fxRate;
-      }
+      tx.fx_rate = (existing?.currency === 'USD' && existing.fx_rate != null)
+        ? existing.fx_rate
+        : (await fetchHistoricalFxRate(tx.date) || state.fxRate);
     } else {
       tx.fx_rate = await fetchHistoricalFxRate(tx.date) || state.fxRate;
     }
