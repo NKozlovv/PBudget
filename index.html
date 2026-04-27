@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.3 — Sparkasse CSV importer',
+    BUILD_VERSION: 'v0.9.6 — real invite emails via Edge Function',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -4435,21 +4435,20 @@ async function sendInvite() {
   }
   if (msgEl) { msgEl.textContent = 'Sending…'; msgEl.style.color = 'var(--ink-mute)'; }
   try {
-    const { error } = await sb.from('budget_invites').insert({
-      budget_id: state.budgetId,
-      email,
-      invited_by: currentUser.id,
+    const session = (await sb.auth.getSession()).data.session;
+    const res = await fetch(`${window.LEDGER_CONFIG.SUPABASE_URL}/functions/v1/send-budget-invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': window.LEDGER_CONFIG.SUPABASE_KEY,
+      },
+      body: JSON.stringify({ email, budget_id: state.budgetId, budget_name: state.budgetName }),
     });
-    if (error) throw error;
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
     if (input) input.value = '';
-    // Open user's email client with a pre-written invite (no backend → mailto is our mailer)
-    const subject = encodeURIComponent(`You've been invited to a Ledger budget`);
-    const body = encodeURIComponent(
-      `Hi!\n\nI've added you to my Ledger budget ("${state.budgetName}").\n\nSign up (or log in) at https://p-budget.vercel.app using this email address and you'll automatically get access.\n\nCheers`
-    );
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
-    if (msgEl) { msgEl.textContent = `Invite recorded. Your email app should have opened — send the message to notify ${email}.`; msgEl.style.color = 'var(--ink-mute)'; }
-    // Refresh the pending list
+    if (msgEl) { msgEl.textContent = `Invite sent to ${email} — they'll get an email with a sign-in link.`; msgEl.style.color = 'var(--success)'; }
     await openManageMembers();
   } catch (err) {
     if (msgEl) { msgEl.textContent = 'Failed: ' + err.message; msgEl.style.color = 'var(--red)'; }
