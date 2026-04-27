@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.7 — dashboard YTD + projection widgets',
+    BUILD_VERSION: 'v0.9.8 — historical FX correctness for account balances',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -1142,7 +1142,28 @@ function totalBalanceAtMonth(month, year) {
 
 function totalBalanceNow() {
   const y = currentYear();
-  return totalBalanceAtMonth(11, y); // end of December = latest
+  // Uses today's rate via accountBalanceAtMonth — correct for "what is it worth right now"
+  return totalBalanceAtMonth(11, y);
+}
+
+// Mark-to-market EUR balance: native balance × EOM rate for that month.
+// Requires prefetchEomRates(year) to have been awaited first so _fxCache is primed.
+// month = -1 means "opening balance" — uses Dec 31 of prior year as the rate date.
+// Do NOT use this for "what is it worth today" — use toEUR(native, currency) for that.
+function accountBalanceEUR(accountId, month, year) {
+  const native = accountBalanceNative(accountId, month, year);
+  const acc = accountById(accountId);
+  if (!acc || acc.currency === 'EUR') return native;
+  const dateStr_ = month < 0 ? eomDateStr(year - 1, 11) : eomDateStr(year, month);
+  const rate = _fxCache[dateStr_] ?? state.fxRate; // fallback: today's rate (cache miss)
+  if (_fxCache[dateStr_] == null) console.warn('eomRate cache miss for', dateStr_, '— falling back to today\'s rate');
+  return native * rate;
+}
+
+// Sum of accountBalanceEUR across all accounts for a given month.
+// Parallel to totalBalanceAtMonth but uses historical EOM rates, not today's.
+function totalBalanceEUR(month, year) {
+  return state.accounts.reduce((sum, a) => sum + accountBalanceEUR(a.id, month, year), 0);
 }
 
 // Aggregate expenses/income by month for current year
@@ -1255,6 +1276,24 @@ async function fetchRatesForDates(dates) {
     const batch = unique.slice(i, i + CHUNK);
     await Promise.all(batch.map(d => fetchHistoricalFxRate(d)));
   }
+}
+
+// Returns YYYY-MM-DD for the last calendar day of the given month (0-indexed).
+// Used as the _fxCache key for end-of-month rate lookups.
+// Frankfurter returns the nearest prior business day for weekends/holidays.
+function eomDateStr(year, month) {
+  // new Date(year, month+1, 0) = last day of month in local time
+  return dateStr(new Date(year, month + 1, 0));
+}
+
+// Pre-fetch EOM rates for an entire year (+ prior Dec 31 for opening balance).
+// Call before any synchronous accountBalanceEUR() calls to prime _fxCache.
+async function prefetchEomRates(year) {
+  const dates = [
+    eomDateStr(year - 1, 11),                         // Dec 31 of prior year (opening balance rate)
+    ...Array.from({ length: 12 }, (_, m) => eomDateStr(year, m)), // Jan 31 … Dec 31
+  ];
+  await fetchRatesForDates(dates);
 }
 
 // Excel serial → JS Date (local midnight)
@@ -1674,8 +1713,11 @@ async function startFresh() {
 // Build 2 — Modern Soft layout: dark navy hero, 4 metric tiles,
 // monthly flow w/ projected future months, savings rate trend,
 // category donut + list with category colors, recent activity.
-function renderDashboard() {
+async function renderDashboard() {
   const year = currentYear();
+  // Pre-fetch EOM rates so the sparkline can use mark-to-market values per month.
+  // Fast (no-op) on repeat visits since results are cached in _fxCache.
+  await prefetchEomRates(year);
   const { expenses, income } = monthlyTotals(year);
 
   // Last month with any data = current month for stats
@@ -1716,7 +1758,10 @@ function renderDashboard() {
 
   // Time range pills — affect only the hero balance display label/sparkline window
   const range = state.dashRange || 'YTD';
-  const balSeries = Array(12).fill(null).map((_, m) => totalBalanceAtMonth(m, year));
+  // Sparkline: mark-to-market at each month's EOM rate (historical, not today's).
+  // Uses totalBalanceEUR which reads from _fxCache primed above.
+  // Hero number and projected EOY stay on today's rate — see totalBalanceNow() above.
+  const balSeries = Array(12).fill(null).map((_, m) => totalBalanceEUR(m, year));
   let sparkSlice = balSeries.slice(0, lastMonth + 1);
   if (range === '1M') sparkSlice = sparkSlice.slice(-2);
   else if (range === '3M') sparkSlice = sparkSlice.slice(-3);
@@ -2904,22 +2949,35 @@ function renderTransactions() {
 // ------------- ACCOUNTS -------------
 const ACC_PALETTE = ['#c44536','#d8a64a','#1a7a4a','#7daad0','#9c4a97','#6a8a4a','#457b9d','#b08968','#588b8b','#a4161a','#8a6b94','#725e54'];
 
-function renderAccounts() {
+async function renderAccounts() {
   const year = currentYear();
   const main = document.getElementById('main');
   main.classList.add('full-width');
 
+  // Pre-fetch EOM rates for this year + prior Dec 31 (opening balance rate).
+  // Shows a brief placeholder only on first visit; subsequent visits are instant (cached).
+  if (!_fxCache[eomDateStr(year, 0)]) {
+    main.innerHTML = `<div style="padding:60px;text-align:center;color:var(--ink-mute);font-size:14px">Fetching historical exchange rates…</div>`;
+  }
+  await prefetchEomRates(year);
+
   const rows = state.accounts.map((acc, i) => {
-    const balsEUR = Array(12).fill(0).map((_, m) => accountBalanceAtMonth(acc.id, m, year));
     const balsNative = Array(12).fill(0).map((_, m) => accountBalanceNative(acc.id, m, year));
+    // Historical EUR: mark-to-market at each month's EOM rate (for table + trajectory chart).
+    // Do not use today's rate here — a USD account that didn't move should show
+    // different EUR values per month reflecting actual rate changes.
+    const balsEUR = Array(12).fill(0).map((_, m) => accountBalanceEUR(acc.id, m, year));
     const openingNative = state.openingBalances[acc.id] || 0;
-    const openingEUR = toEUR(openingNative, acc.currency);
-    const latestEUR = balsEUR[11];
+    // Opening EUR at Dec 31 of prior year — historical mark-to-market, not today's rate.
+    const openingEUR = accountBalanceEUR(acc.id, -1, year);
     const latestNative = balsNative[11];
+    // Current EUR value at TODAY's rate — "what is it worth right now" for cards + donut.
+    const latestEUR = toEUR(latestNative, acc.currency);
     const color = ACC_PALETTE[i % ACC_PALETTE.length];
     return { acc, balsEUR, balsNative, openingNative, openingEUR, latestEUR, latestNative, color };
   });
 
+  // total uses today's rate (latestEUR); totalOpening uses Dec 31 historical rate.
   const total = rows.reduce((s, r) => s + r.latestEUR, 0);
   const totalOpening = rows.reduce((s, r) => s + r.openingEUR, 0);
   const ytdChange = total - totalOpening;
