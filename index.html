@@ -17,7 +17,7 @@
   window.LEDGER_CONFIG = {
     SUPABASE_URL: 'https://udcfjiuybkugbydlaltk.supabase.co',
     SUPABASE_KEY: 'sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z',
-    BUILD_VERSION: 'v0.9.6 — real invite emails via Edge Function',
+    BUILD_VERSION: 'v0.9.7 — dashboard YTD + projection widgets',
     BUILD_DATE: '2026-04-26',
   };
 </script>
@@ -1702,6 +1702,11 @@ function renderDashboard() {
   const avgMonthlyNet = monthsWithData > 0 ? (ytdInc - ytdExp) / monthsWithData : 0;
   const projectedEOY = balNowAtLastMonth + avgMonthlyNet * monthsRemaining;
 
+  // Full-year projections
+  const avgMonthlyInc = ytdInc / monthsWithData;
+  const projYearExp = ytdExp + avgMonthlyExp * monthsRemaining;
+  const projYearInc = ytdInc + avgMonthlyInc * monthsRemaining;
+
   // Prev-month deltas
   const prevMonthExp = lastMonth > 0 ? expenses[lastMonth - 1] : 0;
   const prevMonthInc = lastMonth > 0 ? income[lastMonth - 1] : 0;
@@ -1793,6 +1798,29 @@ function renderDashboard() {
         <div class="metric-label">Projected EOY</div>
         <div class="metric-value" style="color:var(--accent)">${fmtEUR(projectedEOY)}</div>
         <div class="metric-sub">${monthsRemaining > 0 ? `at current pace · ${avgMonthlyNet >= 0 ? '+' : ''}${fmtEUR(avgMonthlyNet)}/mo` : 'year complete'}</div>
+      </div>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-tile">
+        <div class="metric-label">Spent to date</div>
+        <div class="metric-value" style="color:var(--danger)">${fmtEUR(ytdExp)}</div>
+        <div class="metric-sub">${monthsWithData} mo · avg ${fmtEUR(avgMonthlyExp)}/mo</div>
+      </div>
+      <div class="metric-tile">
+        <div class="metric-label">Earned to date</div>
+        <div class="metric-value" style="color:var(--success)">${fmtEUR(ytdInc)}</div>
+        <div class="metric-sub">${monthsWithData} mo · avg ${fmtEUR(avgMonthlyInc)}/mo</div>
+      </div>
+      <div class="metric-tile">
+        <div class="metric-label">Est. year spending</div>
+        <div class="metric-value" style="color:var(--danger)">${fmtEUR(projYearExp)}</div>
+        <div class="metric-sub">${fmtEUR(ytdExp)} actual + ${fmtEUR(avgMonthlyExp * monthsRemaining)} est.</div>
+      </div>
+      <div class="metric-tile">
+        <div class="metric-label">Est. year income</div>
+        <div class="metric-value" style="color:var(--success)">${fmtEUR(projYearInc)}</div>
+        <div class="metric-sub">${fmtEUR(ytdInc)} actual + ${fmtEUR(avgMonthlyInc * monthsRemaining)} est.</div>
       </div>
     </div>
 
