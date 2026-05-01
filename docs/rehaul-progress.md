@@ -77,3 +77,50 @@ User feedback: chunk 2 auth pages were a centered card; Sterling's auth (`design
 Mobile: brand panel hidden below `md`; form takes full width.
 
 Skipped: social SSO buttons (Google/Apple in Sterling reference) — Supabase project doesn't have providers configured yet. Add later if/when configured.
+
+### Chunk 2.2 — auth refinements (2026-05-01)
+
+User feedback: brand panel needed Theus's actual logo + better gradient + horizontal centering. Two iterations:
+- Ported `design-refs/src/theus-logo.jsx` → `TheusMark` + `TheusLockup`
+- Killed the triple-gradient layering (was muddy on green); single brass radial on flat `bg-panel` reads cleaner
+- Editorial column now `justify-center` (was left-stranded on >1280px screens)
+- Headline scales 64 → 76 → 84 px (md / lg / xl)
+- Field label switched off `font-mono` (JetBrains Mono looked typewriter-y) → plain Inter uppercase tracked, matches Sterling `auth.jsx:103`
+
+---
+
+## Chunk 3 — typed data layer + regression tests (2026-05-02)
+
+**Done:**
+
+Types
+- `lib/supabase/types.ts` — hand-written from CLAUDE.md §4 schema. To be regenerated via Supabase CLI later.
+
+Pure helpers (with regression tests)
+- `lib/date.ts` — `monthOfDate`, `yearOfDate`, `dayOfDate`, `dateToISO`, `dateStr`, `dateDisplay`, `eomDateStr`, `monthName`. All TZ-safe via regex parser + local-component Date construction.
+- `lib/money.ts` — `fmtEUR`, `fmtUSD`, `fmtCurrency`, `txToEUR` (mirrors legacy `txToEUR()` index.html line 953), `signedAmount` (handles the adjustment-amount-as-stored-sign rule from CLAUDE.md §8a).
+- `test/lib/date.test.ts` — 14 cases. Canonical regression: `monthOfDate('2026-01-01')` returns 0 (not 11) regardless of TZ.
+- `test/lib/money.test.ts` — 12 cases including USD→EUR conversion with stored vs fallback rate, and the adjustment sign rule.
+
+Data layer (server-only)
+- `lib/data/budgets.ts` — `listBudgets`, `getOrCreateUserBudget` (mirrors legacy `ensureBudget()` line 4416), `updateBudget`.
+- `lib/data/accounts.ts` — `listAccounts(budgetId)`.
+- `lib/data/categories.ts` — `listCategories(budgetId, kind?)` + `listSubcategories(categoryIds[])`.
+- `lib/data/transactions.ts` — `listTransactions(filters)` with month/category/account/type/date-range/pagination + `countTransactions`.
+- All modules `import 'server-only'` to prevent accidental client-side use.
+
+Dashboard (read-only)
+- `app/(app)/dashboard/page.tsx` now actually loads & displays data: signed-in email, budget, account count, transaction count, accounts table, expense + income category pills, last 8 transactions with EUR conversion.
+- Uses server components — direct `await` on the data layer modules.
+
+**Skipped (deferred):**
+- TanStack Query — read paths use server components; client mutations land Chunk 6.
+- `lib/fx.ts` — only needed during XLSX import; ships in Chunk 10.
+- `lib/data/members.ts` — ships in Chunk 13 (invites).
+- Account-adjustment classifier regression test — lives with the XLSX parser, ships Chunk 10.
+
+**Stop signal hit:** loads real account & transaction data after login but renders raw-table view; tests authored (will run in CI/Vercel).
+
+**Next:** Chunk 4 — full app shell (sidebar, topbar, route stubs).
+
+**Open questions:** none.
