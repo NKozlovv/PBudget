@@ -4,7 +4,8 @@ import { useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Button, Field, Input, Mono } from '@/components/ui';
+import { Button, Field, Input } from '@/components/ui';
+import { AuthHeader } from './AuthHeader';
 
 export function SignInForm() {
   const router = useRouter();
@@ -37,51 +38,67 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5">
-      <Mono size="sm" tone="mute">
-        sign in
-      </Mono>
-      <Field label="Email">
-        {({ id }) => (
-          <Input
-            id={id}
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        )}
-      </Field>
-      <Field label="Password">
-        {({ id }) => (
-          <Input
-            id={id}
-            type="password"
-            autoComplete="current-password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        )}
-      </Field>
+    <form onSubmit={onSubmit} noValidate>
+      <AuthHeader
+        kicker="welcome back"
+        title="Sign in"
+        subtitle="Pick up where you left off."
+      />
+
+      <div className="flex flex-col gap-4">
+        <Field label="Email">
+          {({ id }) => (
+            <Input
+              id={id}
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
+        </Field>
+
+        <Field label="Password">
+          {({ id }) => (
+            <Input
+              id={id}
+              type="password"
+              autoComplete="current-password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          )}
+        </Field>
+
+        <div className="flex justify-end -mt-1">
+          <Link
+            href="/reset"
+            className="text-[12px] text-accent hover:underline underline-offset-4"
+          >
+            Forgot password?
+          </Link>
+        </div>
+      </div>
+
       {error ? (
-        <p className="text-[13px] text-neg" role="alert">
+        <p className="mt-5 text-[13px] text-neg" role="alert">
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending} className="mt-2">
-        {pending ? 'Signing in…' : 'Sign in'}
+
+      <Button type="submit" disabled={pending} className="mt-7 w-full py-3.5">
+        {pending ? 'Signing in…' : 'Sign in →'}
       </Button>
-      <div className="flex items-center justify-between text-[13px] text-ink-soft">
-        <Link href="/signup" className="hover:text-ink">
-          Create account
+
+      <p className="mt-6 text-center text-[13px] text-ink-mute">
+        New here?{' '}
+        <Link href="/signup" className="text-accent font-medium hover:underline">
+          Create an account
         </Link>
-        <Link href="/reset" className="hover:text-ink">
-          Forgot password
-        </Link>
-      </div>
+      </p>
     </form>
   );
 }

@@ -18,8 +18,11 @@ export function Field({
 }) {
   const id = useId();
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <label htmlFor={id} className="text-[12px] font-medium text-ink-soft">
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <label
+        htmlFor={id}
+        className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-ink-mute"
+      >
         {label}
       </label>
       {children({ id })}

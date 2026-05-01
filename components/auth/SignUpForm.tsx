@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Button, Field, Input, Mono } from '@/components/ui';
+import { Button, Field, Input } from '@/components/ui';
+import { AuthHeader } from './AuthHeader';
 
 export function SignUpForm() {
   const [email, setEmail] = useState('');
@@ -44,47 +45,60 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5">
-      <Mono size="sm" tone="mute">
-        create account
-      </Mono>
-      <Field label="Email">
-        {({ id }) => (
-          <Input
-            id={id}
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        )}
-      </Field>
-      <Field label="Password" hint="At least 6 characters">
-        {({ id }) => (
-          <Input
-            id={id}
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        )}
-      </Field>
+    <form onSubmit={onSubmit} noValidate>
+      <AuthHeader
+        kicker="get started"
+        title="Create account"
+        subtitle="Three minutes. No card. Your data stays yours."
+      />
+
+      <div className="flex flex-col gap-4">
+        <Field label="Email">
+          {({ id }) => (
+            <Input
+              id={id}
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
+        </Field>
+
+        <Field label="Password" hint="At least 6 characters">
+          {({ id }) => (
+            <Input
+              id={id}
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          )}
+        </Field>
+      </div>
+
       {error ? (
-        <p className="text-[13px] text-neg" role="alert">
+        <p className="mt-5 text-[13px] text-neg" role="alert">
           {error}
         </p>
       ) : null}
-      {info ? <p className="text-[13px] text-pos">{info}</p> : null}
-      <Button type="submit" disabled={pending} className="mt-2">
-        {pending ? 'Creating…' : 'Create account'}
+      {info ? (
+        <p className="mt-5 text-[13px] text-pos" role="status">
+          {info}
+        </p>
+      ) : null}
+
+      <Button type="submit" disabled={pending} className="mt-7 w-full py-3.5">
+        {pending ? 'Creating…' : 'Create account →'}
       </Button>
-      <p className="text-[13px] text-ink-soft">
+
+      <p className="mt-6 text-center text-[13px] text-ink-mute">
         Already have one?{' '}
-        <Link href="/login" className="text-accent hover:underline">
+        <Link href="/login" className="text-accent font-medium hover:underline">
           Sign in
         </Link>
       </p>

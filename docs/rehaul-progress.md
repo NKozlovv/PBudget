@@ -62,3 +62,18 @@ Until that's done, `/login`, `/signup`, `/reset`, `/dashboard` will fail with a 
 **Next:** Chunk 3 — typed data layer + regression tests (date helpers + FX cache + Account-adjustment classification).
 
 **Open questions:** none.
+
+### Chunk 2.1 — Sterling auth split layout (2026-05-01)
+
+User feedback: chunk 2 auth pages were a centered card; Sterling's auth (`design-refs/src/auth.jsx`) is a split-screen with editorial brand panel + form panel. Built:
+
+- `app/(auth)/layout.tsx` — `md:grid-cols-[1.1fr_1fr]`, drops Card wrapper
+- `components/auth/BrandPanel.tsx` — left panel with diagonal gradient + accent radial, "Theus" wordmark, big Instrument-Serif `Money, understood.` headline (italic accent on "understood"), description, balance preview card with mini sparkline, mono footer
+- `components/auth/Sparkline.tsx` — tiny static area sparkline for the preview card
+- `components/auth/AuthHeader.tsx` — mono kicker + 36px title + subtitle group
+- All three forms (Sign in / Sign up / Reset) use `AuthHeader` and a full-width primary CTA with `→` glyph
+- `Field` label restyled to mono uppercase tracked (Sterling pattern)
+
+Mobile: brand panel hidden below `md`; form takes full width.
+
+Skipped: social SSO buttons (Google/Apple in Sterling reference) — Supabase project doesn't have providers configured yet. Add later if/when configured.
