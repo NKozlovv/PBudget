@@ -1,24 +1,8 @@
+@import '../styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  /* Theus dark — sole theme for this rehaul (light mode deferred). */
-  --bg: #0f1a14;
-  --bg-soft: #162420;
-  --bg-panel: #1c2c26;
-  --ink: #efe9d8;
-  --ink-soft: #c7bfa9;
-  --ink-mute: #7e7762;
-  --rule: rgba(239, 233, 216, 0.16);
-  --grid: rgba(239, 233, 216, 0.05);
-  --accent: #c9a24a;
-  --accent-soft: rgba(201, 162, 74, 0.18);
-  --pos: #7fb58a;
-  --pos-soft: rgba(127, 181, 138, 0.18);
-  --neg: #d9603a;
-  --neg-soft: rgba(217, 96, 58, 0.16);
-}
 
 html,
 body {

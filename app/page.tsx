@@ -14,7 +14,8 @@ export default function HomePage() {
 
         <div className="mt-10 border-t border-rule pt-6 grid gap-4">
           <Row label="branch" value="experimental/theus-rehaul" />
-          <Row label="phase" value="2 · chunk 0 — bootstrap" />
+          <Row label="phase" value="2 · chunk 1 — design system" />
+          <Row label="styleguide" value={<a href="/styleguide" className="text-accent hover:underline">/styleguide</a>} />
           <Row label="legacy" value={<a href="/legacy" className="text-accent hover:underline">/legacy</a>} />
         </div>
 

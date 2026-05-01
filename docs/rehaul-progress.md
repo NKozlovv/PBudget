@@ -8,22 +8,46 @@ Append-only log, one entry per chunk. Each entry: what was done, what's next, op
 
 **Done:**
 - Next.js 15 + React 19 + TypeScript (strict, with `noUncheckedIndexedAccess`) scaffold
-- Tailwind v3 with Theus dark tokens wired through CSS variables → `tailwind.config.ts`
-- ESLint (next/core-web-vitals + next/typescript) + Prettier + Vitest configs
-- `app/layout.tsx` loads Inter, JetBrains Mono, Instrument Serif via `next/font/google` (self-hosted, no Google CDN at runtime)
-- `app/page.tsx` placeholder rendered in Theus identity (forest bg, cream ink, brass accent, italic-serif tagline)
-- Security headers configured in `next.config.mjs`: nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy
-- Legacy app moved to `public/legacy/index.html`, reachable at `/legacy` via Next.js rewrite (`master` is unaffected)
-- `.env.example` committed; real keys go to Vercel project settings
-- README rewritten
+- Tailwind v3 with Theus dark tokens via CSS variables → `tailwind.config.ts`
+- ESLint + Prettier + Vitest configs
+- Three Google fonts (Inter, JetBrains Mono, Instrument Serif) self-hosted via `next/font/google`
+- Placeholder home page in Theus identity
+- Security headers configured in `next.config.mjs`
+- Legacy `index.html` moved to `public/legacy/`, reachable at `/legacy` via Next.js rewrite (master untouched)
+- `.env.example` committed; `.gitignore` updated
 
-**Verified locally:**
-- `npm install` clean
-- `npm run typecheck` clean
-- `npm run lint` clean
-- `npm run build` clean
-- `/` renders Theus placeholder; `/legacy` serves the old app
+**Bumps applied during deploy:**
+- `next` and `eslint-config-next` pinned to `^15.5.15` after Vercel rejected `15.5.4` for a vulnerability and `15.6.0` didn't exist for `eslint-config-next`.
 
-**Next:** Chunk 1 — design system foundation (`components/ui/` primitives + `/styleguide` route + WCAG report).
+**Vercel result:** build green, preview confirmed serving `/` and `/legacy`.
+
+**Next:** Chunk 1 — design system foundation.
+
+---
+
+## Chunk 1 — design system foundation (2026-05-01)
+
+**Done:**
+- Tokens extracted to `styles/tokens.css` as the single source of truth (imported by `app/globals.css`)
+- Six core UI primitives in `components/ui/`: `Mono`, `Num`, `Card` (+ `CardHeader`), `Pill`, `Button`, `KpiTile` (+ `KpiStrip` for the 1-pixel-grid divider technique from `theus-dashboard.jsx`)
+- `lib/utils.ts` → tiny `cn()` class-merger (no `clsx` dep yet — adds later if needed)
+- `/styleguide` route exercises every primitive at every variant (palette swatches, type scale, mono labels, pills, buttons, KPI strip, cards)
+- Real WCAG contrast computation (awk) → `docs/contrast-report.md` with full FG/BG matrix
+- **Two tokens nudged for AA compliance:** `--ink-mute` `#7E7762` → `#8E866E` (3.99 → 4.91), `--neg` `#D9603A` → `#E9673E` (4.82 → 5.50). Justified deviation from `design-refs/src/theus-tokens.jsx`, documented in contrast report.
+- Home page now links to `/styleguide`
+
+**Verified:**
+- All FG × BG pairs in the matrix pass WCAG AA; ink and ink-soft pass AAA.
+- Two intentionally avoided combinations flagged in the report (`ink-mute` on `bg-panel`, `neg` on `bg-panel`).
+
+**Skipped (deliberate parsimony):**
+- `Sans` wrapper component — Tailwind's `font-sans` + standard text classes are sufficient.
+- `Divider` component — `<hr className="border-rule" />` is enough.
+- `IconButton` — adds when first real icon ships.
+- `clsx` dep — `cn()` helper is 4 lines.
+
+**Next:** Chunk 2 — Supabase SSR client, env config, auth shell.
 
 **Open questions:** none.
+
+**Vercel env reminder:** still not needed yet. When Chunk 2 lands you'll add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel project settings.
