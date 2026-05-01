@@ -51,3 +51,18 @@ Append-only log, one entry per chunk. Each entry: what was done, what's next, op
 **Open questions:** none.
 
 **Vercel env reminder:** still not needed yet. When Chunk 2 lands you'll add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel project settings.
+
+### Chunk 1.1 — Sterling re-alignment (2026-05-01)
+
+User feedback: too much Theus geometry, not enough Sterling. Re-checked
+`design-refs/src/dashboard.jsx` and confirmed Sterling uses heavily
+rounded surfaces (radius 8 / 10 / 14 / 16). Realigned:
+
+- `Button` → `rounded-[10px]`, padding `22×12`, `text-[13px]`, primary `font-semibold` (matches `brand-system.jsx` button primitive 103–104)
+- `Card` → `rounded-2xl` (16px), default `p-6` (24px), `bg-bg-soft` surface (matches dashboard cards 126/152/166)
+- `KpiTile` → rounded surface card with optional `cents` slot for the 56/22 dual-size numeral pattern from the Sterling hero
+- Dropped `KpiStrip` 1-px-grid divider (that was the Theus pattern); KPI cards now sit in a regular grid with gap
+- Styleguide rebuilt: hero balance display, Sterling time-range pill container, separate KPI cards
+- Home page wrapped in a rounded surface card
+
+No token changes; this was geometry-only.

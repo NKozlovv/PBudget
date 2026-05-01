@@ -3,4 +3,4 @@ export { Num } from './Num';
 export { Card, CardHeader } from './Card';
 export { Pill } from './Pill';
 export { Button } from './Button';
-export { KpiTile, KpiStrip } from './KpiTile';
+export { KpiTile } from './KpiTile';

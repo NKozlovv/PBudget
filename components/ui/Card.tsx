@@ -10,7 +10,15 @@ export function Card({
   padded?: boolean;
 }) {
   return (
-    <div className={cn('border border-rule bg-bg', padded && 'p-5', className)}>{children}</div>
+    <div
+      className={cn(
+        'rounded-2xl border border-rule bg-bg-soft',
+        padded && 'p-6',
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -28,7 +36,7 @@ export function CardHeader({
   return (
     <div className={cn('flex items-baseline justify-between gap-4', className)}>
       <div>
-        <div className="text-[15px] font-medium text-ink">{title}</div>
+        <div className="text-[15px] font-semibold text-ink">{title}</div>
         {subtitle ? <div className="mt-1">{subtitle}</div> : null}
       </div>
       {right ? <div className="shrink-0">{right}</div> : null}
