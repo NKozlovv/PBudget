@@ -13,7 +13,7 @@ Verified by computing real WCAG 2.1 luminance + contrast ratios. Targets:
 | `--ink` #EFE9D8 | **14.70** AAA | 13.25 AAA | 12.05 AAA |
 | `--ink-soft` #C7BFA9 | 9.72 AAA | 8.71 AAA | 7.97 AAA |
 | `--ink-mute` #8E866E ★ | **4.91** AA | 4.38 AA | 4.02 AA-Large |
-| `--accent` #C9A24A | 7.43 AAA | 6.69 AA | 6.09 AA |
+| `--accent` #D8B055 ★ | 8.71 AAA | 7.85 AAA | 7.14 AAA |
 | `--pos` #7FB58A | 7.54 AAA | 6.78 AA | 6.18 AA |
 | `--neg` #E9673E ★ | **5.50** AA | 4.92 AA | 4.50 AA |
 
@@ -25,6 +25,7 @@ Two tokens were nudged from `design-refs/src/theus-tokens.jsx` to clear AA:
 | --- | --- | --- | --- | --- | --- |
 | `--ink-mute` | `#7E7762` | 3.99 | **`#8E866E`** | 4.91 | Used for mono labels (10–11px tracked); 3.99 fails AA for small text |
 | `--neg` | `#D9603A` | 4.82 | **`#E9673E`** | 5.50 | Used for expense/loss numerals; 4.82 only narrowly passes, and on `--bg-panel` it dropped to 3.95 (AA-Large only) |
+| `--accent` | `#C9A24A` | 7.43 | **`#D8B055`** | 8.71 | Brightened per design feedback; brass character preserved (just lifts the L value) |
 
 Both shifts preserve hue and saturation feel; they only nudge lightness up. Approved deviation, documented here so the reference palette and the production tokens stay reconciled.
 

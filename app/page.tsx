@@ -15,7 +15,23 @@ export default function HomePage() {
         <Card className="mt-10 p-7">
           <div className="grid gap-4">
             <Row label="branch" value="experimental/theus-rehaul" />
-            <Row label="phase" value="2 · chunk 1 — design system" />
+            <Row label="phase" value="2 · chunk 2 — auth shell" />
+            <Row
+              label="sign in"
+              value={
+                <a href="/login" className="text-accent hover:underline">
+                  /login
+                </a>
+              }
+            />
+            <Row
+              label="dashboard"
+              value={
+                <a href="/dashboard" className="text-accent hover:underline">
+                  /dashboard
+                </a>
+              }
+            />
             <Row
               label="styleguide"
               value={

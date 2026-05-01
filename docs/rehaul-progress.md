@@ -1,68 +1,64 @@
 # Rehaul Progress Log
 
-Append-only log, one entry per chunk. Each entry: what was done, what's next, open questions.
+Append-only log, one entry per chunk.
 
 ---
 
 ## Chunk 0 — repo bootstrap (2026-05-01)
 
-**Done:**
-- Next.js 15 + React 19 + TypeScript (strict, with `noUncheckedIndexedAccess`) scaffold
-- Tailwind v3 with Theus dark tokens via CSS variables → `tailwind.config.ts`
-- ESLint + Prettier + Vitest configs
-- Three Google fonts (Inter, JetBrains Mono, Instrument Serif) self-hosted via `next/font/google`
-- Placeholder home page in Theus identity
-- Security headers configured in `next.config.mjs`
-- Legacy `index.html` moved to `public/legacy/`, reachable at `/legacy` via Next.js rewrite (master untouched)
-- `.env.example` committed; `.gitignore` updated
+Next.js 15 + React 19 + strict TS scaffold. Tailwind v3 with Theus dark tokens via CSS variables. Inter/JetBrains Mono/Instrument Serif via `next/font/google`. Placeholder home page in Theus identity. Legacy `index.html` moved to `public/legacy/`, reachable at `/legacy` via Next.js rewrite. Security headers in `next.config.mjs`. ESLint + Prettier + Vitest configs.
 
-**Bumps applied during deploy:**
-- `next` and `eslint-config-next` pinned to `^15.5.15` after Vercel rejected `15.5.4` for a vulnerability and `15.6.0` didn't exist for `eslint-config-next`.
-
-**Vercel result:** build green, preview confirmed serving `/` and `/legacy`.
-
-**Next:** Chunk 1 — design system foundation.
+Vercel build needed two version bumps: `next` 15.5.4 was vulnerability-flagged → bumped to `^15.5.15`; `eslint-config-next` doesn't publish past 15.5.x so both pinned to that line.
 
 ---
 
 ## Chunk 1 — design system foundation (2026-05-01)
 
+Tokens extracted to `styles/tokens.css`. Six primitives in `components/ui/`: `Mono`, `Num`, `Card` + `CardHeader`, `Pill`, `Button`, `KpiTile`. `/styleguide` route and `docs/contrast-report.md` with full WCAG matrix. Two AA accessibility nudges to source palette: `--ink-mute` `#7E7762`→`#8E866E`, `--neg` `#D9603A`→`#E9673E`.
+
+### Chunk 1.1 — Sterling realignment
+
+User feedback: chunk 1 used Theus's flat geometry. Realigned: cards `rounded-2xl` (16px) on `bg-bg-soft`, buttons `rounded-[10px]` with Sterling proportions, KPI tiles as separate rounded cards (dropped the 1-px-grid divider that was Theus's pattern). Styleguide rebuilt with Sterling-style hero balance and time-range pill container.
+
+---
+
+## Chunk 2 — Supabase SSR + auth shell (2026-05-01)
+
 **Done:**
-- Tokens extracted to `styles/tokens.css` as the single source of truth (imported by `app/globals.css`)
-- Six core UI primitives in `components/ui/`: `Mono`, `Num`, `Card` (+ `CardHeader`), `Pill`, `Button`, `KpiTile` (+ `KpiStrip` for the 1-pixel-grid divider technique from `theus-dashboard.jsx`)
-- `lib/utils.ts` → tiny `cn()` class-merger (no `clsx` dep yet — adds later if needed)
-- `/styleguide` route exercises every primitive at every variant (palette swatches, type scale, mono labels, pills, buttons, KPI strip, cards)
-- Real WCAG contrast computation (awk) → `docs/contrast-report.md` with full FG/BG matrix
-- **Two tokens nudged for AA compliance:** `--ink-mute` `#7E7762` → `#8E866E` (3.99 → 4.91), `--neg` `#D9603A` → `#E9673E` (4.82 → 5.50). Justified deviation from `design-refs/src/theus-tokens.jsx`, documented in contrast report.
-- Home page now links to `/styleguide`
 
-**Verified:**
-- All FG × BG pairs in the matrix pass WCAG AA; ink and ink-soft pass AAA.
-- Two intentionally avoided combinations flagged in the report (`ink-mute` on `bg-panel`, `neg` on `bg-panel`).
+Tokens
+- `--accent` brightened `#C9A24A`→`#D8B055` per design feedback (still AAA, 7.43→8.71 on bg).
 
-**Skipped (deliberate parsimony):**
-- `Sans` wrapper component — Tailwind's `font-sans` + standard text classes are sufficient.
-- `Divider` component — `<hr className="border-rule" />` is enough.
-- `IconButton` — adds when first real icon ships.
-- `clsx` dep — `cn()` helper is 4 lines.
+Supabase wiring
+- `@supabase/ssr` and `@supabase/supabase-js` added (caret-pinned to current latest).
+- `lib/env.ts` — lazy `getSupabaseEnv()` so public pages render before env vars are configured in Vercel; `isSupabaseConfigured()` for graceful guards.
+- `lib/supabase/client.ts` — `createBrowserClient` factory (client components).
+- `lib/supabase/server.ts` — `createServerClient` factory using `cookies()` from `next/headers`.
+- `lib/supabase/middleware.ts` + `middleware.ts` — refresh session cookie on every request, redirect unauth users from protected paths (`/dashboard`, `/transactions`, `/accounts`, `/categories`, `/forecast`) to `/login?next=…`, redirect authed users away from `/login`/`/signup`/`/reset` to `/dashboard`. Public routes (`/`, `/styleguide`, `/legacy`, static) bypass via the matcher.
 
-**Next:** Chunk 2 — Supabase SSR client, env config, auth shell.
+Auth pages
+- Route groups: `app/(auth)` for unauth shell, `app/(app)` for protected.
+- `(auth)/layout.tsx` — centered Theus header + footer.
+- `(auth)/login/page.tsx`, `(auth)/signup/page.tsx`, `(auth)/reset/page.tsx` — each renders a single rounded `Card` with the matching client form.
+- `components/auth/{SignInForm, SignUpForm, ResetForm, SignOutButton}.tsx` — vanilla `<form>` + Supabase auth methods, no react-hook-form yet.
+- `(app)/layout.tsx` — server component, `getUser()` → redirect to `/login` if no session.
+- `(app)/dashboard/page.tsx` — placeholder showing signed-in email + user id, with a sign-out button. Real dashboard lands in Chunk 5.
+
+Form primitives
+- `components/ui/Input.tsx`, `components/ui/Field.tsx` (label + input + hint/error). Render-prop API on `Field` so the consumer wires `id` to whichever input variant they're using.
+
+Security headers tightened
+- `next.config.mjs` now sets a real CSP. Permissive enough for the legacy bundle at `/legacy` (CDN scripts, inline styles, fonts) — will be tightened further in Chunk 11 once legacy is retired.
+- Added `Strict-Transport-Security` (2-year max-age, preload).
+
+**Vercel env reminder (you-action):**
+
+Add these to Vercel → Project → Settings → Environment Variables (Preview env, scoped to `experimental/theus-rehaul` is fine):
+- `NEXT_PUBLIC_SUPABASE_URL` = `https://udcfjiuybkugbydlaltk.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = `sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z`
+
+Until that's done, `/login`, `/signup`, `/reset`, `/dashboard` will fail with a clear error message ("Supabase env not configured…"). `/`, `/styleguide`, `/legacy` keep working regardless.
+
+**Next:** Chunk 3 — typed data layer + regression tests (date helpers + FX cache + Account-adjustment classification).
 
 **Open questions:** none.
-
-**Vercel env reminder:** still not needed yet. When Chunk 2 lands you'll add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Vercel project settings.
-
-### Chunk 1.1 — Sterling re-alignment (2026-05-01)
-
-User feedback: too much Theus geometry, not enough Sterling. Re-checked
-`design-refs/src/dashboard.jsx` and confirmed Sterling uses heavily
-rounded surfaces (radius 8 / 10 / 14 / 16). Realigned:
-
-- `Button` → `rounded-[10px]`, padding `22×12`, `text-[13px]`, primary `font-semibold` (matches `brand-system.jsx` button primitive 103–104)
-- `Card` → `rounded-2xl` (16px), default `p-6` (24px), `bg-bg-soft` surface (matches dashboard cards 126/152/166)
-- `KpiTile` → rounded surface card with optional `cents` slot for the 56/22 dual-size numeral pattern from the Sterling hero
-- Dropped `KpiStrip` 1-px-grid divider (that was the Theus pattern); KPI cards now sit in a regular grid with gap
-- Styleguide rebuilt: hero balance display, Sterling time-range pill container, separate KPI cards
-- Home page wrapped in a rounded surface card
-
-No token changes; this was geometry-only.
