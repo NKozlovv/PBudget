@@ -82,17 +82,22 @@ These ship verbatim into the new stack with new visuals, no behavior change:
 
 ---
 
-## 4. Scaffolded but not implemented — needs your scope decision
+## 4. Scaffolded but not implemented — scope resolved
 
-These are referenced in code or roadmap but not actually built. **I will not build any of these without your explicit go-ahead.** Tell me which are in scope for the rehaul and which are deferred.
+These are referenced in code or roadmap but not actually built. Scope confirmed by user 2026-05-01.
 
-1. **Multiple budgets** — there is a `#budgetDropdownList` element 802 and `cloudUpdateBudget` 4803 exists, but the UI to switch / create / rename additional budgets isn't wired. The DB schema (`budgets`, `budget_members`, `budget_invites`) fully supports it.
-2. **Inviting other users** — `budget_invites` table and `trg_accept_pending_invites` trigger are live, but no UI to send invites or list members. Phase 5 in CLAUDE.md.
-3. **Auto category-color assignment** — CAT_SEMANTIC array 1022 and CAT_DOT_FALLBACK 1052 exist but the "edit colors per category" UI is not built. CLAUDE.md says this is deferred past v1.
-4. **Coach view** — Sterling design refs include `src/coach.jsx` (a coaching/recommendations panel). No equivalent exists in `index.html`. Pure new feature if adopted.
-5. **Mobile layout** — Sterling refs include `src/mobile.jsx` and `ios-frame.jsx`. Current `index.html` is desktop-only with no responsive breakpoints. The new app has to make a call: responsive web only, or a separate mobile experience?
-6. **Light mode** — both Sterling and Theus tokens define `light` and `dark` variants. Current app is light only. Do we ship a theme toggle?
-7. **CSP headers, rate limiting, CSRF** — your engineering standards mention them, but the app today exposes only the Supabase publishable key (RLS does the gating). With Next.js we can add CSP via middleware and rate-limit any new API routes. Scope-tag: only relevant if we add server routes; pure-client Supabase calls do not need them.
+### In scope for this rehaul
+
+1. **Multiple budgets** — `#budgetDropdownList` 802 and `cloudUpdateBudget` 4803 exist, no UI to switch / create / rename. DB schema (`budgets`, `budget_members`, `budget_invites`) fully supports it. **→ Build budget switcher in topbar + create / rename / delete UI. New chunk added below (Chunk 12).**
+2. **Inviting other users** — `budget_invites` table + `trg_accept_pending_invites` trigger are live; no UI. **→ Build invite-by-email + member list + revoke. New chunk added (Chunk 13).**
+3. **Server-side hardening** — CSP via Next.js middleware, security headers (X-Frame-Options, Referrer-Policy, etc.), rate limiting on any server routes we introduce (e.g. invite endpoint, future webhooks). **→ Folded into Chunk 2 (auth shell) + Chunk 13 (invites).**
+
+### Deferred (not built without explicit go-ahead)
+
+4. **Light mode** — drop entirely from this rehaul. Token file ships dark-only; theming infrastructure not built. Revisit later as a separate effort.
+5. **Mobile layout** — desktop only for v1. Responsive breakpoints will degrade gracefully but no separate mobile UX.
+6. **Coach view** — out of scope.
+7. **Auto category-color assignment / per-category color editor** — out of scope. Categories use a fixed semantic palette derived from the existing `CAT_SEMANTIC` mapping, ported as-is.
 
 ---
 
@@ -102,9 +107,7 @@ Verified by reading the JSX files, not screenshots.
 
 ### 5.1 Theus tokens (identity — palette comes from here)
 
-Source: `design-refs/src/theus-tokens.jsx`.
-
-**Dark mode (primary, the "boards" you saw):**
+Source: `design-refs/src/theus-tokens.jsx`. **Dark only — light variant is dropped from this rehaul (§4).**
 
 | Token | Value | Use |
 | --- | --- | --- |
@@ -122,18 +125,6 @@ Source: `design-refs/src/theus-tokens.jsx`.
 | `--pos-soft` | `rgba(127,181,138,0.18)` | Positive deltas |
 | `--neg` | `#D9603A` | Warm rust — expenses / losses |
 | `--neg-soft` | `rgba(217,96,58,0.16)` | Negative deltas |
-
-**Light mode:**
-
-| Token | Value |
-| --- | --- |
-| `--bg` | `#F2EEDF` (warm cream) |
-| `--bg-soft` | `#E8E3D0` |
-| `--bg-panel` | `#FFFAEC` |
-| `--ink` | `#0F1A14` |
-| `--accent` | `#7A5A1B` (deep brass) |
-| `--pos` | `#3D5A48` |
-| `--neg` | `#8E4A22` |
 
 **WCAG check (preview, will re-verify with real renders):**
 - `--ink #EFE9D8` on `--bg #0F1A14` → contrast ratio **~13.5:1** (AAA pass).
@@ -307,7 +298,6 @@ Each chunk leaves the branch in a working, deployable state, with a Vercel previ
 - Tailwind config consumes those variables (semantic colors as `bg`, `ink`, `accent`, `pos`, `neg`).
 - `components/ui/` primitives: `Mono`, `Num`, `Sans`, `Card`, `Pill`, `Button`, `IconButton`, `Divider`, `KpiTile`.
 - A `/styleguide` route (private to dev mode) showing every primitive at every size, for visual QA.
-- Light/dark toggle with `prefers-color-scheme` default.
 - Real WCAG verification on every token combination, with results checked into `docs/contrast-report.md`.
 - **Stop signal:** styleguide page renders all primitives; contrast report committed.
 
@@ -373,21 +363,33 @@ Each chunk leaves the branch in a working, deployable state, with a Vercel previ
 - Progress UI.
 - **Stop signal:** can re-run the original Google-Sheets import end-to-end against a fresh user.
 
-### Chunk 11 — Cutover
-- Move legacy from `/legacy` → archived; new app served from `/`.
-- Delete legacy folder once you confirm a week of clean usage. **(Not part of this chunk — user-gated.)**
-- Update `CLAUDE.md`, `README.md`.
+### Chunk 11 — Cutover (kept side-by-side per user)
+- Both stacks remain live: new Theus app at `/`, legacy `index.html` at `/legacy`.
+- No deletion of the legacy folder this chunk — runs in parallel for as long as you want.
+- Update `CLAUDE.md`, `README.md` to reflect the new architecture.
 - Bump build version to `v2.0.0 — Theus rehaul`.
 - Final security pass: `npm audit`, CSP header verified live, lighthouse a11y score ≥ 95.
-- **Stop signal:** PR-ready; user reviews on preview, approves, then we merge to master.
+- **Stop signal:** PR-ready against master; you review on preview, approve, then we merge. Legacy stays reachable post-merge.
 
-### Chunks deferred unless you green-light (§4)
+### Chunk 12 — Multi-budget UI *(in scope, §4.1)*
+- Budget switcher in topbar (replaces today's `#budgetDropdownList` 802 stub).
+- Create / rename / delete budget flows.
+- Active-budget context propagated through TanStack Query keys so cache invalidates correctly on switch.
+- **Stop signal:** can create a 2nd budget, switch between them, data is correctly scoped.
 
-- Multiple budgets (12)
-- Member invitations (13)
-- Coach view (14)
-- Mobile-specific layout (15)
-- Category color editor (16)
+### Chunk 13 — Member invitations + server-side hardening *(in scope, §4.2 + §4.3)*
+- Settings → Members page: list current members, invite by email, revoke access.
+- Invite flow uses a server route (`app/api/invites/route.ts`) protected by Supabase auth, rate-limited (e.g. 10/min/IP via Upstash or in-memory dev limiter).
+- CSP middleware tightened to production values (no `unsafe-inline`, nonces for any inline scripts, allow-list for Supabase + Frankfurter API origins).
+- `trg_accept_pending_invites` trigger already on `auth.users` does the rest.
+- **Stop signal:** invite a second email, sign in as that user, see the shared budget.
+
+### Chunks already deferred (§4) — will not start without explicit ask
+
+- Light mode toggle + light-mode tokens
+- Mobile-specific layout
+- Coach view
+- Per-category color editor
 
 ---
 
@@ -424,13 +426,15 @@ I won't touch CLAUDE.md until approved.
 
 ---
 
-## 10. Open questions for you before Phase 2
+## 10. Resolved decisions (2026-05-01)
 
-1. **§4 scope:** which of the seven scaffolded-but-not-implemented items are in scope for this rehaul vs deferred?
-2. **Light mode:** ship a theme toggle, or dark-only at first?
-3. **Mobile:** responsive-only, or a separate mobile layout (Sterling provides a `mobile.jsx` reference)?
-4. **Vercel env:** confirm you'll add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the experimental branch's preview env when Chunk 2 lands.
-5. **Cutover gate:** is the plan's Chunk 11 cutover (replace `master`'s index.html with the new app) acceptable, or do you want to keep both running side-by-side longer?
-6. **Test budget:** how heavy do you want tests? My default is regression-critical only (date, FX, XLSX classify) + smoke tests. Adding component tests on every chart adds time but isn't load-bearing.
+| Question | Decision |
+| --- | --- |
+| §4 scope | In: multi-budget, invites, server-side hardening. Out: mobile, coach, color editor, light mode. |
+| Light mode | Dropped from this rehaul. Dark-only tokens. |
+| Mobile | Deferred — desktop-first, responsive degradation only. |
+| Vercel env | User will add `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` when Chunk 2 lands (Hobby tier supports preview env vars). |
+| Cutover | Side-by-side kept beyond Chunk 11; no aggressive cutover. |
+| Test depth | Regression-critical only (date, FX, XLSX classify). No component tests. |
 
-Once these are answered I'll execute Chunk 0.
+Awaiting explicit Phase 2 / Chunk 0 approval.
