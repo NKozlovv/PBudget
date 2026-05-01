@@ -4,58 +4,55 @@ import { TheusLockup } from './TheusMark';
 
 /**
  * Left-side brand panel for the auth split layout.
- * Modeled on design-refs/src/auth.jsx 8–42:
- *   diagonal gradient + soft accent radial; lockup top-left;
- *   centered editorial column with serif headline, paragraph,
- *   balance preview card; mono footer bottom-left.
+ * Modeled on design-refs/src/auth.jsx 8–42 but adapted for fluid widths
+ * (Sterling reference is fixed 1280×800; we render edge-to-edge).
  *
- * Layout uses absolute positioning for the lockup + footer so that
- * the central editorial block stays vertically centered regardless
- * of viewport height.
+ * Layout: lockup pinned top-left, footer pinned bottom-left, editorial
+ * column horizontally + vertically centered. Single brass radial on a
+ * flat bg-panel base — three layered gradients were creating muddy
+ * bands on the green bg, this version reads cleaner.
  */
 export function BrandPanel() {
   const balanceTrend = [12, 14, 13, 16, 18, 17, 20, 22, 21, 24, 23, 25];
 
   return (
     <aside
-      className="hidden md:flex relative h-full overflow-hidden"
+      className="hidden md:block relative h-full overflow-hidden"
       style={{
-        background: [
-          'radial-gradient(ellipse at 18% 22%, var(--accent-soft) 0%, transparent 55%)',
-          'radial-gradient(ellipse at 85% 85%, rgba(127,181,138,0.08) 0%, transparent 55%)',
-          'linear-gradient(155deg, var(--bg-panel) 0%, var(--bg) 70%)',
-        ].join(', '),
+        backgroundColor: 'var(--bg-panel)',
+        backgroundImage:
+          'radial-gradient(circle 900px at 22% 28%, var(--accent-soft) 0%, transparent 55%)',
       }}
     >
       {/* Top-left lockup */}
-      <div className="absolute left-12 top-12 lg:left-16 lg:top-14">
+      <div className="absolute left-12 top-12 lg:left-16 lg:top-14 z-10">
         <TheusLockup size={26} />
       </div>
 
       {/* Bottom-left footer */}
-      <div className="absolute left-12 bottom-12 lg:left-16 lg:bottom-14">
+      <div className="absolute left-12 bottom-12 lg:left-16 lg:bottom-14 z-10">
         <Mono size="xs" className="tracking-[0.18em]">
           THEUS · 2026 · v2.0.0-α
         </Mono>
       </div>
 
-      {/* Vertically centered editorial column */}
-      <div className="flex h-full w-full items-center px-12 lg:px-16">
-        <div className="max-w-[460px]">
-          <h1 className="font-display text-[64px] lg:text-[72px] leading-[1.02] font-normal tracking-tight">
+      {/* Centered editorial column */}
+      <div className="flex h-full w-full items-center justify-center px-8">
+        <div className="w-full max-w-[520px]">
+          <h1 className="font-display text-[64px] lg:text-[76px] xl:text-[84px] leading-[1.02] font-normal tracking-tight">
             Money,
             <br />
             <em className="not-italic font-display italic text-accent">understood.</em>
           </h1>
 
-          <p className="mt-6 text-[15px] leading-relaxed text-ink-soft max-w-[420px]">
+          <p className="mt-6 text-[15px] leading-relaxed text-ink-soft max-w-[440px]">
             Track every euro, every dollar — across accounts and currencies. Then let Theus surface
             what your spending is actually telling you.
           </p>
 
           <div
-            className="mt-12 max-w-sm rounded-2xl border border-rule bg-bg-soft p-6"
-            style={{ boxShadow: '0 24px 60px rgba(0, 0, 0, 0.45)' }}
+            className="mt-12 max-w-[400px] rounded-2xl border border-rule bg-bg-soft p-6"
+            style={{ boxShadow: '0 24px 60px rgba(0, 0, 0, 0.5)' }}
           >
             <div className="flex items-center justify-between">
               <Mono>Total balance</Mono>
