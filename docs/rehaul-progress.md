@@ -163,6 +163,49 @@ Sidebar dependency on identity:
 
 **Stop signal hit:** authed users land on `/dashboard` inside the Theus shell; nav highlights the active route; each of the 5 routes renders its own `PageHeader`; sign-out works from the sidebar.
 
-**Next:** Chunk 5 — the dashboard build-out (Income vs Spend chart, Cashflow sparkline, category donut, recent-tx preview tied to the chart legend).
+---
+
+## Chunk 5 — dashboard build-out (charts) (2026-05-02)
+
+**Done:**
+
+Chart primitives (inline SVG, no external lib — matches the
+design-refs approach exactly)
+- `components/charts/Sparkline.tsx` — moved from `auth/` since
+  it's general-purpose; updated import in `BrandPanel`.
+- `components/charts/IncomeSpendBars.tsx` — paired bars per month
+  with dashed gridlines and mono y-axis labels. Sage = income, brass
+  = spend (matches `theus-dashboard.jsx:71–72`). `<title>` element
+  on each rect for native hover tooltips.
+- `components/charts/CategoryDonut.tsx` — stroke-dasharray donut with
+  side legend (top 6 + overflow count). Categories colored via
+  `lib/categoryColor.ts`.
+
+Color assignment
+- `lib/categoryColor.ts` — stable hash → 10-color warm-earthy
+  palette (brass, sage, rust, dusty blue, mauve, olive, peach, muted
+  green, wheat, purple-gray). Same input always → same color, no
+  per-category editor (deferred per plan §4).
+
+Data helpers
+- `lib/balance.ts` extended with `lastNMonthsTotals` (fills empty
+  months) and `categorySpendEUR` (sorted desc by value, expense-only,
+  TZ-safe).
+
+Dashboard wiring
+- `Income vs Spend` card (1.6fr) + `Spend by category` card (1fr) row
+  below the hero/KPI strip.
+- Recent-tx table now renders a per-category color dot next to each
+  category name so the donut and the table cohere visually.
+
+**Skipped:**
+- Time-range pill (1M / 3M / YTD / ALL) — needs client state, lands
+  in Chunk 6 with the transactions filters.
+- Cashflow sparkline on the dashboard — the bars chart already
+  carries the multi-month story; the sparkline is decorative.
+- Coach card — out of scope per plan §4.
+
+**Next:** Chunk 6 — Transactions page (filters, sortable columns,
+inline edit, bulk actions, add-transaction modal).
 
 **Open questions:** none.

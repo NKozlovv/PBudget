@@ -1,5 +1,5 @@
 import { Mono } from '@/components/ui';
-import { Sparkline } from './Sparkline';
+import { Sparkline } from '@/components/charts/Sparkline';
 import { TheusLockup } from './TheusMark';
 
 /**

@@ -39,6 +39,81 @@ export interface MonthTotals {
   net: number;
 }
 
+export interface MonthBucket {
+  /** Calendar year. */
+  year: number;
+  /** 0-indexed month. */
+  month: number;
+  /** Short-month label, e.g. "MAY". */
+  label: string;
+  income: number;
+  expense: number;
+  net: number;
+}
+
+const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/**
+ * Last N months of {income, expense, net} ending at `endYear`/`endMonth`
+ * (inclusive). Months are filled even if they have no transactions.
+ */
+export function lastNMonthsTotals(args: {
+  transactions: Transaction[];
+  endYear: number;
+  endMonth: number;
+  count: number;
+  fxRate: number;
+}): MonthBucket[] {
+  const { transactions, endYear, endMonth, count, fxRate } = args;
+  const out: MonthBucket[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const date = new Date(endYear, endMonth - i, 1);
+    const y = date.getFullYear();
+    const m = date.getMonth();
+    const totals = monthTotalsEUR({ transactions, year: y, month: m, fxRate });
+    out.push({
+      year: y,
+      month: m,
+      label: MONTH_SHORT[m] ?? '',
+      income: totals.income,
+      expense: totals.expense,
+      net: totals.net,
+    });
+  }
+  return out;
+}
+
+export interface CategorySlice {
+  name: string;
+  value: number;
+}
+
+/**
+ * Expense category totals (EUR) for a given (year, 0-indexed month).
+ * Returns slices sorted by value desc. Adjustments are excluded.
+ */
+export function categorySpendEUR(args: {
+  transactions: Transaction[];
+  year: number;
+  month: number;
+  fxRate: number;
+}): CategorySlice[] {
+  const { transactions, year, month, fxRate } = args;
+  const totals = new Map<string, number>();
+  for (const t of transactions) {
+    if (t.type !== 'expense') continue;
+    const m = /^(\d{4})-(\d{2})-/.exec(t.date);
+    if (!m) continue;
+    if (Number(m[1]) !== year) continue;
+    if (Number(m[2]) - 1 !== month) continue;
+    const key = (t.category ?? '').trim() || '(Uncategorised)';
+    totals.set(key, (totals.get(key) ?? 0) + txToEUR(t, fxRate));
+  }
+  return [...totals.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
 /** Income / expense / net for a given (year, 0-indexed month), in EUR. */
 export function monthTotalsEUR(args: {
   transactions: Transaction[];

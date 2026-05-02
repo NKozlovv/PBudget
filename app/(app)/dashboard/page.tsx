@@ -1,57 +1,121 @@
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
-import { listCategories } from '@/lib/data/categories';
 import { countTransactions, listTransactions } from '@/lib/data/transactions';
-import { Card, Mono, Num, Pill, Button } from '@/components/ui';
+import { Card, CardHeader, Mono, Num, Pill, Button } from '@/components/ui';
 import { PageHeader } from '@/components/nav/PageHeader';
+import { IncomeSpendBars } from '@/components/charts/IncomeSpendBars';
+import { CategoryDonut } from '@/components/charts/CategoryDonut';
 import { fmtCurrency, fmtEUR, txToEUR, signedAmount } from '@/lib/money';
 import { dateDisplay } from '@/lib/date';
-import { totalBalanceEUR, monthTotalsEUR } from '@/lib/balance';
+import {
+  totalBalanceEUR,
+  monthTotalsEUR,
+  lastNMonthsTotals,
+  categorySpendEUR,
+} from '@/lib/balance';
+import { categoryColor } from '@/lib/categoryColor';
 
 export const metadata = { title: 'Dashboard · Theus' };
 
 export default async function DashboardPage() {
   const budget = await getOrCreateUserBudget();
-  const [accounts, expenseCats, incomeCats, txCount, allTx, recentTx] = await Promise.all([
+  const [accounts, txCount, allTx, recentTx] = await Promise.all([
     listAccounts(budget.id),
-    listCategories(budget.id, 'expense'),
-    listCategories(budget.id, 'income'),
     countTransactions(budget.id),
     listTransactions({ budgetId: budget.id }),
     listTransactions({ budgetId: budget.id, limit: 8 }),
   ]);
 
   const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
   const balanceEUR = totalBalanceEUR({ accounts, transactions: allTx, fxRate: budget.fx_rate });
-  const month = monthTotalsEUR({
+  const monthTotals = monthTotalsEUR({
     transactions: allTx,
-    year: today.getFullYear(),
-    month: today.getMonth(),
+    year,
+    month,
     fxRate: budget.fx_rate,
+  });
+  const last6 = lastNMonthsTotals({
+    transactions: allTx,
+    endYear: year,
+    endMonth: month,
+    count: 6,
+    fxRate: budget.fx_rate,
+  });
+  const catSlices = categorySpendEUR({
+    transactions: allTx,
+    year,
+    month,
+    fxRate: budget.fx_rate,
+  });
+
+  const dateKicker = today.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
   });
 
   return (
     <>
       <PageHeader
-        kicker={`${today.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}`}
+        kicker={dateKicker}
         title="Overview"
         tagline="money understood."
         actions={<Button>+ Add transaction</Button>}
       />
 
+      {/* Hero balance + KPI strip */}
       <div className="mt-10 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <HeroBalance value={balanceEUR} budgetName={budget.name} txCount={txCount} />
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
-          <KpiCard label="Income · this month" value={fmtEUR(month.income)} tone="pos" />
-          <KpiCard label="Spend · this month" value={fmtEUR(month.expense)} tone="neg" />
+          <KpiCard label="Income · this month" value={fmtEUR(monthTotals.income)} tone="pos" />
+          <KpiCard label="Spend · this month" value={fmtEUR(monthTotals.expense)} tone="neg" />
           <KpiCard
             label="Net · this month"
-            value={fmtEUR(month.net)}
-            tone={month.net >= 0 ? 'pos' : 'neg'}
+            value={fmtEUR(monthTotals.net)}
+            tone={monthTotals.net >= 0 ? 'pos' : 'neg'}
           />
         </div>
       </div>
 
+      {/* Charts row: IncomeSpendBars + CategoryDonut */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        <Card>
+          <CardHeader
+            title="Income vs Spend"
+            subtitle={<Mono size="xs">last 6 months</Mono>}
+            right={
+              <div className="flex items-center gap-3">
+                <LegendDot color="var(--pos)" label="income" />
+                <LegendDot color="var(--accent)" label="spend" />
+              </div>
+            }
+          />
+          <div className="mt-5">
+            <IncomeSpendBars months={last6} />
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Spend by category"
+            subtitle={<Mono size="xs">this month</Mono>}
+            right={
+              catSlices.length > 0 ? (
+                <Mono size="xs">{catSlices.length} categories</Mono>
+              ) : null
+            }
+          />
+          <div className="mt-5">
+            <CategoryDonut data={catSlices} />
+          </div>
+        </Card>
+      </div>
+
+      {/* Recent transactions */}
       <Section
         title="Recent transactions"
         right={
@@ -95,8 +159,18 @@ export default async function DashboardPage() {
                         </Num>
                       </Td>
                       <Td className="text-ink">{t.comment || '—'}</Td>
-                      <Td className="text-ink-soft">
-                        {t.category ?? <span className="text-ink-mute">—</span>}
+                      <Td>
+                        {t.category ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-sm"
+                              style={{ background: categoryColor(t.category) }}
+                            />
+                            <span className="text-[13px] text-ink-soft">{t.category}</span>
+                          </span>
+                        ) : (
+                          <span className="text-ink-mute">—</span>
+                        )}
                       </Td>
                       <Td>
                         <Pill
@@ -129,83 +203,6 @@ export default async function DashboardPage() {
           </Card>
         )}
       </Section>
-
-      <div className="mt-12 grid gap-6 lg:grid-cols-2">
-        <Section title="Accounts">
-          {accounts.length === 0 ? (
-            <Empty>No accounts yet.</Empty>
-          ) : (
-            <Card padded={false} className="overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-rule">
-                    <Th>Name</Th>
-                    <Th align="right">Currency</Th>
-                    <Th align="right" className="w-[140px]">
-                      Opening
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {accounts.map((a) => (
-                    <tr
-                      key={a.id}
-                      className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors"
-                    >
-                      <Td className="text-ink font-medium">{a.name}</Td>
-                      <Td align="right">
-                        <Mono size="xs">{a.currency}</Mono>
-                      </Td>
-                      <Td align="right">
-                        <Num size={14} weight={500} tone="soft">
-                          {fmtCurrency(a.opening_balance, a.currency)}
-                        </Num>
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
-        </Section>
-
-        <Section title="Categories">
-          <div className="grid gap-3">
-            <Card>
-              <div className="flex items-baseline justify-between mb-3">
-                <Mono size="xs">Expense</Mono>
-                <Num size={13} family="mono" tone="mute">
-                  {expenseCats.length}
-                </Num>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {expenseCats.map((c) => (
-                  <Pill key={c.id} variant="outline">
-                    {c.name}
-                  </Pill>
-                ))}
-                {expenseCats.length === 0 && <span className="text-sm text-ink-mute">—</span>}
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-baseline justify-between mb-3">
-                <Mono size="xs">Income</Mono>
-                <Num size={13} family="mono" tone="mute">
-                  {incomeCats.length}
-                </Num>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {incomeCats.map((c) => (
-                  <Pill key={c.id} variant="pos">
-                    {c.name}
-                  </Pill>
-                ))}
-                {incomeCats.length === 0 && <span className="text-sm text-ink-mute">—</span>}
-              </div>
-            </Card>
-          </div>
-        </Section>
-      </div>
     </>
   );
 }
@@ -262,6 +259,15 @@ function KpiCard({
         </Num>
       </div>
     </Card>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
+      <Mono size="xs">{label}</Mono>
+    </span>
   );
 }
 
