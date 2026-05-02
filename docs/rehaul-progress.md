@@ -121,6 +121,21 @@ Dashboard (read-only)
 
 **Stop signal hit:** loads real account & transaction data after login but renders raw-table view; tests authored (will run in CI/Vercel).
 
-**Next:** Chunk 4 — full app shell (sidebar, topbar, route stubs).
+### Chunk 3.1 — typography fix + visual hierarchy (2026-05-02)
 
-**Open questions:** none.
+User feedback: too much JetBrains Mono everywhere, and the dashboard "blends" — hard to read fast.
+
+Audited Sterling reference and confirmed:
+- **Inter (with tabular-nums)** for any number ≥24 px — hero balance, KPI values (`brand-system.jsx:76`, `dashboard.jsx:137,157` use Inter for the 56–64 px display numerals).
+- **JetBrains Mono** only for: small uppercase tracked labels (kickers, section labels, deltas), dates in transaction tables, dense ledger cells.
+
+Fixes:
+- `Num` component default family changed to `sans` (Inter). Added optional `family="mono"` prop for the rare cases where JetBrains Mono is right (tx-table dates, table-cell amounts in dense rows). `letterSpacing` defaults to `-0.02em` for sizes ≥24 px.
+- `KpiTile`'s 32 px value now Inter (was mono).
+- New `lib/balance.ts` with `totalBalanceEUR()` and `monthTotalsEUR()` (TZ-safe regex parser) so the dashboard can show real focal numbers.
+- Dashboard restructured for hierarchy:
+  1. **Hero balance card** at the top — 56 px Inter total balance, brass cents tail, mono budget+tx-count meta, brief explanation
+  2. **KPI strip** — Income / Spend / Net for current month, 28 px Inter values colored pos/neg
+  3. **Recent transactions** — single full-width table inside a Card, prominent right-aligned EUR column at 15 px weight 600 colored pos/neg by signed direction; dates in mono small uppercase; row hover
+  4. **Accounts** + **Categories** moved to a 2-column row below — secondary
+- Email moved into the header tagline slot (was a stat card).
