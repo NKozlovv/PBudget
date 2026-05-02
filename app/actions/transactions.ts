@@ -71,3 +71,32 @@ export async function deleteTransactionAction(id: string): Promise<ActionResult>
     return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
   }
 }
+
+export async function bulkDeleteTransactionsAction(ids: string[]): Promise<ActionResult> {
+  if (ids.length === 0) return { ok: true, data: undefined };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from('transactions').delete().in('id', ids);
+    if (error) return { ok: false, error: error.message };
+    bumpPaths();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+export async function bulkUpdateTransactionsAction(
+  ids: string[],
+  patch: Partial<Omit<TxInput, 'budget_id'>>,
+): Promise<ActionResult> {
+  if (ids.length === 0) return { ok: true, data: undefined };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from('transactions').update(patch).in('id', ids);
+    if (error) return { ok: false, error: error.message };
+    bumpPaths();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}

@@ -13,10 +13,15 @@ export interface ListTxFilters {
   toDate?: string;
   /** ILIKE substring match on the comment column. */
   search?: string;
+  /** Column to sort by. Defaults to date (then created_at). */
+  sortBy?: TxSortField;
+  sortDir?: 'asc' | 'desc';
   limit?: number;
   /** Page offset (0-indexed). */
   offset?: number;
 }
+
+export type TxSortField = 'date' | 'amount' | 'type' | 'category' | 'comment';
 
 export async function listTransactions(filters: ListTxFilters): Promise<Transaction[]> {
   const supabase = await createClient();
@@ -32,7 +37,11 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
     query = query.ilike('comment', `%${escaped}%`);
   }
 
-  query = query.order('date', { ascending: false }).order('created_at', { ascending: false });
+  const sortBy = filters.sortBy ?? 'date';
+  const ascending = (filters.sortDir ?? 'desc') === 'asc';
+  query = query.order(sortBy, { ascending });
+  if (sortBy !== 'date') query = query.order('date', { ascending: false });
+  query = query.order('created_at', { ascending: false });
 
   if (filters.limit != null) {
     const offset = filters.offset ?? 0;

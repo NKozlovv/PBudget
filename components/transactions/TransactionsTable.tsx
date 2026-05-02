@@ -1,21 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Modal, Mono, Num, Pill } from '@/components/ui';
 import {
+  bulkDeleteTransactionsAction,
   createTransactionAction,
   deleteTransactionAction,
   updateTransactionAction,
   type TxInput,
 } from '@/app/actions/transactions';
 import { TransactionForm } from './TransactionForm';
+import { SortableHeader } from './SortableHeader';
+import { EditableCell, type SaveResult } from './EditableCell';
+import { BulkActionBar } from './BulkActionBar';
 import { fmtCurrency, fmtEUR, signedAmount, txToEUR } from '@/lib/money';
 import { dateDisplay } from '@/lib/date';
 import { categoryColor } from '@/lib/categoryColor';
-import type { Account, Category, Transaction } from '@/lib/supabase/types';
+import type { Account, Category, Transaction, TxType } from '@/lib/supabase/types';
 
-type Mode = { kind: 'idle' } | { kind: 'add' } | { kind: 'edit'; tx: Transaction } | { kind: 'delete'; tx: Transaction };
+type Mode =
+  | { kind: 'idle' }
+  | { kind: 'add' }
+  | { kind: 'delete'; tx: Transaction }
+  | { kind: 'bulkDelete' };
+
+const TYPE_OPTIONS: { value: TxType; label: string }[] = [
+  { value: 'expense', label: 'Expense' },
+  { value: 'income', label: 'Income' },
+  { value: 'adjustment', label: 'Adjustment' },
+];
 
 export function TransactionsTable({
   transactions,
@@ -34,20 +48,45 @@ export function TransactionsTable({
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending] = useState(false);
+
+  const selectedNetEUR = useMemo(() => {
+    let total = 0;
+    for (const t of transactions) {
+      if (!selectedIds.has(t.id)) continue;
+      total += signedAmount({ type: t.type, amount: txToEUR(t, budgetFxRate) });
+    }
+    return total;
+  }, [transactions, selectedIds, budgetFxRate]);
+
+  const allOnPageSelected =
+    transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id));
+  const someOnPageSelected = transactions.some((t) => selectedIds.has(t.id));
+
+  function toggleAllOnPage() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        for (const t of transactions) next.delete(t.id);
+      } else {
+        for (const t of transactions) next.add(t.id);
+      }
+      return next;
+    });
+  }
+
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function handleCreate(input: TxInput) {
     const res = await createTransactionAction(input);
-    if (res.ok) {
-      setMode({ kind: 'idle' });
-      router.refresh();
-    }
-    return res;
-  }
-
-  async function handleUpdate(id: string, input: TxInput) {
-    const { budget_id: _ignored, ...patch } = input;
-    void _ignored;
-    const res = await updateTransactionAction(id, patch);
     if (res.ok) {
       setMode({ kind: 'idle' });
       router.refresh();
@@ -59,8 +98,40 @@ export function TransactionsTable({
     const res = await deleteTransactionAction(id);
     if (res.ok) {
       setMode({ kind: 'idle' });
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       router.refresh();
     }
+  }
+
+  async function handleBulkDelete() {
+    setBulkPending(true);
+    const res = await bulkDeleteTransactionsAction([...selectedIds]);
+    setBulkPending(false);
+    if (res.ok) {
+      setMode({ kind: 'idle' });
+      setSelectedIds(new Set());
+      router.refresh();
+    }
+  }
+
+  function makeSaver<K extends keyof TxInput>(id: string, field: K) {
+    return async (next: string): Promise<SaveResult> => {
+      // Coerce to the right shape for the action.
+      let value: unknown = next;
+      if (field === 'amount') value = Number(next);
+      if (next === '' && (field === 'category' || field === 'comment')) value = null;
+      const patch = { [field]: value } as Partial<Omit<TxInput, 'budget_id'>>;
+      const res = await updateTransactionAction(id, patch);
+      if (res.ok) {
+        router.refresh();
+        return { ok: true };
+      }
+      return { ok: false, error: res.error };
+    };
   }
 
   return (
@@ -78,14 +149,36 @@ export function TransactionsTable({
           <table className="w-full">
             <thead>
               <tr className="border-b border-rule">
-                <Th className="w-[120px]">Date</Th>
-                <Th>Description</Th>
-                <Th>Category</Th>
-                <Th className="w-[110px]">Type</Th>
+                <th className="w-[44px] px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all on this page"
+                    checked={allOnPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allOnPageSelected && someOnPageSelected;
+                    }}
+                    onChange={toggleAllOnPage}
+                    className="h-4 w-4 rounded border-rule accent-accent"
+                  />
+                </th>
+                <SortableHeader field="date" className="w-[120px]">
+                  Date
+                </SortableHeader>
+                <SortableHeader field="comment">Description</SortableHeader>
+                <SortableHeader field="category">Category</SortableHeader>
+                <SortableHeader field="type" className="w-[120px]">
+                  Type
+                </SortableHeader>
                 <Th className="w-[140px]">Account</Th>
-                <Th align="right" className="w-[130px]">Amount</Th>
-                <Th align="right" className="w-[120px]">EUR</Th>
-                <Th className="w-[80px]" align="right">{''}</Th>
+                <SortableHeader field="amount" align="right" className="w-[130px]">
+                  Amount
+                </SortableHeader>
+                <Th align="right" className="w-[120px]">
+                  EUR
+                </Th>
+                <Th className="w-[80px]" align="right">
+                  {''}
+                </Th>
               </tr>
             </thead>
             <tbody>
@@ -94,56 +187,142 @@ export function TransactionsTable({
                 const eur = txToEUR(t, budgetFxRate);
                 const signed = signedAmount({ type: t.type, amount: eur });
                 const tone = signed > 0 ? 'pos' : signed < 0 ? 'neg' : 'mute';
+                const cats = t.type === 'income' ? incomeCats : expenseCats;
+                const isSelected = selectedIds.has(t.id);
                 return (
                   <tr
                     key={t.id}
-                    className="border-b border-rule/60 last:border-0 hover:bg-bg-panel/40 transition-colors"
+                    className={`border-b border-rule/60 last:border-0 transition-colors ${
+                      isSelected ? 'bg-accent-soft/40' : 'hover:bg-bg-panel/40'
+                    }`}
                   >
-                    <Td>
-                      <Num size={12} tone="mute">
-                        {dateDisplay(t.date).toUpperCase()}
-                      </Num>
-                    </Td>
-                    <Td className="text-ink">{t.comment || '—'}</Td>
-                    <Td>
-                      {t.category ? (
-                        <span className="inline-flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 shrink-0 rounded-sm"
-                            style={{ background: categoryColor(t.category) }}
-                          />
-                          <span className="text-[13px] text-ink-soft">{t.category}</span>
-                        </span>
-                      ) : (
-                        <span className="text-ink-mute">—</span>
-                      )}
-                    </Td>
-                    <Td>
-                      <Pill
-                        variant={
-                          t.type === 'income' ? 'pos' : t.type === 'adjustment' ? 'accent' : 'outline'
+                    <td className="px-4 py-2 align-middle">
+                      <input
+                        type="checkbox"
+                        aria-label="Select transaction"
+                        checked={isSelected}
+                        onChange={() => toggleOne(t.id)}
+                        className="h-4 w-4 rounded border-rule accent-accent"
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle">
+                      <EditableCell
+                        value={t.date}
+                        variant={{ kind: 'date' }}
+                        onSave={makeSaver(t.id, 'date')}
+                        display={
+                          <Num size={12} tone="mute">
+                            {dateDisplay(t.date).toUpperCase()}
+                          </Num>
                         }
-                      >
-                        {t.type}
-                      </Pill>
-                    </Td>
-                    <Td className="text-ink-soft text-[13px]">{account?.name ?? '—'}</Td>
-                    <Td align="right">
-                      <Num size={14} weight={500} tone="soft">
-                        {fmtCurrency(t.amount, t.currency)}
-                      </Num>
-                    </Td>
-                    <Td align="right">
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle">
+                      <EditableCell
+                        value={t.comment ?? ''}
+                        variant={{ kind: 'text', placeholder: 'Description…' }}
+                        onSave={makeSaver(t.id, 'comment')}
+                        display={
+                          <span className={t.comment ? 'text-ink' : 'text-ink-mute'}>
+                            {t.comment || '—'}
+                          </span>
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle">
+                      <EditableCell
+                        value={t.category ?? ''}
+                        variant={{
+                          kind: 'select',
+                          options: [
+                            { value: '', label: '— None —' },
+                            ...cats.map((c) => ({ value: c.name, label: c.name })),
+                          ],
+                        }}
+                        onSave={makeSaver(t.id, 'category')}
+                        display={
+                          t.category ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-sm"
+                                style={{ background: categoryColor(t.category) }}
+                              />
+                              <span className="text-[13px] text-ink-soft">{t.category}</span>
+                            </span>
+                          ) : (
+                            <span className="text-ink-mute">—</span>
+                          )
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle">
+                      <EditableCell
+                        value={t.type}
+                        variant={{
+                          kind: 'select',
+                          options: TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+                        }}
+                        onSave={makeSaver(t.id, 'type')}
+                        display={
+                          <Pill
+                            variant={
+                              t.type === 'income'
+                                ? 'pos'
+                                : t.type === 'adjustment'
+                                  ? 'accent'
+                                  : 'outline'
+                            }
+                          >
+                            {t.type}
+                          </Pill>
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle">
+                      <EditableCell
+                        value={t.account_id ?? ''}
+                        variant={{
+                          kind: 'select',
+                          options: accounts.map((a) => ({
+                            value: a.id,
+                            label: `${a.name} · ${a.currency}`,
+                          })),
+                        }}
+                        onSave={makeSaver(t.id, 'account_id')}
+                        display={
+                          <span className="text-[13px] text-ink-soft">
+                            {account?.name ?? '—'}
+                          </span>
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle text-right">
+                      <EditableCell
+                        value={String(t.amount)}
+                        variant={{ kind: 'number' }}
+                        align="right"
+                        onSave={makeSaver(t.id, 'amount')}
+                        display={
+                          <Num size={14} weight={500} tone="soft">
+                            {fmtCurrency(t.amount, t.currency)}
+                          </Num>
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-2 align-middle text-right">
                       <Num size={14} weight={600} tone={tone}>
                         {fmtEUR(signed)}
                       </Num>
-                    </Td>
-                    <Td align="right">
-                      <RowMenu
-                        onEdit={() => setMode({ kind: 'edit', tx: t })}
-                        onDelete={() => setMode({ kind: 'delete', tx: t })}
-                      />
-                    </Td>
+                    </td>
+                    <td className="px-4 py-2 align-middle text-right">
+                      <button
+                        type="button"
+                        onClick={() => setMode({ kind: 'delete', tx: t })}
+                        className="text-[12px] text-ink-soft hover:text-neg hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -168,33 +347,6 @@ export function TransactionsTable({
           onCancel={() => setMode({ kind: 'idle' })}
         />
       </Modal>
-
-      {mode.kind === 'edit' ? (
-        <Modal
-          open={true}
-          onOpenChange={(o) => !o && setMode({ kind: 'idle' })}
-          title="Edit transaction"
-        >
-          <TransactionForm
-            budgetId={budgetId}
-            accounts={accounts}
-            expenseCats={expenseCats}
-            incomeCats={incomeCats}
-            defaults={{
-              date: mode.tx.date,
-              type: mode.tx.type,
-              amount: mode.tx.amount,
-              currency: mode.tx.currency,
-              account_id: mode.tx.account_id,
-              category: mode.tx.category,
-              comment: mode.tx.comment,
-            }}
-            submitLabel="Save changes"
-            onSubmit={(input) => handleUpdate(mode.tx.id, input)}
-            onCancel={() => setMode({ kind: 'idle' })}
-          />
-        </Modal>
-      ) : null}
 
       {mode.kind === 'delete' ? (
         <Modal
@@ -222,29 +374,36 @@ export function TransactionsTable({
           </div>
         </Modal>
       ) : null}
-    </>
-  );
-}
 
-function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
-  return (
-    <div className="inline-flex items-center gap-1">
-      <button
-        type="button"
-        onClick={onEdit}
-        className="text-[12px] text-ink-soft hover:text-accent hover:underline"
+      <Modal
+        open={mode.kind === 'bulkDelete'}
+        onOpenChange={(o) => !o && setMode({ kind: 'idle' })}
+        title={`Delete ${selectedIds.size} transaction${selectedIds.size === 1 ? '' : 's'}?`}
+        description="This can't be undone."
       >
-        Edit
-      </button>
-      <span className="text-ink-mute">·</span>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="text-[12px] text-ink-soft hover:text-neg hover:underline"
-      >
-        Delete
-      </button>
-    </div>
+        <div className="flex flex-col gap-4">
+          <p className="text-[13px] text-ink-soft">
+            Selected net: {fmtEUR(selectedNetEUR)}.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setMode({ kind: 'idle' })}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkDelete} disabled={bulkPending}>
+              {bulkPending ? 'Deleting…' : `Delete ${selectedIds.size}`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <BulkActionBar
+        count={selectedIds.size}
+        totalEUR={selectedNetEUR}
+        pending={bulkPending}
+        onClear={() => setSelectedIds(new Set())}
+        onDelete={() => setMode({ kind: 'bulkDelete' })}
+      />
+    </>
   );
 }
 
@@ -265,21 +424,5 @@ function Th({
     >
       {children}
     </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-  className = '',
-}: {
-  children: React.ReactNode;
-  align?: 'left' | 'right';
-  className?: string;
-}) {
-  return (
-    <td className={`px-4 py-3 text-sm ${align === 'right' ? 'text-right' : ''} ${className}`}>
-      {children}
-    </td>
   );
 }

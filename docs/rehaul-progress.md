@@ -240,3 +240,30 @@ inline edit, bulk actions, add-transaction modal).
 **Next:** Chunk 6.1 (sortable columns + bulk actions) OR Chunk 7 (Accounts page) — your call.
 
 **Open questions:** none.
+
+---
+
+## Chunk 6.1 — sortable columns + bulk actions + inline edit (2026-05-02)
+
+**Done:**
+
+Sortable columns
+- `lib/data/transactions.ts` accepts `sortBy` (`date | amount | type | category | comment`) + `sortDir` (`asc | desc`). Falls back to `date desc` then `created_at desc`.
+- `components/transactions/SortableHeader.tsx` — clickable Th, syncs to `?sort=…&dir=…` URL params, shows ▲/▼/↕ glyph for state.
+- Page reads + validates `sort`/`dir` from `searchParams`.
+
+Inline edit
+- `components/transactions/EditableCell.tsx` — generic over `text | number | date | select` variants. Click → edit; Enter or blur saves; ESC cancels; selects save on change. Failed saves bounce back to original.
+- `TransactionsTable` columns wired: date, description (comment), category (with existing-cats select), type, account, amount. EUR column stays computed/read-only.
+
+Bulk actions
+- `components/transactions/BulkActionBar.tsx` — fixed-bottom pill that appears when `selectedIds.size > 0`. Shows count + EUR net of selected + Clear + Delete.
+- Selection state lives in the table (Set<string>); checkbox column with select-all (with indeterminate state) on the head row.
+- New server action `bulkDeleteTransactionsAction(ids[])`.
+- Bulk recategorize / change-account: server action `bulkUpdateTransactionsAction` is in place but no UI yet — ships when categories/accounts pages land (Chunks 7–8).
+
+**Stop signal hit:** sort by any of 5 columns works (URL-persistent); each row is editable cell-by-cell; selecting rows shows the floating bar; bulk-delete works end-to-end.
+
+**Next:** Chunk 7 — Accounts page.
+
+**Open questions:** none.

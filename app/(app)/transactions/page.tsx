@@ -8,6 +8,7 @@ import { listTransactions } from '@/lib/data/transactions';
 import { Filters } from '@/components/transactions/Filters';
 import { TransactionsTable } from '@/components/transactions/TransactionsTable';
 import type { TxType } from '@/lib/supabase/types';
+import type { TxSortField } from '@/lib/data/transactions';
 
 export const metadata = { title: 'Transactions · Theus' };
 
@@ -16,12 +17,26 @@ interface SearchParams {
   category?: string;
   account?: string;
   q?: string;
+  sort?: string;
+  dir?: string;
 }
 
 const PAGE_SIZE = 100;
 
 function parseType(value: string | undefined): TxType | undefined {
   return value === 'expense' || value === 'income' || value === 'adjustment' ? value : undefined;
+}
+
+const SORT_FIELDS: TxSortField[] = ['date', 'amount', 'type', 'category', 'comment'];
+
+function parseSort(value: string | undefined): TxSortField | undefined {
+  return value && (SORT_FIELDS as string[]).includes(value)
+    ? (value as TxSortField)
+    : undefined;
+}
+
+function parseDir(value: string | undefined): 'asc' | 'desc' | undefined {
+  return value === 'asc' || value === 'desc' ? value : undefined;
 }
 
 export default async function TransactionsPage({
@@ -41,6 +56,8 @@ export default async function TransactionsPage({
       accountId: sp.account || undefined,
       category: sp.category || undefined,
       search: sp.q || undefined,
+      sortBy: parseSort(sp.sort),
+      sortDir: parseDir(sp.dir),
       limit: PAGE_SIZE,
     }),
   ]);
@@ -73,8 +90,8 @@ export default async function TransactionsPage({
       </div>
 
       <p className="mt-6 text-[12px] text-ink-mute">
-        Showing up to {PAGE_SIZE} most-recent rows that match.{' '}
-        <Mono size="xs">sortable columns + bulk actions land in chunk 6.1</Mono>
+        Showing up to {PAGE_SIZE} matching rows. Click a header to sort.
+        Click any cell to edit in place.
       </p>
     </>
   );
