@@ -264,6 +264,49 @@ Bulk actions
 
 **Stop signal hit:** sort by any of 5 columns works (URL-persistent); each row is editable cell-by-cell; selecting rows shows the floating bar; bulk-delete works end-to-end.
 
-**Next:** Chunk 7 — Accounts page.
+### Chunk 6.2 — transactions polish (2026-05-02)
+
+User feedback: italic on stat lines, missing month + subcategory filters, weak selected-row contrast, EUR column unclear, 100-row cap.
+
+- `PageHeader` got a new `meta` prop (plain non-italic 13 px caption); italic `tagline` reserved for the brand moment on `/dashboard`. Updated `/transactions`, `/accounts`, `/categories` to use `meta`.
+- New filters: **Month** (built from a server-side distinct query, `listMonthsWithTransactions`) and **Subcategory** (built from `listSubcategoriesForBudget`; auto-narrows when a Category is selected).
+- `listTransactions` accepts `month` (translated to a date range) and `subcategory`.
+- 100-row cap removed — page renders all matching rows.
+- `EUR` column renamed to `Net €`.
+- Selected rows: solid `bg-accent-soft` + `3px brass left border` + inset accent ring + `transition-all 150ms`. Was a `/40` tint, hard to see.
+
+---
+
+## Chunk 7 — Accounts page (2026-05-02)
+
+**Done:**
+
+CRUD
+- `app/actions/accounts.ts` — `createAccountAction`, `updateAccountAction`, `deleteAccountAction` (with friendlier error message on FK violation when txs still reference an account).
+- `components/accounts/AccountForm.tsx` — name, currency (EUR/USD), opening balance.
+- `components/accounts/AccountsTable.tsx` — table + add/edit/delete modals.
+
+Charts
+- `components/charts/Donut.tsx` — generic `Donut` with explicit per-slice colors. `CategoryDonut` becomes a thin wrapper applying `categoryColor()` to slice names.
+- `components/charts/AccountsTrajectory.tsx` — multi-line per-account balance over the last 12 months in EUR; brass dot at the latest point per line; native `<title>` tooltip.
+- Color per account derived from `categoryColor('acct:' + accountId)` so each account always renders in the same swatch across the page.
+
+Data helpers
+- `lib/balance.ts` extended with `accountsCurrentEUR(accounts, transactions, fxRate)` and `accountsTrajectoryEUR(...)` returning `TrajectoryPoint[]` (each point is `{date, label, balances: Record<accountId, eur>}`).
+
+Page
+- Trajectory card (1.6fr) + Distribution donut (1fr) row at the top.
+- Per-account legend strip under the trajectory chart (color dot + name + current EUR).
+- Full accounts table at the bottom with current EUR column, edit/delete actions per row.
+- Header `meta` shows count + total current EUR.
+
+Notes
+- Tiebreaker `order('name')` added to `listAccounts` so duplicate `sort_order` doesn't randomize ordering across reloads.
+
+**Skipped:**
+- Month-by-account matrix (legacy view) — the trajectory chart covers the same story more compactly. Add later if requested.
+- Reordering / drag-handle for `sort_order` — out of scope; users can edit it numerically if exposed.
+
+**Next:** Chunk 8 — Categories page.
 
 **Open questions:** none.

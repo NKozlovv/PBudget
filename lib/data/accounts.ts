@@ -8,7 +8,8 @@ export async function listAccounts(budgetId: string): Promise<Account[]> {
     .from('accounts')
     .select('*')
     .eq('budget_id', budgetId)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
   if (error) throw error;
   return (data ?? []) as Account[];
 }
