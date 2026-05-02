@@ -154,7 +154,7 @@ export default async function DashboardPage() {
                       className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors"
                     >
                       <Td>
-                        <Num size={12} family="mono" tone="mute">
+                        <Num size={12} tone="mute">
                           {dateDisplay(t.date).toUpperCase()}
                         </Num>
                       </Td>

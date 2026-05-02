@@ -209,3 +209,34 @@ Dashboard wiring
 inline edit, bulk actions, add-transaction modal).
 
 **Open questions:** none.
+
+---
+
+## Chunk 6 — Transactions page + JetBrains Mono purge (2026-05-02)
+
+**Font cleanup (per user feedback):**
+- Removed `JetBrains_Mono` from `app/layout.tsx` and the `mono` family from `tailwind.config.ts`. The font is no longer loaded.
+- `Mono` component now uses Inter (it's just a small uppercase tracked sans label — kept the name to minimise diff).
+- `Num` dropped its `family="mono"` prop. Always Inter + tabular-nums.
+- Audited and replaced every `font-mono` Tailwind class and every `var(--font-jetbrains-mono)` SVG fontFamily reference (UserCard, IncomeSpendBars, styleguide, dashboard).
+
+**Transactions page:**
+- New deps: `@radix-ui/react-dialog` (focus trap, ESC, portal — accessibility for free).
+- New primitives: `components/ui/Select.tsx` (styled native select with custom chevron), `components/ui/Modal.tsx` (Radix Dialog wrapper, no animation deps yet).
+- New server actions: `app/actions/transactions.ts` — `createTransactionAction`, `updateTransactionAction`, `deleteTransactionAction`. Each runs an auth check, mutates Supabase, then `revalidatePath`s `/transactions` + `/dashboard`.
+- `lib/data/transactions.ts`: added `search` filter (ILIKE on comment, %/_ escaped).
+- `components/transactions/TransactionForm.tsx` — shared form for add/edit (date, type, account, category, amount, note). Currency derives from chosen account.
+- `components/transactions/TransactionsTable.tsx` — client table with per-row Edit / Delete buttons. Edit pre-fills the form modal; Delete opens a confirm modal showing the row preview.
+- `components/transactions/Filters.tsx` — URL-driven (search / type / account / category). Updates `?…` params; server re-renders.
+- `app/(app)/transactions/page.tsx` — PageHeader → Filters → Table. Up to 100 most-recent rows that match.
+
+**Skipped (deferred to Chunk 6.1):**
+- Sortable columns
+- Inline edit (click cell → edit-in-place)
+- Bulk-action bar (checkboxes → recategorize / change account / delete-many)
+
+**Stop signal hit:** add / edit / delete round-trip through Supabase via server actions; URL filters survive reloads; pages rerender on mutation via `revalidatePath`.
+
+**Next:** Chunk 6.1 (sortable columns + bulk actions) OR Chunk 7 (Accounts page) — your call.
+
+**Open questions:** none.

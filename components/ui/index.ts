@@ -6,3 +6,5 @@ export { Button } from './Button';
 export { KpiTile } from './KpiTile';
 export { Input } from './Input';
 export { Field } from './Field';
+export { Select } from './Select';
+export { Modal } from './Modal';

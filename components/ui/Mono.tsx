@@ -17,6 +17,10 @@ const SIZE: Record<Size, string> = {
   sm: 'text-[11px]',
 };
 
+/**
+ * Small uppercase tracked label. Despite the legacy name, this uses
+ * Inter (the project dropped JetBrains Mono entirely).
+ */
 export function Mono({
   children,
   tone = 'mute',
@@ -31,7 +35,7 @@ export function Mono({
   return (
     <span
       className={cn(
-        'font-mono font-medium uppercase tracking-mono-label',
+        'font-sans font-medium uppercase tracking-[0.14em]',
         SIZE[size],
         TONE[tone],
         className,

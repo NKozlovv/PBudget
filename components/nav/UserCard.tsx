@@ -28,7 +28,7 @@ export function UserCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-medium text-ink">{email}</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-[0.08em] text-ink-mute font-mono">
+          <div className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-ink-mute">
             {budgetName} · {baseCurrency}
           </div>
         </div>

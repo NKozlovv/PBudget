@@ -11,6 +11,8 @@ export interface ListTxFilters {
   fromDate?: string;
   /** Inclusive YYYY-MM-DD upper bound. */
   toDate?: string;
+  /** ILIKE substring match on the comment column. */
+  search?: string;
   limit?: number;
   /** Page offset (0-indexed). */
   offset?: number;
@@ -25,6 +27,10 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
   if (filters.accountId) query = query.eq('account_id', filters.accountId);
   if (filters.fromDate) query = query.gte('date', filters.fromDate);
   if (filters.toDate) query = query.lte('date', filters.toDate);
+  if (filters.search && filters.search.trim()) {
+    const escaped = filters.search.trim().replace(/[%_]/g, (c) => `\\${c}`);
+    query = query.ilike('comment', `%${escaped}%`);
+  }
 
   query = query.order('date', { ascending: false }).order('created_at', { ascending: false });
 

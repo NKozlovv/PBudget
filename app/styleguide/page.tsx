@@ -213,7 +213,7 @@ function Swatch({ name, value, cssVar }: { name: string; value: string; cssVar: 
       />
       <div>
         <div className="text-xs text-ink">{name}</div>
-        <div className="font-mono text-[10px] text-ink-mute">{value}</div>
+        <div className="text-[10px] text-ink-mute tabular-nums">{value}</div>
       </div>
     </div>
   );

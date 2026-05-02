@@ -23,7 +23,6 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         display: ['var(--font-instrument-serif)', 'Times New Roman', 'serif'],
-        mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'monospace'],
       },
       letterSpacing: {
         'mono-label': '0.14em',

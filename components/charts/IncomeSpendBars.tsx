@@ -50,7 +50,7 @@ export function IncomeSpendBars({
               x={pad.l - 8}
               y={py + 3}
               fontSize="9"
-              fontFamily="var(--font-jetbrains-mono)"
+              fontFamily="var(--font-inter)"
               fill="var(--ink-mute)"
               textAnchor="end"
             >
@@ -88,7 +88,7 @@ export function IncomeSpendBars({
               x={x + barW + 2}
               y={h - 10}
               fontSize="9"
-              fontFamily="var(--font-jetbrains-mono)"
+              fontFamily="var(--font-inter)"
               fill="var(--ink-mute)"
               textAnchor="middle"
               letterSpacing="1"
