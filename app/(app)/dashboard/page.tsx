@@ -1,10 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listCategories } from '@/lib/data/categories';
 import { countTransactions, listTransactions } from '@/lib/data/transactions';
-import { Card, Mono, Num, Pill } from '@/components/ui';
-import { SignOutButton } from '@/components/auth/SignOutButton';
+import { Card, Mono, Num, Pill, Button } from '@/components/ui';
+import { PageHeader } from '@/components/nav/PageHeader';
 import { fmtCurrency, fmtEUR, txToEUR, signedAmount } from '@/lib/money';
 import { dateDisplay } from '@/lib/date';
 import { totalBalanceEUR, monthTotalsEUR } from '@/lib/balance';
@@ -12,18 +11,13 @@ import { totalBalanceEUR, monthTotalsEUR } from '@/lib/balance';
 export const metadata = { title: 'Dashboard · Theus' };
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const budget = await getOrCreateUserBudget();
   const [accounts, expenseCats, incomeCats, txCount, allTx, recentTx] = await Promise.all([
     listAccounts(budget.id),
     listCategories(budget.id, 'expense'),
     listCategories(budget.id, 'income'),
     countTransactions(budget.id),
-    listTransactions({ budgetId: budget.id }), // for hero + month totals
+    listTransactions({ budgetId: budget.id }),
     listTransactions({ budgetId: budget.id, limit: 8 }),
   ]);
 
@@ -37,166 +31,182 @@ export default async function DashboardPage() {
   });
 
   return (
-    <main className="min-h-screen px-10 py-12">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex items-end justify-between border-b border-rule pb-6">
-          <div>
-            <Mono>03 · data layer wired</Mono>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight">Dashboard</h1>
-            <p className="mt-2 font-display italic text-xl text-ink-mute">
-              {user?.email ?? 'money understood.'}
-            </p>
-          </div>
-          <SignOutButton />
-        </header>
+    <>
+      <PageHeader
+        kicker={`${today.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}`}
+        title="Overview"
+        tagline="money understood."
+        actions={<Button>+ Add transaction</Button>}
+      />
 
-        {/* Hero balance + KPI strip */}
-        <div className="mt-10 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <HeroBalance value={balanceEUR} budgetName={budget.name} txCount={txCount} />
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
-            <KpiCard label="Income · this month" value={fmtEUR(month.income)} tone="pos" />
-            <KpiCard label="Spend · this month" value={fmtEUR(month.expense)} tone="neg" />
-            <KpiCard label="Net · this month" value={fmtEUR(month.net)} tone={month.net >= 0 ? 'pos' : 'neg'} />
-          </div>
+      <div className="mt-10 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <HeroBalance value={balanceEUR} budgetName={budget.name} txCount={txCount} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+          <KpiCard label="Income · this month" value={fmtEUR(month.income)} tone="pos" />
+          <KpiCard label="Spend · this month" value={fmtEUR(month.expense)} tone="neg" />
+          <KpiCard
+            label="Net · this month"
+            value={fmtEUR(month.net)}
+            tone={month.net >= 0 ? 'pos' : 'neg'}
+          />
         </div>
+      </div>
 
-        <Section title="Recent transactions" right={<Mono size="xs">showing {recentTx.length} of {txCount}</Mono>}>
-          {recentTx.length === 0 ? (
-            <Empty>No transactions yet.</Empty>
+      <Section
+        title="Recent transactions"
+        right={
+          <Mono size="xs">
+            showing {recentTx.length} of {txCount}
+          </Mono>
+        }
+      >
+        {recentTx.length === 0 ? (
+          <Empty>No transactions yet.</Empty>
+        ) : (
+          <Card padded={false} className="overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-rule">
+                  <Th className="w-[110px]">Date</Th>
+                  <Th>Description</Th>
+                  <Th>Category</Th>
+                  <Th className="w-[110px]">Type</Th>
+                  <Th align="right" className="w-[140px]">
+                    Amount
+                  </Th>
+                  <Th align="right" className="w-[120px]">
+                    EUR
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTx.map((t) => {
+                  const eur = txToEUR(t, budget.fx_rate);
+                  const signed = signedAmount({ type: t.type, amount: eur });
+                  const tone = signed > 0 ? 'pos' : signed < 0 ? 'neg' : 'mute';
+                  return (
+                    <tr
+                      key={t.id}
+                      className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors"
+                    >
+                      <Td>
+                        <Num size={12} family="mono" tone="mute">
+                          {dateDisplay(t.date).toUpperCase()}
+                        </Num>
+                      </Td>
+                      <Td className="text-ink">{t.comment || '—'}</Td>
+                      <Td className="text-ink-soft">
+                        {t.category ?? <span className="text-ink-mute">—</span>}
+                      </Td>
+                      <Td>
+                        <Pill
+                          variant={
+                            t.type === 'income'
+                              ? 'pos'
+                              : t.type === 'adjustment'
+                                ? 'accent'
+                                : 'outline'
+                          }
+                        >
+                          {t.type}
+                        </Pill>
+                      </Td>
+                      <Td align="right">
+                        <Num size={14} weight={500} tone="soft">
+                          {fmtCurrency(t.amount, t.currency)}
+                        </Num>
+                      </Td>
+                      <Td align="right">
+                        <Num size={15} weight={600} tone={tone}>
+                          {fmtEUR(signed)}
+                        </Num>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        )}
+      </Section>
+
+      <div className="mt-12 grid gap-6 lg:grid-cols-2">
+        <Section title="Accounts">
+          {accounts.length === 0 ? (
+            <Empty>No accounts yet.</Empty>
           ) : (
             <Card padded={false} className="overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-rule">
-                    <Th className="w-[110px]">Date</Th>
-                    <Th>Description</Th>
-                    <Th>Category</Th>
-                    <Th className="w-[110px]">Type</Th>
-                    <Th align="right" className="w-[140px]">Amount</Th>
-                    <Th align="right" className="w-[120px]">EUR</Th>
+                    <Th>Name</Th>
+                    <Th align="right">Currency</Th>
+                    <Th align="right" className="w-[140px]">
+                      Opening
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentTx.map((t) => {
-                    const eur = txToEUR(t, budget.fx_rate);
-                    const signed = signedAmount({ type: t.type, amount: eur });
-                    const tone = signed > 0 ? 'pos' : signed < 0 ? 'neg' : 'mute';
-                    return (
-                      <tr key={t.id} className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors">
-                        <Td>
-                          <Num size={12} family="mono" tone="mute">
-                            {dateDisplay(t.date).toUpperCase()}
-                          </Num>
-                        </Td>
-                        <Td className="text-ink">{t.comment || '—'}</Td>
-                        <Td className="text-ink-soft">
-                          {t.category ?? <span className="text-ink-mute">—</span>}
-                        </Td>
-                        <Td>
-                          <Pill
-                            variant={
-                              t.type === 'income' ? 'pos' : t.type === 'adjustment' ? 'accent' : 'outline'
-                            }
-                          >
-                            {t.type}
-                          </Pill>
-                        </Td>
-                        <Td align="right">
-                          <Num size={14} weight={500} tone="soft">
-                            {fmtCurrency(t.amount, t.currency)}
-                          </Num>
-                        </Td>
-                        <Td align="right">
-                          <Num size={15} weight={600} tone={tone}>
-                            {fmtEUR(signed)}
-                          </Num>
-                        </Td>
-                      </tr>
-                    );
-                  })}
+                  {accounts.map((a) => (
+                    <tr
+                      key={a.id}
+                      className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors"
+                    >
+                      <Td className="text-ink font-medium">{a.name}</Td>
+                      <Td align="right">
+                        <Mono size="xs">{a.currency}</Mono>
+                      </Td>
+                      <Td align="right">
+                        <Num size={14} weight={500} tone="soft">
+                          {fmtCurrency(a.opening_balance, a.currency)}
+                        </Num>
+                      </Td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </Card>
           )}
         </Section>
 
-        <div className="mt-12 grid gap-6 lg:grid-cols-2">
-          <Section title="Accounts">
-            {accounts.length === 0 ? (
-              <Empty>No accounts yet.</Empty>
-            ) : (
-              <Card padded={false} className="overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-rule">
-                      <Th>Name</Th>
-                      <Th align="right">Currency</Th>
-                      <Th align="right" className="w-[140px]">Opening</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {accounts.map((a) => (
-                      <tr key={a.id} className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors">
-                        <Td className="text-ink font-medium">{a.name}</Td>
-                        <Td align="right">
-                          <Mono size="xs">{a.currency}</Mono>
-                        </Td>
-                        <Td align="right">
-                          <Num size={14} weight={500} tone="soft">
-                            {fmtCurrency(a.opening_balance, a.currency)}
-                          </Num>
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            )}
-          </Section>
-
-          <Section title="Categories">
-            <div className="grid gap-3">
-              <Card>
-                <div className="flex items-baseline justify-between mb-3">
-                  <Mono size="xs">Expense</Mono>
-                  <Num size={13} family="mono" tone="mute">
-                    {expenseCats.length}
-                  </Num>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {expenseCats.map((c) => (
-                    <Pill key={c.id} variant="outline">
-                      {c.name}
-                    </Pill>
-                  ))}
-                  {expenseCats.length === 0 && <span className="text-sm text-ink-mute">—</span>}
-                </div>
-              </Card>
-              <Card>
-                <div className="flex items-baseline justify-between mb-3">
-                  <Mono size="xs">Income</Mono>
-                  <Num size={13} family="mono" tone="mute">
-                    {incomeCats.length}
-                  </Num>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {incomeCats.map((c) => (
-                    <Pill key={c.id} variant="pos">
-                      {c.name}
-                    </Pill>
-                  ))}
-                  {incomeCats.length === 0 && <span className="text-sm text-ink-mute">—</span>}
-                </div>
-              </Card>
-            </div>
-          </Section>
-        </div>
-
-        <p className="mt-12 max-w-2xl text-sm text-ink-soft leading-relaxed">
-          Read-only. The full Sterling sidebar shell + per-page navigation arrives in Chunk 4. Charts and drill-downs Chunks 5+.
-        </p>
+        <Section title="Categories">
+          <div className="grid gap-3">
+            <Card>
+              <div className="flex items-baseline justify-between mb-3">
+                <Mono size="xs">Expense</Mono>
+                <Num size={13} family="mono" tone="mute">
+                  {expenseCats.length}
+                </Num>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {expenseCats.map((c) => (
+                  <Pill key={c.id} variant="outline">
+                    {c.name}
+                  </Pill>
+                ))}
+                {expenseCats.length === 0 && <span className="text-sm text-ink-mute">—</span>}
+              </div>
+            </Card>
+            <Card>
+              <div className="flex items-baseline justify-between mb-3">
+                <Mono size="xs">Income</Mono>
+                <Num size={13} family="mono" tone="mute">
+                  {incomeCats.length}
+                </Num>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {incomeCats.map((c) => (
+                  <Pill key={c.id} variant="pos">
+                    {c.name}
+                  </Pill>
+                ))}
+                {incomeCats.length === 0 && <span className="text-sm text-ink-mute">—</span>}
+              </div>
+            </Card>
+          </div>
+        </Section>
       </div>
-    </main>
+    </>
   );
 }
 
@@ -313,9 +323,7 @@ function Td({
   className?: string;
 }) {
   return (
-    <td
-      className={`px-4 py-3 text-sm ${align === 'right' ? 'text-right' : ''} ${className}`}
-    >
+    <td className={`px-4 py-3 text-sm ${align === 'right' ? 'text-right' : ''} ${className}`}>
       {children}
     </td>
   );

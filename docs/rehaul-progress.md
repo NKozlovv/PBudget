@@ -139,3 +139,30 @@ Fixes:
   3. **Recent transactions** — single full-width table inside a Card, prominent right-aligned EUR column at 15 px weight 600 colored pos/neg by signed direction; dates in mono small uppercase; row hover
   4. **Accounts** + **Categories** moved to a 2-column row below — secondary
 - Email moved into the header tagline slot (was a stat card).
+
+---
+
+## Chunk 4 — app shell (sidebar + page header + route stubs) (2026-05-02)
+
+**Done:**
+
+Shell
+- `app/(app)/layout.tsx` is now the actual Sterling shell: `grid grid-cols-[232px_1fr]`, sticky sidebar on the left, max-w-6xl content column on the right with `px-10 py-10` padding.
+- `components/nav/Sidebar.tsx` — Sterling's `dashboard.jsx:14–50` pattern: `bg-bg-soft` panel, `border-r`, lockup at top, "Manage" mono group header, 5 nav items with rounded-lg + accent-soft active state, identity card pinned to bottom, sign-out tucked under it.
+- `components/nav/NavItem.tsx` — client component (`usePathname` for active detection); active = `bg-accent-soft text-accent`, hover = `bg-bg-panel`.
+- `components/nav/UserCard.tsx` — gradient initial avatar (brass→ink), email, mono `BUDGET · EUR` line.
+- `components/nav/PageHeader.tsx` — reusable: mono kicker → 32 px headline → optional Instrument Serif italic tagline → right-aligned action slot.
+
+Routes
+- `app/(app)/dashboard/page.tsx` — uses `PageHeader` (date kicker, "Overview", italic tagline, primary CTA). Removed its own header + sign-out (those live in the shell now).
+- `app/(app)/transactions/page.tsx`, `accounts/page.tsx`, `categories/page.tsx`, `forecast/page.tsx` — each shipped as a real `PageHeader` with live counts where cheap, plus a `Stub` card pointing at the chunk that fills it in.
+- `components/nav/Stub.tsx` — single tile saying "Lands in Chunk N: …".
+
+Sidebar dependency on identity:
+- `(app)/layout` fetches user + budget once and passes them to `<Sidebar>` as props. No client-side Supabase calls in the shell.
+
+**Stop signal hit:** authed users land on `/dashboard` inside the Theus shell; nav highlights the active route; each of the 5 routes renders its own `PageHeader`; sign-out works from the sidebar.
+
+**Next:** Chunk 5 — the dashboard build-out (Income vs Spend chart, Cashflow sparkline, category donut, recent-tx preview tied to the chart legend).
+
+**Open questions:** none.
