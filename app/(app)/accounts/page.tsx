@@ -15,7 +15,7 @@ export default async function AccountsPage() {
       <PageHeader
         kicker="balances"
         title="Accounts"
-        tagline={`${accounts.length} configured.`}
+        meta={`${accounts.length} configured.`}
         actions={<Button>+ Add account</Button>}
       />
       <Stub chunk={7} what="month-by-account matrix, distribution donut, per-account trajectories" />

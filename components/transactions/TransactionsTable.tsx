@@ -174,7 +174,7 @@ export function TransactionsTable({
                   Amount
                 </SortableHeader>
                 <Th align="right" className="w-[120px]">
-                  EUR
+                  Net €
                 </Th>
                 <Th className="w-[80px]" align="right">
                   {''}
@@ -192,8 +192,10 @@ export function TransactionsTable({
                 return (
                   <tr
                     key={t.id}
-                    className={`border-b border-rule/60 last:border-0 transition-colors ${
-                      isSelected ? 'bg-accent-soft/40' : 'hover:bg-bg-panel/40'
+                    className={`border-b border-rule/60 last:border-0 transition-all duration-150 ${
+                      isSelected
+                        ? 'bg-accent-soft border-l-[3px] border-l-accent shadow-[inset_0_0_0_1px_var(--accent-soft)]'
+                        : 'border-l-[3px] border-l-transparent hover:bg-bg-panel/40'
                     }`}
                   >
                     <td className="px-4 py-2 align-middle">

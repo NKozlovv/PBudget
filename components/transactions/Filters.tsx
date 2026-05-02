@@ -2,29 +2,67 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Input, Mono, Select } from '@/components/ui';
-import type { Account, Category } from '@/lib/supabase/types';
+import type { Account, Category, Subcategory } from '@/lib/supabase/types';
+
+const MONTH_LABELS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function monthLabel(yyyymm: string): string {
+  const [y, m] = yyyymm.split('-');
+  const idx = Number(m) - 1;
+  if (idx < 0 || idx > 11) return yyyymm;
+  return `${MONTH_LABELS[idx]} ${y}`;
+}
 
 export function Filters({
   accounts,
   expenseCats,
   incomeCats,
+  subcategories,
+  months,
 }: {
   accounts: Account[];
   expenseCats: Category[];
   incomeCats: Category[];
+  subcategories: Subcategory[];
+  months: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  function update(key: string, value: string) {
+  const currentCategory = params.get('category') ?? '';
+
+  function update(updates: Record<string, string>) {
     const next = new URLSearchParams(params.toString());
-    if (value) next.set(key, value);
-    else next.delete(key);
+    for (const [k, v] of Object.entries(updates)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
     router.push(`${pathname}?${next.toString()}`);
   }
 
   const allCats = [...expenseCats, ...incomeCats];
+
+  // If a category is selected, narrow subcategories to that category.
+  const subcatScope = (() => {
+    if (!currentCategory) return subcategories;
+    const cat = allCats.find((c) => c.name === currentCategory);
+    if (!cat) return subcategories;
+    return subcategories.filter((s) => s.category_id === cat.id);
+  })();
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -33,15 +71,29 @@ export function Filters({
           type="search"
           placeholder="Description…"
           defaultValue={params.get('q') ?? ''}
-          onChange={(e) => update('q', e.target.value)}
-          className="w-[260px]"
+          onChange={(e) => update({ q: e.target.value })}
+          className="w-[220px]"
         />
+      </Field>
+      <Field label="Month">
+        <Select
+          value={params.get('month') ?? ''}
+          onChange={(e) => update({ month: e.target.value })}
+          className="w-[150px]"
+        >
+          <option value="">All months</option>
+          {months.map((m) => (
+            <option key={m} value={m}>
+              {monthLabel(m)}
+            </option>
+          ))}
+        </Select>
       </Field>
       <Field label="Type">
         <Select
-          defaultValue={params.get('type') ?? ''}
-          onChange={(e) => update('type', e.target.value)}
-          className="w-[140px]"
+          value={params.get('type') ?? ''}
+          onChange={(e) => update({ type: e.target.value })}
+          className="w-[130px]"
         >
           <option value="">All types</option>
           <option value="expense">Expense</option>
@@ -51,9 +103,9 @@ export function Filters({
       </Field>
       <Field label="Account">
         <Select
-          defaultValue={params.get('account') ?? ''}
-          onChange={(e) => update('account', e.target.value)}
-          className="w-[180px]"
+          value={params.get('account') ?? ''}
+          onChange={(e) => update({ account: e.target.value })}
+          className="w-[160px]"
         >
           <option value="">All accounts</option>
           {accounts.map((a) => (
@@ -65,14 +117,31 @@ export function Filters({
       </Field>
       <Field label="Category">
         <Select
-          defaultValue={params.get('category') ?? ''}
-          onChange={(e) => update('category', e.target.value)}
-          className="w-[180px]"
+          value={currentCategory}
+          // When the category changes, drop any selected subcategory that no
+          // longer applies.
+          onChange={(e) => update({ category: e.target.value, subcategory: '' })}
+          className="w-[160px]"
         >
           <option value="">All categories</option>
           {allCats.map((c) => (
             <option key={c.id} value={c.name}>
               {c.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="Subcategory">
+        <Select
+          value={params.get('subcategory') ?? ''}
+          onChange={(e) => update({ subcategory: e.target.value })}
+          className="w-[160px]"
+          disabled={subcatScope.length === 0}
+        >
+          <option value="">{subcatScope.length === 0 ? '—' : 'All subcats'}</option>
+          {subcatScope.map((s) => (
+            <option key={s.id} value={s.name}>
+              {s.name}
             </option>
           ))}
         </Select>
@@ -83,7 +152,7 @@ export function Filters({
           onClick={() => router.push(pathname)}
           className="ml-auto text-[12px] text-ink-mute hover:text-ink hover:underline"
         >
-          Clear filters
+          Clear all
         </button>
       ) : null}
     </div>

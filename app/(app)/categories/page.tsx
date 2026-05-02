@@ -18,7 +18,7 @@ export default async function CategoriesPage() {
       <PageHeader
         kicker="taxonomy"
         title="Categories"
-        tagline={`${expense.length} expense · ${income.length} income.`}
+        meta={`${expense.length} expense · ${income.length} income.`}
         actions={<Button>+ Add category</Button>}
       />
       <Stub

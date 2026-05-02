@@ -14,6 +14,13 @@ export async function listCategories(
   return (data ?? []) as Category[];
 }
 
+/** All subcategories under any category in the given budget. */
+export async function listSubcategoriesForBudget(budgetId: string): Promise<Subcategory[]> {
+  const cats = await listCategories(budgetId);
+  if (cats.length === 0) return [];
+  return listSubcategories(cats.map((c) => c.id));
+}
+
 export async function listSubcategories(categoryIds: string[]): Promise<Subcategory[]> {
   if (categoryIds.length === 0) return [];
   const supabase = await createClient();

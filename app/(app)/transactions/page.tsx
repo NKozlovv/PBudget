@@ -1,10 +1,9 @@
 import { Suspense } from 'react';
 import { PageHeader } from '@/components/nav/PageHeader';
-import { Mono } from '@/components/ui';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
-import { listCategories } from '@/lib/data/categories';
-import { listTransactions } from '@/lib/data/transactions';
+import { listCategories, listSubcategoriesForBudget } from '@/lib/data/categories';
+import { listMonthsWithTransactions, listTransactions } from '@/lib/data/transactions';
 import { Filters } from '@/components/transactions/Filters';
 import { TransactionsTable } from '@/components/transactions/TransactionsTable';
 import type { TxType } from '@/lib/supabase/types';
@@ -15,13 +14,13 @@ export const metadata = { title: 'Transactions · Theus' };
 interface SearchParams {
   type?: string;
   category?: string;
+  subcategory?: string;
   account?: string;
+  month?: string;
   q?: string;
   sort?: string;
   dir?: string;
 }
-
-const PAGE_SIZE = 100;
 
 function parseType(value: string | undefined): TxType | undefined {
   return value === 'expense' || value === 'income' || value === 'adjustment' ? value : undefined;
@@ -46,35 +45,45 @@ export default async function TransactionsPage({
 }) {
   const sp = await searchParams;
   const budget = await getOrCreateUserBudget();
-  const [accounts, expenseCats, incomeCats, transactions] = await Promise.all([
-    listAccounts(budget.id),
-    listCategories(budget.id, 'expense'),
-    listCategories(budget.id, 'income'),
-    listTransactions({
-      budgetId: budget.id,
-      type: parseType(sp.type),
-      accountId: sp.account || undefined,
-      category: sp.category || undefined,
-      search: sp.q || undefined,
-      sortBy: parseSort(sp.sort),
-      sortDir: parseDir(sp.dir),
-      limit: PAGE_SIZE,
-    }),
-  ]);
+  const [accounts, expenseCats, incomeCats, subcategories, months, transactions] =
+    await Promise.all([
+      listAccounts(budget.id),
+      listCategories(budget.id, 'expense'),
+      listCategories(budget.id, 'income'),
+      listSubcategoriesForBudget(budget.id),
+      listMonthsWithTransactions(budget.id),
+      listTransactions({
+        budgetId: budget.id,
+        type: parseType(sp.type),
+        accountId: sp.account || undefined,
+        category: sp.category || undefined,
+        subcategory: sp.subcategory || undefined,
+        month: sp.month || undefined,
+        search: sp.q || undefined,
+        sortBy: parseSort(sp.sort),
+        sortDir: parseDir(sp.dir),
+      }),
+    ]);
 
   return (
     <>
       <PageHeader
         kicker="all activity"
         title="Transactions"
-        tagline={`${transactions.length} on this page${
-          transactions.length === PAGE_SIZE ? ' (more available — refine filters)' : ''
-        }.`}
+        meta={`${transactions.length} matching ${
+          transactions.length === 1 ? 'transaction' : 'transactions'
+        } · click any cell to edit · click a header to sort`}
       />
 
       <div className="mt-8">
         <Suspense fallback={null}>
-          <Filters accounts={accounts} expenseCats={expenseCats} incomeCats={incomeCats} />
+          <Filters
+            accounts={accounts}
+            expenseCats={expenseCats}
+            incomeCats={incomeCats}
+            subcategories={subcategories}
+            months={months}
+          />
         </Suspense>
       </div>
 
@@ -88,11 +97,6 @@ export default async function TransactionsPage({
           budgetFxRate={budget.fx_rate}
         />
       </div>
-
-      <p className="mt-6 text-[12px] text-ink-mute">
-        Showing up to {PAGE_SIZE} matching rows. Click a header to sort.
-        Click any cell to edit in place.
-      </p>
     </>
   );
 }
