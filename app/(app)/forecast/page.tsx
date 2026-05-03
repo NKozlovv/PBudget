@@ -132,7 +132,7 @@ export default async function ForecastPage() {
 
       <p className="mt-10 max-w-2xl text-sm text-ink-soft leading-relaxed">
         Projection extends your year-to-date monthly average across the remaining months.
-        Doesn't account for one-off events (bonuses, big purchases). Treat as a pace check,
+        Doesn&apos;t account for one-off events (bonuses, big purchases). Treat as a pace check,
         not a contract.
       </p>
     </>

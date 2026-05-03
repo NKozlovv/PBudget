@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Card, CardHeader, Modal, Mono, Num, Pill } from '@/components/ui';
+import { Button, Card, CardHeader, Modal, Mono, Num } from '@/components/ui';
 import { NameForm } from './NameForm';
 import {
   createCategoryAction,

@@ -1,4 +1,4 @@
-import { Mono, Num, Card, CardHeader, Pill, Button, KpiTile } from '@/components/ui';
+import { Mono, Card, CardHeader, Pill, Button, KpiTile } from '@/components/ui';
 
 export const metadata = {
   title: 'Theus — Styleguide',
