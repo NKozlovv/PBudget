@@ -1,11 +1,13 @@
 import 'server-only';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import type { Budget } from '@/lib/supabase/types';
 
 const DEFAULT_FX_RATE = 1.05;
 const DEFAULT_BUDGET_NAME = 'My Budget';
+export const ACTIVE_BUDGET_COOKIE = 'theus.active-budget';
 
-/** All budgets the signed-in user is a member of. */
+/** All budgets the signed-in user is a member of, oldest first. */
 export async function listBudgets(): Promise<Budget[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -17,8 +19,15 @@ export async function listBudgets(): Promise<Budget[]> {
 }
 
 /**
- * Returns the user's first budget, creating a default one if they have none.
- * Mirrors `ensureBudget()` from legacy index.html line 4416.
+ * Returns the user's active budget. Resolution:
+ *   1. Cookie `theus.active-budget` — if its id resolves to a budget the
+ *      user can read (RLS-gated), use it.
+ *   2. Else fall back to the first budget the user is a member of.
+ *   3. Else create a default "My Budget" and use that.
+ *
+ * Replaces the legacy single-budget `ensureBudget()` once Chunk 12 lands.
+ * The function name is preserved for backwards compatibility with the
+ * many callers across `app/(app)/*`.
  */
 export async function getOrCreateUserBudget(): Promise<Budget> {
   const supabase = await createClient();
@@ -28,10 +37,22 @@ export async function getOrCreateUserBudget(): Promise<Budget> {
   }
   const userId = userData.user.id;
 
-  const existing = await listBudgets();
-  const first = existing[0];
-  if (first) return first;
+  const all = await listBudgets();
 
+  // 1. Cookie hit
+  const cookieStore = await cookies();
+  const activeId = cookieStore.get(ACTIVE_BUDGET_COOKIE)?.value;
+  if (activeId) {
+    const found = all.find((b) => b.id === activeId);
+    if (found) return found;
+  }
+
+  // 2. Fall back to first
+  if (all.length > 0) {
+    return all[0]!;
+  }
+
+  // 3. Bootstrap a default
   const { data, error } = await supabase
     .from('budgets')
     .insert({
@@ -43,7 +64,6 @@ export async function getOrCreateUserBudget(): Promise<Budget> {
     .select()
     .single();
   if (error) throw error;
-  // The trg_add_owner_as_member trigger inserts the membership row.
   return data as Budget;
 }
 

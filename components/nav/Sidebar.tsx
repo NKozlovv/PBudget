@@ -3,6 +3,8 @@ import { Mono } from '@/components/ui';
 import { BUILD_DATE, BUILD_VERSION } from '@/lib/version';
 import { NavItem } from './NavItem';
 import { UserCard } from './UserCard';
+import { BudgetSwitcher } from './BudgetSwitcher';
+import type { Budget } from '@/lib/supabase/types';
 
 const NAV = [
   { href: '/dashboard', label: 'Overview' },
@@ -26,10 +28,14 @@ export function Sidebar({
   email,
   budgetName,
   baseCurrency,
+  budgets,
+  activeBudgetId,
 }: {
   email: string;
   budgetName: string;
   baseCurrency: string;
+  budgets: Budget[];
+  activeBudgetId: string;
 }) {
   return (
     <aside className="flex flex-col gap-8 border-r border-rule bg-bg-soft px-5 py-7 sticky top-0 h-screen overflow-y-auto">
@@ -60,6 +66,8 @@ export function Sidebar({
           ))}
         </ul>
       </nav>
+
+      <BudgetSwitcher budgets={budgets} activeId={activeBudgetId} />
 
       <UserCard email={email} budgetName={budgetName} baseCurrency={baseCurrency} />
 

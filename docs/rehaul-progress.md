@@ -453,3 +453,51 @@ The user's pre-merge checklist (also in `docs/security-review.md`):
 **Next (post-merge, your call):** Chunk 12 (multi-budget UI) and Chunk 13 (invites + server hardening) are the remaining in-scope items from the plan.
 
 **Open questions:** none.
+
+---
+
+## Chunk 12 — multi-budget UI (2026-05-03)
+
+User decision: keep branches side-by-side indefinitely, no merge yet.
+CLAUDE.md update applied — live `CLAUDE.md` now reflects the new
+architecture (the doc proposal in `docs/claude-md-proposal.md` was the
+draft for this).
+
+**Done:**
+
+Active-budget cookie
+- `lib/data/budgets.ts` — `getOrCreateUserBudget()` resolution: cookie
+  hit (if budget still readable under RLS) → first listed → bootstrap a
+  default. Cookie `theus.active-budget`, 1-year max-age.
+- `listBudgets()` exposed for the layout.
+
+Server actions (`app/actions/budgets.ts`)
+- `createBudgetAction({name, base_currency})` — auto-switches to the
+  new budget by writing the cookie before bumping cache.
+- `renameBudgetAction({id, name})`.
+- `deleteBudgetAction(id)` — refuses to delete the user's only budget;
+  clears the cookie if the deleted one was active. Cascades via FK.
+- `setActiveBudgetAction(id)` — RLS-checks membership before setting
+  the cookie.
+
+UI
+- `components/nav/BudgetSwitcher.tsx` — sidebar dropdown:
+  · current budget label (mono `BUDGET` kicker + name + currency)
+  · click-outside dismiss + ESC close
+  · list of budgets, click to switch (active state in brass)
+  · `+ New budget` opens a Create modal (name + base currency)
+  · `Manage budgets…` opens a list modal with rename + delete per row
+  · Delete requires typing the budget name — guards against accidental
+    cascade deletion of all data
+- `UserCard` simplified to user identity only — budget info moved into
+  the switcher above.
+- `(app)` layout fetches budgets list once and passes the active id +
+  the full list to the sidebar.
+
+**Stop signal hit:** can create a 2nd budget, switch between them, data
+is correctly scoped — every page calls `getOrCreateUserBudget()` which
+respects the active-budget cookie.
+
+**Next:** Chunk 13 — member invitations + tightened server hardening.
+
+**Open questions:** none.

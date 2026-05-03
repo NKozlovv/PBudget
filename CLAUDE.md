@@ -1,49 +1,76 @@
-# Ledger — Project Handover
+# Theus — Project Handover
 
-This document hands off the Ledger project from a Claude.ai chat session to Claude Code. Paste this into your first Claude Code session OR save it as `CLAUDE.md` in the project root so every future session starts with this context.
+This document is the entry point for any agent picking up the project. Read
+this first, then `docs/rehaul-progress.md` (running log) and
+`docs/rehaul-plan.md` (architectural decisions).
 
 ---
 
 ## 1. Project in one paragraph
 
-Ledger is a personal budget tracker that the user (bananapie322@gmail.com) is building to replace a Google Sheets-based tracker. It's a single-file HTML app deployed on Vercel, backed by Supabase for auth and data. The user wants it to eventually support shared/collaborative budgets (partner + possibly others). Design direction: **"Modern Soft"** — warm off-white surfaces, navy primary, gentle rounded cards, friendly palette, inspired by Monzo/Revolut/Copilot-Money but calmer.
+Theus (formerly "Ledger") is a personal budget tracker that the user
+(bananapie322@gmail.com) is building to replace a Google Sheets-based
+tracker. It's deployed on Vercel and backed by Supabase for auth + data.
+The user wants it to eventually support shared/collaborative budgets
+(partner + possibly others). Design direction: **Sterling structural
+language dressed in Theus identity** — deep forest green background, brass
+accent, sage / rust semantic colors, Inter + Instrument Serif. See
+`docs/rehaul-plan.md` §5 for the full token reference.
 
 ---
 
 ## 2. Where everything lives
 
-**Frontend:**
-- **Single file:** `index.html` (~2,900 lines, ~100KB)
-- **GitHub repo:** the user has a repo (private) with `index.html` at the root
-- **Deployment:** Vercel — https://p-budget.vercel.app
-- Vercel auto-deploys on every GitHub push
+**Frontend (active):**
+- Next.js 15 + React 19 + TypeScript app at the repo root
+- **GitHub repo:** the user has a private repo with the project on the
+  `experimental/theus-rehaul` branch (still side-by-side with `master`)
+- **Production:** `master` branch → https://p-budget.vercel.app (legacy
+  app at `index.html`, until the user explicitly merges)
+- **Preview:** every push to `experimental/theus-rehaul` → unique Vercel
+  preview URL
+
+**Frontend (legacy):**
+- Single-file `public/legacy/index.html` (~2,900 lines, ~100 KB), served
+  at `/legacy` from the new app via Next.js rewrite. Frozen at v1.0.1.
+  Kept reachable indefinitely per user's side-by-side decision.
 
 **Backend (Supabase):**
 - **Project URL:** `https://udcfjiuybkugbydlaltk.supabase.co`
-- **Publishable key (safe to expose, in code):** `sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z`
-- **Dashboard:** supabase.com/dashboard → user's project
-- Both values are already hardcoded in `index.html` under `window.LEDGER_CONFIG`
+- **Publishable key (safe to expose):** `sb_publishable_-GYV876glbqSw-JJt4knfg_Ks9PTj8z`
+- Both values live in Vercel env (`NEXT_PUBLIC_SUPABASE_URL` and
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) and in `.env.local` for dev.
+  `.env.example` is the template.
 
 **Auth URL config in Supabase:**
 - Site URL: `https://p-budget.vercel.app`
 - Redirect URL allowed: `https://p-budget.vercel.app/**`
-- `https://claude.ai` was used earlier for testing; can be removed now
 
 ---
 
-## 3. Tech stack details
+## 3. Tech stack
 
-- Plain HTML / CSS / vanilla JavaScript. No build step. No framework.
-- External CDN libraries loaded in the HTML:
-  - SheetJS (`xlsx`) — xlsx parsing
-  - Chart.js — charts
-  - Supabase JS client v2 (UMD build via jsdelivr)
-- Uses `@supabase/supabase-js` client for auth + data access
-- Data layer uses Postgres through Supabase's REST API
+- **Framework:** Next.js 15 (App Router), React 19, TypeScript (strict,
+  `noUncheckedIndexedAccess`).
+- **Styling:** Tailwind v3 with semantic CSS-variable tokens
+  (`styles/tokens.css`). No JetBrains Mono — the project is Inter +
+  Instrument Serif italic for brand moments only.
+- **Auth + data:** Supabase via `@supabase/ssr` (browser client + server
+  client + middleware-cookie refresh). Server components run direct
+  queries via `lib/data/*`; mutations go through `app/actions/*` server
+  actions.
+- **Charts:** inline SVG, no library. Modeled after the design refs in
+  `design-refs/`.
+- **Forms:** vanilla `useState` + server actions (no react-hook-form).
+- **Tests:** Vitest, Node env. Regression-critical only —
+  `lib/date.ts`, `lib/money.ts`, `lib/xlsx/classify.ts`.
+- **XLSX:** SheetJS `xlsx` via the official CDN tarball (npm-registry
+  version is far behind).
+- **FX:** Frankfurter API with server-side cache (`lib/fx.ts`).
 
 ---
 
-## 4. Supabase schema (already set up)
+## 4. Supabase schema (unchanged across the rehaul)
 
 ### Tables
 
@@ -89,114 +116,83 @@ $$;
 
 ---
 
-## 5. What's built so far (v0.5.3)
+## 5. Pre-rehaul snapshot (frozen at v1.0.1)
 
-### Working end-to-end
+The legacy single-file `index.html` is kept at `public/legacy/index.html`
+and served at `/legacy`. **Use it for visual diffs and parity checks**;
+do not treat it as the source of truth for the new architecture.
 
-- ✅ Login / signup / password reset via Supabase Auth
-- ✅ On first login, bootstraps a budget for the user (creates a default "My Budget")
-- ✅ XLSX import — parses user's Google Sheets export, pushes to Supabase in batches
-- ✅ All transactions persist to Supabase
-- ✅ Add / edit / delete transactions
-- ✅ Add / rename / delete expense categories and subcategories
-- ✅ Add / rename / delete income categories
-- ✅ Add / edit / delete accounts (currency EUR/USD, opening balance, name)
-- ✅ FX rate: global rate is stored on budget; per-transaction historical FX rate fetched from Frankfurter API on import and for new USD transactions
-- ✅ Version marker in bottom-right corner (from `window.LEDGER_CONFIG.BUILD_VERSION`)
-
-### Current UI (what needs redesigning)
-
-Existing UI is "warm editorial / almanac" style — Fraunces serif, Inter Tight, JetBrains Mono, cream palette, burnt-red accent. User wants to pivot to "Modern soft" direction — see Section 6.
-
-Current pages:
-- **Dashboard** — hero (3 stats), monthly flow bar chart, balance trajectory line, category list, recent transactions
-- **Transactions** — unified feed with filters (month / category / account / type / search), summary stat row
-- **Accounts** — matrix of month-by-account balances, donut chart of current distribution, line chart of per-account trajectories
-- **Categories** — lists expense categories + subcategories with spend totals, income categories section, all editable
-- **Forecast** — YTD averages, projected balance trajectory, per-category burn rate
+What it had end-to-end:
+- Login / signup / password reset via Supabase Auth
+- XLSX import with FX backfill
+- Add / edit / delete transactions / accounts / categories / subcategories
+- Five views: Dashboard / Transactions / Accounts / Categories / Forecast
+- Version marker bottom-right (v1.0.1 — capitalize Adjustment type badge)
 
 ---
 
-## 6. Design direction the user chose: "Modern Soft"
+## 5b. Post-rehaul (Theus, v2.0.0-α)
 
-Finalized in the chat. Plan approved for Builds 2-5.
+Active at the new app's `/`. Routes under `app/(app)/`:
 
-**Palette:**
-- Page: warm off-white `#f5f3ef`
-- Cards: white `#ffffff`
-- Primary dark: deep navy `#1a1a2e` (hero balance card, primary buttons, headings)
-- Success/income: sage green `#1a7a4a`
-- Expense/spending: terracotta `#c44536`
-- Highlight/active: warm gold `#d8a64a`
-- Secondary info: dusty blue `#7daad0`
-- Category palette: warm earthy (terracotta, gold, sage, dusty blue, mauve, olive) rather than saturated primaries
+- `/dashboard` — hero balance, KPI strip (Income/Spend/Net MTD), Income vs
+  Spend bars, category donut, recent tx
+- `/transactions` — full table with filters
+  (search/month/type/account/category/subcategory), URL-driven sortable
+  headers, inline edit per cell, bulk select + delete
+- `/accounts` — trajectory chart + distribution donut + accounts table
+  with full CRUD
+- `/categories` — expense + income panels with subcategories, per-row
+  this-month + YTD totals, full CRUD
+- `/forecast` — projected EOY balance, YTD averages, forecast bars
+  (actual + projected), per-category burn-rate tables
+- `/import` — XLSX bulk import with FX preflight (drag-drop)
 
-**Typography:**
-- Drop Fraunces. Single font family: Inter Tight
-- Numbers: JetBrains Mono in dense tables only; large display numbers use Inter Tight bold
-- Weights: 400 regular, 500 medium, 600 bold (no 700)
+Plus auth routes under `app/(auth)/` (login / signup / reset) on a
+split-screen Sterling-style layout, and `/styleguide` for the dev-only
+token + primitives reference.
 
-**Shape:**
-- Card corners: 14–18px (cards), 20px+ (buttons/pills), 10px (inputs)
-- Subtle shadows: `0 1px 2px rgba(20,15,10,0.04)`
-- No hard dividers — rely on whitespace and card separation
-
-**Interactions:**
-- Tiny hover lift (translateY -1px) on clickable cards/rows
-- Category pills are colored chips, not plain text
-- Segmented time controls (1M / 3M / YTD / All) on every chart
-- Tooltips on chart hover
-
-**Category colors — how to auto-assign:**
-- Semantic fit: Food = warm gold, Health = soft coral, Travel = dusty blue, Home = terracotta, Bills = sage muted, Entertainment = purple, Tech = cool gray-blue, Kent (pet) = warm green
-- Top categories (by spend) get maximally distinct hues
-- Consistent across the app — same color in dashboard donut, pill, drill-down header, forecast bars
-- User wants to be able to edit colors later, but NOT in v1 build
+The sidebar shows the build version (`v2.0.0-α`) at the bottom — visual
+confirmation a deploy is live.
 
 ---
 
-## 7. Roadmap — what's next
+## 6. Design direction (current)
 
-**Build 2 (next):** Global visual refresh + new Dashboard
-- Swap CSS tokens to Modern Soft palette
-- New Dashboard layout with:
-  - Dark navy hero card with balance + sparkline + time range pills
-  - 4 metric tiles: This month net, Avg monthly spend, **Savings rate**, **Projected EOY balance**
-  - Monthly flow bar chart (income green + expenses red + projected future months in muted tan)
-  - Savings rate mini-chart (line chart with YTD trend)
-  - Category donut + list with click-to-drill-down
-  - Recent activity (replace avatars with small category-color dots)
-- Mockup reference was shown in chat and approved
+**Sterling structural language** + **Theus identity**. Tokens in
+`styles/tokens.css`. Detail: `docs/rehaul-plan.md` §5.
 
-**Build 3:** Transactions page refresh
-- Checkbox column + bulk action bar (dark navy, shows count + total) with Recategorize / Change account / Delete actions
-- **Sortable columns** — click any column header to sort asc/desc; Date default desc
-- Inline editing — click any cell (notes, amount, date, category, account) to edit in place. Enter saves, Esc cancels. NOT on currency.
-- Category pills: colored per-category chips
+Quick reference:
+- bg: `#0F1A14` (deep forest), bg-soft: `#162420`, bg-panel: `#1C2C26`
+- ink: `#EFE9D8` (cream), ink-soft: `#C7BFA9`, ink-mute: `#8E866E`
+- accent: `#D8B055` (brass — CTAs, highlights, active states)
+- pos: `#7FB58A` (sage — income / gains)
+- neg: `#E9673E` (rust — expenses / losses)
+- Cards `rounded-2xl` (16 px), buttons `rounded-[10px]`, pills `rounded-full`
+- Mono uppercase tracked labels are **Inter** (the project deliberately
+  dropped JetBrains Mono — it looked typewriter-y and Sterling refs use
+  Inter for these too)
+- Italic Instrument Serif is reserved for the brand tagline ("money
+  understood.") — only on the auth screen and dashboard hero
 
-**Build 4:** Category drill-down modal
-- Opens when clicking a category anywhere (dashboard donut, category pill, Categories page)
-- Modal header tinted with the category's color at low opacity
-- 3 stats: this month / monthly avg / YTD with trend arrows
-- Monthly trend bar chart with forecasted future months in muted tan
-- Sub-category breakdown with **sort controls** (by amount, name, or transaction count)
-- Recent transactions list (5 shown, "Show all N →" deep-links to Transactions pre-filtered)
+The earlier "Modern Soft" direction in the legacy CLAUDE.md is
+**superseded**. Same goes for the v0.5.3 roadmap (Builds 2–5) — see
+`docs/rehaul-plan.md` for the new chunk plan and
+`docs/rehaul-progress.md` for what's landed.
 
-**Build 5:** Polish
-- Accounts page refresh to match Modern Soft
-- Categories page refresh
-- Forecast page refresh
-- Apply category color auto-assignment everywhere
+---
 
-**Phase 4 (after visual builds):** Multiple budgets
-- User can create additional budgets
-- Budget switcher in topbar
-- Keep the existing single-budget flow as the default
+## 7. Roadmap
 
-**Phase 5:** Inviting others
-- Owner can invite via email
-- Invitee signs up → auto-joins via the `trg_accept_pending_invites` trigger
-- Members list + revoke access UI
+The chunk plan lives in `docs/rehaul-plan.md` §7 and the running log is
+`docs/rehaul-progress.md`.
+
+Status as of last update:
+- ✅ Chunks 0–11: bootstrap → cutover-ready
+- 🟡 Chunk 12: Multi-budget UI (next)
+- 🟡 Chunk 13: Member invitations + tightened server hardening
+- 🚫 Out of scope: light mode, mobile, coach view, per-category color
+  editor, drill-down modal
 
 ---
 
@@ -210,13 +206,17 @@ In the user's xlsx, rows in the **expense block** with category = "Account adjus
 
 **Correct behavior:** On import, any row (expense block OR income block) where category = "Account adjustment" must be stored as `type: 'adjustment'`. For rows from the expense block, amount should be **negative** (money left the account). The aggregation code already excludes adjustments from expense/income totals while still applying them to account balances.
 
+Regression coverage: `test/lib/xlsx/classify.test.ts`.
+
 ### 8b. Timezone off-by-one on dates
 
 `new Date('2026-01-01')` parses as UTC midnight. For users east of UTC (user is in Germany UTC+1/2), calling `.getFullYear()` or `.getMonth()` returns the **previous day's** values. And `.toISOString().slice(0, 10)` shifts local midnight backwards a day.
 
-**Fix applied:** Custom date helpers that parse YYYY-MM-DD strings literally (regex extract year/month/day) and format Date objects using `.getFullYear()` / `.getMonth() + 1` / `.getDate()` with local zero-padding. See `dateToLocalISO()`, `dateStr()`, `monthOfDate()`, `yearOfDate()`, `dateDisplay()` in the code.
+**Fix applied:** Custom date helpers that parse YYYY-MM-DD strings literally (regex extract year/month/day) and format Date objects using `.getFullYear()` / `.getMonth() + 1` / `.getDate()` with local zero-padding. See `lib/date.ts`.
 
 **Symptoms if broken:** Jan 1st transactions disappear (filed as Dec 31 previous year). All dates shift one day back. Month totals off.
+
+Regression coverage: `test/lib/date.test.ts`.
 
 ### 8c. Supabase RLS with new `sb_publishable_` keys
 
@@ -228,56 +228,68 @@ The user is on the new API key system (not legacy anon/service_role). Early RLS 
 
 ### 8d. Parser silent drops
 
-Early parser used `XLSX.utils.sheet_to_json({header:1})` which has edge cases with blank leading rows. **Current parser** iterates cells directly via `ws[XLSX.utils.encode_cell({r, c})]` and is defensive against null/undefined. Don't revert.
+Early parser used `XLSX.utils.sheet_to_json({header:1})` which has edge cases with blank leading rows. **Current parser** (`lib/xlsx/parse.ts`) iterates cells directly via `ws[XLSX.utils.encode_cell({r, c})]` and is defensive against null/undefined. Don't revert.
 
 ### 8e. USD opening balances
 
-For USD-denominated accounts (e.g. "Deel, $"), store opening balance in **native USD** (not pre-converted to EUR). EUR conversions happen at display time using either the stored per-tx `fx_rate` or the global `state.fxRate`. The Accounts Balance sheet has separate `€` (col C) and `$` (col D) columns — read `$` for USD accounts, `€` for EUR accounts.
+For USD-denominated accounts (e.g. "Deel, $"), store opening balance in **native USD** (not pre-converted to EUR). EUR conversions happen at display time using either the stored per-tx `fx_rate` or the budget's live `fxRate`. The Accounts Balance sheet has separate `€` (col C) and `$` (col D) columns — read `$` for USD accounts, `€` for EUR accounts.
 
 ---
 
-## 9. Code architecture notes
+## 9. Code architecture
 
-### State shape (in-memory)
+```
+app/
+  (auth)/             # login, signup, reset (split-screen Sterling layout)
+  (app)/              # dashboard, transactions, accounts, categories,
+                      # forecast, import — all gated by middleware + layout
+  actions/            # 'use server' mutations
+  styleguide/         # dev-only token + primitives reference
 
-```js
-state = {
-  budgetId,        // active budget uuid
-  accounts,        // [{id, name, currency}]
-  categories,      // {name: [subcategories]} — expense only
-  incomeTypes,     // [string]
-  transactions,    // [{id, date, type, amount, currency, fx_rate, category, subcategory, account, comment}]
-  openingBalances, // {accountId: native-currency-amount}
-  fxRate,          // current USD→EUR rate (used only for new txs without stored rate)
-  baseCurrency,    // 'EUR'
-  activeView,      // 'dashboard'|'transactions'|'accounts'|'categories'|'forecast'
-  txFilters,       // {month, category, account, type, search}
-  hasData,
-}
+components/
+  ui/                 # primitives (Card, Button, Pill, Input, Field, Mono,
+                      # Num, Modal, Select, KpiTile)
+  nav/                # Sidebar, NavItem, UserCard, PageHeader, Stub
+  auth/               # SignInForm, SignUpForm, ResetForm, BrandPanel,
+                      # AuthHeader, TheusMark
+  transactions/       # Filters, TransactionsTable, TransactionForm,
+                      # EditableCell, SortableHeader, BulkActionBar
+  accounts/           # AccountsTable, AccountForm
+  categories/         # CategoriesPanel, NameForm
+  charts/             # IncomeSpendBars, CategoryDonut, Donut,
+                      # AccountsTrajectory, ForecastBars, Sparkline
+  forecast/           # BurnRateTable
+  import/             # ImportDropzone
+
+lib/
+  supabase/           # client (browser), server (RSC), middleware
+                      # (cookie refresh), types
+  data/               # read-only repos: budgets, accounts, categories,
+                      # transactions
+  xlsx/               # parse, classify, dates
+  date.ts, money.ts, balance.ts, categoryColor.ts, fx.ts, env.ts,
+  utils.ts, version.ts
+
+styles/               # tokens.css (single source of palette truth)
+test/lib/             # date.test.ts, money.test.ts, xlsx/classify.test.ts
+design-refs/          # reference-only — never imported into prod
+public/legacy/        # the v1.0.1 single-file app, served at /legacy
+docs/                 # rehaul-plan.md, rehaul-progress.md,
+                      # security-review.md, claude-md-proposal.md
 ```
 
-### Data flow
-
-- `init()` — runs on page load → calls `checkAuth()` → if authed, calls `ensureBudget()` → `loadBudgetData()` → `render()`
-- `ensureBudget()` — finds user's budget or creates a default "My Budget"
-- `loadBudgetData(budgetId)` — fetches accounts, categories, transactions into `state`
-- All mutations go through `cloud*()` functions (e.g. `cloudCreateTx`, `cloudUpdateCategory`) which write to Supabase, then update `state` on success, then `render()`
-- `render()` — dispatches to `renderDashboard()`, `renderTransactions()`, `renderAccounts()`, `renderCategories()`, `renderForecast()` based on `state.activeView`
-
-### Key functions
-
-- `parseXlsxRaw(arrayBuffer)` — the robust xlsx parser
-- `fetchHistoricalFxRate(dateISO)` / `fetchRatesForDates(dates)` — Frankfurter API client, cached in `_fxCache`
-- `txToEUR(tx)` — preferred conversion: uses tx's stored `fx_rate` if present, falls back to `state.fxRate`
-- `accountBalanceAtMonth(accountId, month, year)` — returns EUR balance at end of month
-- `accountBalanceNative(accountId, month, year)` — returns native-currency balance
-- `monthlyTotals(year)` — returns `{expenses[12], income[12]}`
-- `categoryTotals(year, monthFilter)` / `subcategoryTotals(year, monthFilter, cat)`
-- `forecastSpend(year)` — historical-average-based projection
+**Data-flow rules:**
+- Components never import `@supabase/supabase-js` directly.
+- Reads → `lib/data/*` (server-only) called from server components.
+- Writes → `app/actions/*` server actions.
+- Active session is refreshed by `middleware.ts` on every protected
+  request; protected layouts re-check defense-in-depth.
 
 ### Version marker
 
-Bottom-right corner shows `BUILD_VERSION · BUILD_DATE` from `window.LEDGER_CONFIG`. Bump on every deploy so the user knows the build is live. Current: `v0.5.3 — account CRUD`.
+Sidebar bottom shows `BUILD_VERSION · BUILD_DATE` from `lib/version.ts`.
+Bump on every meaningful deploy so the user knows the new build is live.
+Current: `v2.0.0-α — Theus rehaul, feature parity reached`.
 
 ---
 
@@ -285,48 +297,68 @@ Bottom-right corner shows `BUILD_VERSION · BUILD_DATE` from `window.LEDGER_CONF
 
 ### Deploy flow
 
-- Edit `index.html` locally
+- Edit code locally on `experimental/theus-rehaul`
 - `git add . && git commit -m "..." && git push`
-- Vercel auto-deploys in ~30 seconds
-- User checks `p-budget.vercel.app` to verify; version marker confirms the new build is live
+- Vercel auto-deploys in ~30 seconds (preview URL for the experimental
+  branch; production URL only on `master`)
+- User checks the preview URL; the sidebar version marker confirms the
+  new build is live
 
-### Testing approach
+### Local checks
 
-Before any deploy, Claude Code should:
-1. Run a syntax check: extract the main `<script>` block and check it parses as valid JS (Node `new Function(code)` or similar)
-2. For complex changes, also run a quick smoke test (e.g. verify certain functions exist, key selectors are present)
+```
+npm run typecheck   # strict TS
+npm run lint        # ESLint (next/core-web-vitals + next/typescript)
+npm test            # Vitest regression suite
+npm run build       # full production build
+```
 
 ### Don't forget
 
-- Never use `localStorage`/`sessionStorage` — this user's setup doesn't; everything is Supabase
-- Single-file architecture is intentional; don't split into multiple files unless the user asks
-- Keep `window.LEDGER_CONFIG` at the top, with publishable key and version constants
-- When adding new Supabase tables, write the migration SQL in the chat so user can run it in Supabase SQL Editor
+- Don't break `master`. The legacy app at `master` is currently
+  production. The rehaul lives on `experimental/theus-rehaul` until the
+  user explicitly merges (and even then, side-by-side per their decision).
+- Never use `localStorage` / `sessionStorage` — everything is Supabase.
+- Keep the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+  not in source.
+- When adding new Supabase tables, write the migration SQL in chat so
+  the user can run it in Supabase SQL Editor.
 
 ---
 
 ## 11. User preferences and working style
 
-- Prefers incremental builds, each producing a working deployable file, over big-bang rewrites
-- Wants a version marker so they know the new build is live (very important — they've been burned by stale caches)
+- Prefers incremental builds, each producing a working deployable file,
+  over big-bang rewrites
+- Wants a version marker so they know the new build is live (very
+  important — they've been burned by stale caches)
 - Is in Germany (UTC+1/2) — timezone-correct code matters
 - Uses EUR as base currency, has USD accounts (Deel, Wise, Cash, etc.)
 - Has a partner they'll eventually share the budget with (Phase 5)
-- Tolerant of back-and-forth debugging; wants honest explanations when things break
-- Prefers structured updates: what changed, what to test, what's deferred
+- Tolerant of back-and-forth debugging; wants honest explanations when
+  things break
+- Prefers structured updates: what changed, what to test, what's
+  deferred
 - Has a Claude Pro subscription; not on Max
 
 ---
 
-## 12. First actions for Claude Code
+## 12. First actions for any future agent
 
-When starting a new session:
-
-1. **Read `index.html`** to see current code — it's the source of truth
-2. **Check the current version marker** (`grep BUILD_VERSION index.html`)
-3. **Ask the user**: "Picking up from v0.5.3. Should we start Build 2 (visual refresh + new Dashboard)?"
-4. **Plan the build in small increments** — typically 3-5 focused edits per session
-5. **After each edit**: verify syntax, commit, push, confirm deploy. Keep the user's version marker updated.
+1. Read `docs/rehaul-progress.md` — running log of every chunk, what
+   landed, what was skipped, and why. Most important file in the project.
+2. Skim `docs/rehaul-plan.md` for the original architecture decisions
+   and chunk numbering.
+3. Check the sidebar version marker on the live preview (`v2.0.0-α` or
+   newer) so you know which build you're looking at.
+4. The legacy app is still at `/legacy` — useful for visual diffs and
+   parity checks. Not the source of truth anymore.
+5. Don't break `master`. Treat it as production. Every change goes via
+   `experimental/theus-rehaul` (current rehaul branch) until the user
+   explicitly merges.
+6. When in doubt about scope or design, ask. The user has corrected
+   typography and geometry mistakes mid-chunk; they prefer the
+   correction over the polish.
 
 ---
 
@@ -391,6 +423,6 @@ execute function public.accept_pending_invites();
 
 ## End of handover
 
-Everything you need to pick up development is above. Read the current `index.html` for implementation details, confirm with the user what to build next, and follow the Modern Soft design direction for all visual work.
-
-Good luck 🏗️
+Read `docs/rehaul-progress.md` for the latest state. Confirm with the
+user what to build next, follow the Sterling × Theus design direction
+for all visual work, and don't break `master`.

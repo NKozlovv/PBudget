@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
-import { getOrCreateUserBudget } from '@/lib/data/budgets';
+import { getOrCreateUserBudget, listBudgets } from '@/lib/data/budgets';
 import { Sidebar } from '@/components/nav/Sidebar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/login');
   }
 
-  const budget = await getOrCreateUserBudget();
+  const [budget, budgets] = await Promise.all([getOrCreateUserBudget(), listBudgets()]);
 
   return (
     <div className="grid min-h-screen grid-cols-[232px_1fr]">
@@ -24,6 +24,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         email={user.email ?? '—'}
         budgetName={budget.name}
         baseCurrency={budget.base_currency}
+        budgets={budgets}
+        activeBudgetId={budget.id}
       />
       <div className="min-w-0 px-10 py-10">
         <div className="mx-auto max-w-6xl">{children}</div>
