@@ -41,11 +41,18 @@ export default async function AccountsPage() {
     fxRate: budget.fx_rate,
   });
 
+  // Precompute the color map server-side. Functions can't be serialised
+  // across the server→client boundary, so we hand the client component a
+  // plain Record instead of the colorFor function.
+  const colors: Record<string, string> = Object.fromEntries(
+    accounts.map((a) => [a.id, colorFor(a.id)]),
+  );
+
   const slices: DonutSlice[] = accounts
     .map((a) => ({
       name: a.name,
       value: currentEUR.get(a.id) ?? 0,
-      color: colorFor(a.id),
+      color: colors[a.id] ?? colorFor(a.id),
     }))
     .filter((s) => s.value > 0);
 
@@ -68,7 +75,7 @@ export default async function AccountsPage() {
             subtitle={<Mono size="xs">last 12 months · EUR</Mono>}
           />
           <div className="mt-4">
-            <AccountsTrajectory accounts={accounts} points={trajectory} colorFor={colorFor} />
+            <AccountsTrajectory accounts={accounts} points={trajectory} colors={colors} />
           </div>
           {accounts.length > 0 ? (
             <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
@@ -76,7 +83,7 @@ export default async function AccountsPage() {
                 <li key={a.id} className="inline-flex items-center gap-2">
                   <span
                     className="h-2 w-2 rounded-sm"
-                    style={{ background: colorFor(a.id) }}
+                    style={{ background: colors[a.id] }}
                   />
                   <span className="text-[12px] text-ink-soft">{a.name}</span>
                   <Num size={12} tone="mute">
@@ -105,8 +112,8 @@ export default async function AccountsPage() {
         <AccountsTable
           accounts={accounts}
           budgetId={budget.id}
-          currentEUR={currentEUR}
-          colorFor={colorFor}
+          currentEUR={Object.fromEntries(currentEUR)}
+          colors={colors}
         />
       </section>
     </>

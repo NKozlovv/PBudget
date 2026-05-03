@@ -23,13 +23,16 @@ export function AccountsTable({
   accounts,
   budgetId,
   currentEUR,
-  colorFor,
+  colors,
 }: {
   accounts: Account[];
   budgetId: string;
-  /** account.id → current EUR balance */
-  currentEUR: Map<string, number>;
-  colorFor: (id: string) => string;
+  /** account.id → current EUR balance. Plain Record because functions
+   * (and Maps with non-trivial setups) don't cross the server→client
+   * boundary cleanly. */
+  currentEUR: Record<string, number>;
+  /** account.id → swatch hex */
+  colors: Record<string, string>;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
@@ -98,7 +101,7 @@ export function AccountsTable({
             </thead>
             <tbody>
               {accounts.map((a) => {
-                const eur = currentEUR.get(a.id) ?? 0;
+                const eur = currentEUR[a.id] ?? 0;
                 const tone = eur > 0 ? 'pos' : eur < 0 ? 'neg' : 'mute';
                 return (
                   <tr
@@ -108,7 +111,7 @@ export function AccountsTable({
                     <td className="px-4 py-3 align-middle">
                       <span
                         className="inline-block h-3 w-3 rounded-sm"
-                        style={{ background: colorFor(a.id) }}
+                        style={{ background: colors[a.id] ?? 'var(--ink-mute)' }}
                         aria-hidden
                       />
                     </td>

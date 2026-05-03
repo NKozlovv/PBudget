@@ -9,12 +9,13 @@ import { fmtEUR } from '@/lib/money';
 export function AccountsTrajectory({
   accounts,
   points,
-  colorFor,
+  colors,
   height = 220,
 }: {
   accounts: Account[];
   points: TrajectoryPoint[];
-  colorFor: (id: string) => string;
+  /** account.id → swatch hex (precomputed server-side) */
+  colors: Record<string, string>;
   height?: number;
 }) {
   const w = 720;
@@ -108,7 +109,7 @@ export function AccountsTrajectory({
       ))}
 
       {accounts.map((a) => {
-        const color = colorFor(a.id);
+        const color = colors[a.id] ?? 'var(--ink-mute)';
         const path = points
           .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.balances[a.id] ?? 0).toFixed(1)}`)
           .join(' ');
