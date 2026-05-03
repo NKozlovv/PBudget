@@ -1,5 +1,6 @@
 import { TheusLockup } from '@/components/auth/TheusMark';
 import { Mono } from '@/components/ui';
+import { BUILD_DATE, BUILD_VERSION } from '@/lib/version';
 import { NavItem } from './NavItem';
 import { UserCard } from './UserCard';
 
@@ -61,6 +62,15 @@ export function Sidebar({
       </nav>
 
       <UserCard email={email} budgetName={budgetName} baseCurrency={baseCurrency} />
+
+      <div className="px-1 -mt-3 flex items-center justify-between">
+        <Mono size="xs" className="tracking-[0.18em]">
+          {BUILD_VERSION}
+        </Mono>
+        <Mono size="xs" tone="mute">
+          {BUILD_DATE}
+        </Mono>
+      </div>
     </aside>
   );
 }

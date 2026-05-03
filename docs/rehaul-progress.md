@@ -415,6 +415,41 @@ Dependencies
 
 **Stop signal hit:** can re-run the original Google-Sheets import end-to-end against a fresh user. Account-adjustment classification covered by mandatory unit tests.
 
-**Next:** Chunk 11 — cutover (final security pass + version bump + side-by-side check).
+---
+
+## Chunk 11 — cutover readiness (2026-05-03)
+
+Per the user's earlier scope decision, "cutover" is **soft** — the legacy
+app keeps running at `/legacy` post-merge. This chunk is just the final
+polish to make the rehaul branch PR-ready against `master`.
+
+**Done:**
+
+Versioning
+- `lib/version.ts` — `BUILD_VERSION` (`v2.0.0-α`), `BUILD_DATE`, `BUILD_NOTE`.
+- Sidebar bottom now shows the version + date below the user card. Same purpose as the legacy `index.html`'s bottom-right marker (CLAUDE.md §9): visual confirmation a deploy is live.
+- `package.json` → `2.0.0-alpha.1`.
+
+Docs
+- `docs/security-review.md` — full pre-merge security checklist (headers, RLS, secrets, input validation, XSS posture, dependencies, merge checklist for the user to tick off).
+- `docs/claude-md-proposal.md` — proposed rewrite of CLAUDE.md sections that went stale (§3, §5, §6, §7, §9, §12). **Not applied** — the user must approve before I touch the live `CLAUDE.md`.
+
+**Skipped (intentionally):**
+- Hard cutover — legacy app stays at `/legacy` indefinitely per the user's earlier "side-by-side" decision in §10 of the plan.
+- CSP tightening — kept permissive while `/legacy` lives. Will be tightened once legacy is retired.
+- `npm audit` and Lighthouse — can't run from this environment; both are checklist items for the user before merging.
+
+**The branch is now PR-ready.**
+
+The user's pre-merge checklist (also in `docs/security-review.md`):
+- [ ] `npm audit` clean locally
+- [ ] Lighthouse a11y ≥ 95 on `/login` and `/dashboard`
+- [ ] CSP header confirmed in browser dev tools
+- [ ] `/legacy` still loads and works
+- [ ] New app round-trips (sign in → import → hero balance matches)
+- [ ] Decide on `docs/claude-md-proposal.md` (apply or defer)
+- [ ] Merge `experimental/theus-rehaul` → `master`
+
+**Next (post-merge, your call):** Chunk 12 (multi-budget UI) and Chunk 13 (invites + server hardening) are the remaining in-scope items from the plan.
 
 **Open questions:** none.
