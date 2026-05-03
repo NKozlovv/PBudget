@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { PageHeader } from '@/components/nav/PageHeader';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
@@ -73,6 +74,14 @@ export default async function TransactionsPage({
         meta={`${transactions.length} matching ${
           transactions.length === 1 ? 'transaction' : 'transactions'
         } · click any cell to edit · click a header to sort`}
+        actions={
+          <Link
+            href="/import"
+            className="inline-flex items-center gap-2 rounded-[10px] border border-rule px-[22px] py-3 text-[13px] font-medium text-ink hover:bg-bg-soft transition-colors"
+          >
+            Import XLSX
+          </Link>
+        }
       />
 
       <div className="mt-8">

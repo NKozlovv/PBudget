@@ -370,3 +370,51 @@ Forecast UI
 **Next:** Chunk 10 — XLSX import.
 
 **Open questions:** none.
+
+---
+
+## Chunk 10 — XLSX import (2026-05-03)
+
+**Done:**
+
+Parser (TS port of legacy `parseXlsxRaw`)
+- `lib/xlsx/dates.ts` — `excelSerialToDate`, `normaliseDate` (TZ-safe, anchors at local midnight per CLAUDE.md §8b), `detectCurrency`.
+- `lib/xlsx/classify.ts` — pure `classifyExpenseRow` + `classifyIncomeRow`. Embeds the regression rule from CLAUDE.md §8a: rows with category/type label `Account adjustment` become `type: 'adjustment'`, expense-block adjustments stored as negative amounts, income-block as positive.
+- `lib/xlsx/parse.ts` — full sheet walker. Reads `Accounts Balance` for openings, then walks each month sheet (`January`–`December`), emitting classified rows. Income rows anchored at the 28th of the month (legacy behaviour — sheet has no per-row income date).
+- Cell access via `XLSX.utils.encode_cell` rather than `sheet_to_json{header:1}` — the latter silently drops blank-leading-row cases (CLAUDE.md §8d).
+
+FX cache
+- `lib/fx.ts` — Frankfurter client with in-memory cache + chunked fetch (10 dates per batch). Mirrors legacy `_fxCache` / `fetchHistoricalFxRate`.
+- Server-side only — runs inside the import action, so the browser never hits Frankfurter directly (which means CSP `connect-src` doesn't need to allow it for client fetches).
+
+Server action
+- `app/actions/import.ts` — `importXlsxAction(FormData)`:
+  1. Auth check + active budget lookup.
+  2. Parse the .xlsx via `parseXlsx`.
+  3. Upsert accounts by name within the budget (reuse if name matches).
+  4. Upsert categories per kind, plus subcategories per category.
+  5. Preflight historical FX rates for every USD tx date.
+  6. Bulk-insert transactions in batches of 250 (`fx_rate` populated for USD txs from the rate map; falls back to null → live budget rate at display time).
+  7. Returns a typed `ImportSummary` with counts + warnings.
+- File size capped at 25 MB.
+
+UI
+- `components/import/ImportDropzone.tsx` — drag-drop + browse fallback, year picker (for income-row anchoring), pending state, success card with all the counts (transactions / accounts / categories / FX fetched / dropped) and warnings.
+- `app/(app)/import/page.tsx` — split layout: dropzone card + "How it works" explainer.
+- Sidebar gets a new "Tools" group with `Import XLSX`.
+- Transactions page action button links here.
+
+Tests
+- `test/lib/xlsx/classify.test.ts` — 11 cases covering the §8a regression both ways (expense/income block) plus the non-adjustment paths.
+
+Dependencies
+- `xlsx` (SheetJS) added via the official CDN tarball — npm-registry version is far behind.
+
+**Skipped:**
+- Re-import dedup heuristic — re-running the import currently just appends new transaction rows. The legacy app behaved the same way. A "skip rows that already match (date+amount+account+description)" mode is a future refinement.
+
+**Stop signal hit:** can re-run the original Google-Sheets import end-to-end against a fresh user. Account-adjustment classification covered by mandatory unit tests.
+
+**Next:** Chunk 11 — cutover (final security pass + version bump + side-by-side check).
+
+**Open questions:** none.

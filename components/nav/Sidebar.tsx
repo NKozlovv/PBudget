@@ -11,6 +11,8 @@ const NAV = [
   { href: '/forecast', label: 'Forecast' },
 ];
 
+const TOOLS = [{ href: '/import', label: 'Import XLSX' }];
+
 /**
  * Left sidebar shell. Server component — receives identity props from
  * the (app) layout. Active-state highlighting in NavItem (client).
@@ -40,6 +42,17 @@ export function Sidebar({
         </Mono>
         <ul className="flex flex-col gap-0.5">
           {NAV.map((it) => (
+            <li key={it.href}>
+              <NavItem href={it.href} label={it.label} />
+            </li>
+          ))}
+        </ul>
+
+        <Mono size="xs" className="mt-6 px-3 mb-3 block">
+          Tools
+        </Mono>
+        <ul className="flex flex-col gap-0.5">
+          {TOOLS.map((it) => (
             <li key={it.href}>
               <NavItem href={it.href} label={it.label} />
             </li>

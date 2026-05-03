@@ -22,7 +22,8 @@
     "@supabase/supabase-js": "^2.105.1",
     "next": "^15.5.15",
     "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "react-dom": "19.1.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/node": "22.7.4",
