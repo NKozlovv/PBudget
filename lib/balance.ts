@@ -222,6 +222,46 @@ export function accountsTrajectoryEUR(args: {
   return out;
 }
 
+export interface CategoryTotalsRange {
+  /** Inclusive YYYY-MM-DD lower bound. */
+  fromDate?: string;
+  /** Inclusive YYYY-MM-DD upper bound. */
+  toDate?: string;
+}
+
+/**
+ * Total per category (and per subcategory) over an optional date range,
+ * filtered to a specific tx kind. Returns a Map keyed by category name
+ * with EUR totals; the subMap returns a per-(category, subcategory) total.
+ */
+export function categoryTotalsByKindEUR(args: {
+  transactions: Transaction[];
+  fxRate: number;
+  kind: 'expense' | 'income';
+  range?: CategoryTotalsRange;
+}): {
+  perCategory: Map<string, number>;
+  perSubcategory: Map<string, number>; // key: `${category}::${subcategory}`
+} {
+  const { transactions, fxRate, kind, range } = args;
+  const perCategory = new Map<string, number>();
+  const perSubcategory = new Map<string, number>();
+
+  for (const t of transactions) {
+    if (t.type !== kind) continue;
+    if (range?.fromDate && t.date < range.fromDate) continue;
+    if (range?.toDate && t.date > range.toDate) continue;
+    const cat = (t.category ?? '').trim() || '(Uncategorised)';
+    const eur = txToEUR(t, fxRate);
+    perCategory.set(cat, (perCategory.get(cat) ?? 0) + eur);
+    if (t.subcategory && t.subcategory.trim()) {
+      const key = `${cat}::${t.subcategory.trim()}`;
+      perSubcategory.set(key, (perSubcategory.get(key) ?? 0) + eur);
+    }
+  }
+  return { perCategory, perSubcategory };
+}
+
 /** Income / expense / net for a given (year, 0-indexed month), in EUR. */
 export function monthTotalsEUR(args: {
   transactions: Transaction[];

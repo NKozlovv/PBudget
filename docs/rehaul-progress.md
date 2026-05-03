@@ -307,6 +307,37 @@ Notes
 - Month-by-account matrix (legacy view) — the trajectory chart covers the same story more compactly. Add later if requested.
 - Reordering / drag-handle for `sort_order` — out of scope; users can edit it numerically if exposed.
 
-**Next:** Chunk 8 — Categories page.
+### Chunk 7.1 — server/client serialisation fix (2026-05-03)
+
+Vercel deploy failed with "Functions cannot be passed directly to Client Components". The accounts page was handing `colorFor: (id) => hex` and a `Map` straight to `<AccountsTable>` (`'use client'`).
+
+- Server side: precompute `colors: Record<accountId, hex>` once.
+- `currentEUR` converted from `Map` to `Record<string, number>`.
+- `AccountsTable` and `AccountsTrajectory` accept the plain Records.
+
+---
+
+## Chunk 8 — Categories page (2026-05-03)
+
+**Done:**
+
+CRUD
+- `app/actions/categories.ts` — `createCategoryAction`, `renameCategoryAction` (cascades to `transactions.category` since it's a free-text column), `deleteCategoryAction`, `reassignCategoryAction`, plus subcategory variants. Subcategory rename also cascades to `transactions.subcategory` scoped to the parent category name.
+- `components/categories/NameForm.tsx` — single-field modal form for create + rename.
+- `components/categories/CategoriesPanel.tsx` — full per-kind list with all CRUD modals; expandable subcategory rows with their own Add / Edit / Delete actions.
+
+Data helpers
+- `lib/balance.ts` extended with `categoryTotalsByKindEUR()` returning `{perCategory, perSubcategory}` filtered by tx type and an optional date range.
+
+Page
+- Two side-by-side `CategoriesPanel` cards: Expense (with rust totals) + Income (with sage totals).
+- Each row shows: color dot · name · this-month total · YTD total · Edit/Delete; click to expand subcategories with YTD spend each.
+- Header `meta` shows total expense + income for the current month.
+
+**Skipped:**
+- Category drill-down modal (tinted header, monthly trend chart, recent tx) — its own chunk (8.1) since it's substantial and reuses logic that lands cleanly later.
+- Auto-color editor — deferred per plan §4.
+
+**Next:** Chunk 8.1 (drill-down modal) OR Chunk 9 (Forecast) — your call.
 
 **Open questions:** none.
