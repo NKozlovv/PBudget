@@ -222,6 +222,176 @@ export function accountsTrajectoryEUR(args: {
   return out;
 }
 
+export interface YtdAverages {
+  monthsElapsed: number;
+  monthsRemaining: number;
+  avgIncome: number;
+  avgExpense: number;
+  avgNet: number;
+  totalIncome: number;
+  totalExpense: number;
+  totalNet: number;
+  projectedIncome: number;
+  projectedExpense: number;
+  projectedNet: number;
+  savingsRate: number; // 0..1
+}
+
+/**
+ * Year-to-date averages and end-of-year projection.
+ * Mirrors the legacy `forecastSpend()` logic from index.html line 1211:
+ * project remaining months at the YTD average pace.
+ */
+export function ytdAverages(args: {
+  transactions: Transaction[];
+  year: number;
+  endMonth: number;
+  fxRate: number;
+}): YtdAverages {
+  const { transactions, year, endMonth, fxRate } = args;
+  let totalIncome = 0;
+  let totalExpense = 0;
+  for (const t of transactions) {
+    if (t.type === 'adjustment') continue;
+    const m = /^(\d{4})-(\d{2})-/.exec(t.date);
+    if (!m) continue;
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    if (y !== year) continue;
+    if (mo > endMonth) continue;
+    const eur = txToEUR(t, fxRate);
+    if (t.type === 'income') totalIncome += eur;
+    else if (t.type === 'expense') totalExpense += eur;
+  }
+  const monthsElapsed = endMonth + 1;
+  const monthsRemaining = 12 - monthsElapsed;
+  const avgIncome = monthsElapsed > 0 ? totalIncome / monthsElapsed : 0;
+  const avgExpense = monthsElapsed > 0 ? totalExpense / monthsElapsed : 0;
+  const avgNet = avgIncome - avgExpense;
+  const projectedIncome = totalIncome + avgIncome * monthsRemaining;
+  const projectedExpense = totalExpense + avgExpense * monthsRemaining;
+  const projectedNet = projectedIncome - projectedExpense;
+  const savingsRate = projectedIncome > 0 ? projectedNet / projectedIncome : 0;
+  return {
+    monthsElapsed,
+    monthsRemaining,
+    avgIncome,
+    avgExpense,
+    avgNet,
+    totalIncome,
+    totalExpense,
+    totalNet: totalIncome - totalExpense,
+    projectedIncome,
+    projectedExpense,
+    projectedNet,
+    savingsRate,
+  };
+}
+
+export interface ForecastBucket extends MonthBucket {
+  projected: boolean;
+}
+
+/**
+ * 12 months of {income, expense, net} for the year. Past months use real
+ * data; future months get the YTD-average filled in for both income and
+ * expense.
+ */
+export function forecastYear(args: {
+  transactions: Transaction[];
+  year: number;
+  endMonth: number;
+  fxRate: number;
+}): ForecastBucket[] {
+  const { transactions, year, endMonth, fxRate } = args;
+  const ytd = ytdAverages({ transactions, year, endMonth, fxRate });
+  const buckets: ForecastBucket[] = [];
+  for (let m = 0; m < 12; m++) {
+    if (m <= endMonth) {
+      const totals = monthTotalsEUR({ transactions, year, month: m, fxRate });
+      buckets.push({
+        year,
+        month: m,
+        label: MONTH_SHORT[m] ?? '',
+        income: totals.income,
+        expense: totals.expense,
+        net: totals.net,
+        projected: false,
+      });
+    } else {
+      buckets.push({
+        year,
+        month: m,
+        label: MONTH_SHORT[m] ?? '',
+        income: ytd.avgIncome,
+        expense: ytd.avgExpense,
+        net: ytd.avgNet,
+        projected: true,
+      });
+    }
+  }
+  return buckets;
+}
+
+export interface BurnRateRow {
+  name: string;
+  thisMonth: number;
+  avgMonthly: number;
+  projectedYearTotal: number;
+  monthsActive: number;
+}
+
+/**
+ * Per-category burn rate (avg per month) + EOY projection,
+ * for a given `kind` (expense or income).
+ */
+export function burnRatesEUR(args: {
+  transactions: Transaction[];
+  year: number;
+  endMonth: number;
+  fxRate: number;
+  kind: 'expense' | 'income';
+}): BurnRateRow[] {
+  const { transactions, year, endMonth, fxRate, kind } = args;
+  const monthsElapsed = endMonth + 1;
+
+  const totalsByCat = new Map<string, number>();
+  const monthlyByCat = new Map<string, Set<number>>();
+  const thisMonthByCat = new Map<string, number>();
+
+  for (const t of transactions) {
+    if (t.type !== kind) continue;
+    const m = /^(\d{4})-(\d{2})-/.exec(t.date);
+    if (!m) continue;
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    if (y !== year) continue;
+    if (mo > endMonth) continue;
+    const cat = (t.category ?? '').trim() || '(Uncategorised)';
+    const eur = txToEUR(t, fxRate);
+    totalsByCat.set(cat, (totalsByCat.get(cat) ?? 0) + eur);
+    if (!monthlyByCat.has(cat)) monthlyByCat.set(cat, new Set());
+    monthlyByCat.get(cat)!.add(mo);
+    if (mo === endMonth) {
+      thisMonthByCat.set(cat, (thisMonthByCat.get(cat) ?? 0) + eur);
+    }
+  }
+
+  const rows: BurnRateRow[] = [];
+  for (const [name, total] of totalsByCat) {
+    const avgMonthly = monthsElapsed > 0 ? total / monthsElapsed : 0;
+    rows.push({
+      name,
+      thisMonth: thisMonthByCat.get(name) ?? 0,
+      avgMonthly,
+      projectedYearTotal: avgMonthly * 12,
+      monthsActive: monthlyByCat.get(name)?.size ?? 0,
+    });
+  }
+  rows.sort((a, b) => b.projectedYearTotal - a.projectedYearTotal);
+  return rows;
+}
+
 export interface CategoryTotalsRange {
   /** Inclusive YYYY-MM-DD lower bound. */
   fromDate?: string;

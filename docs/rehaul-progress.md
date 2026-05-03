@@ -341,3 +341,32 @@ Page
 **Next:** Chunk 8.1 (drill-down modal) OR Chunk 9 (Forecast) — your call.
 
 **Open questions:** none.
+
+---
+
+## Chunk 9 — Forecast page (2026-05-03)
+
+**Done:**
+
+Data helpers (`lib/balance.ts`)
+- `ytdAverages()` — months elapsed/remaining, avg + total income/expense/net, EOY projections, savings rate. Mirrors legacy `forecastSpend()` (line 1211): project remaining months at the YTD average pace.
+- `forecastYear()` — 12-bucket array; past months are real `monthTotalsEUR`, future months get the YTD average filled in. Each bucket flagged `projected: boolean`.
+- `burnRatesEUR()` — per-category `{thisMonth, avgMonthly, projectedYearTotal, monthsActive}` for a given kind (expense or income), sorted by projected EOY desc.
+
+Charts
+- `components/charts/ForecastBars.tsx` — 12-month paired bars. Solid for past months, hatched (45° SVG `<pattern>`) at 0.75 opacity for projected months. Vertical brass dashed separator marks the actual→projected boundary.
+
+Forecast UI
+- `components/forecast/BurnRateTable.tsx` — table card with header `projected EOY` total + columns: category · avg/mo · this mo · proj EOY · active (months/total).
+- `app/(app)/forecast/page.tsx`:
+  - Hero: 56 px projected EOY balance + delta vs today + avg net/mo
+  - KPI strip: Avg income · Avg spend · Projected savings rate
+  - Forecast bars chart inside a card with year-summary footer (YTD totals + projected totals for income / spend / net)
+  - Two BurnRateTable cards: Expense (rust totals) + Income (sage totals, only if there's any data)
+
+**Skipped:**
+- Category drill-down modal (still pending; Chunk 8.1 if requested)
+
+**Next:** Chunk 10 — XLSX import.
+
+**Open questions:** none.
