@@ -14,7 +14,10 @@ const NAV = [
   { href: '/forecast', label: 'Forecast' },
 ];
 
-const TOOLS = [{ href: '/import', label: 'Import XLSX' }];
+const TOOLS = [
+  { href: '/members', label: 'Members' },
+  { href: '/import', label: 'Import XLSX' },
+];
 
 /**
  * Left sidebar shell. Server component — receives identity props from

@@ -501,3 +501,56 @@ respects the active-budget cookie.
 **Next:** Chunk 13 — member invitations + tightened server hardening.
 
 **Open questions:** none.
+
+---
+
+## Chunk 13 — invitations + member management (2026-05-03)
+
+**Done:**
+
+Data layer (`lib/data/members.ts`)
+- `listBudgetMembers(budgetId)` — current members.
+- `listBudgetInvites(budgetId)` — pending invites (newest first).
+- `getBudgetOwnerId(budgetId)` — used to gate owner-only controls in the UI.
+
+Server actions (`app/actions/members.ts`)
+- `inviteMemberAction({budget_id, email})`:
+  - validates email format
+  - rate-limits (in-memory sliding window: 10 invites / 60s per signed-in user; documented as a stub with a pointer to Upstash for production rigor)
+  - refuses self-invite
+  - de-dups against existing pending invites
+- `cancelInviteAction(id)`.
+- `revokeMemberAction({budget_id, user_id})` — refuses to remove the budget owner.
+
+UI
+- `components/members/MembersPanel.tsx`:
+  - Owner-only invite-by-email card with inline validation + status messages.
+  - Members card showing user_id (truncated) + role badge + "you" indicator + Revoke action.
+  - Pending invites card with email + sent-date + Cancel action.
+  - Confirm modals for both Revoke and Cancel.
+- `app/(app)/members/page.tsx` — server fetches all four data sources in parallel.
+- Sidebar: new `Members` entry under Tools (alongside Import XLSX).
+
+Schema note
+- The publishable key intentionally can't read `auth.users` from the
+  client (avoids a user-enumeration vector), so member rows show
+  truncated user_id rather than emails. `docs/optional-migrations.sql`
+  ships an RPC (`get_budget_member_emails`) that exposes emails ONLY
+  for users already sharing a budget with the caller; apply it via
+  Supabase SQL Editor when you're ready and I can wire the UI to use
+  it. Not required for Chunk 13 to be complete.
+
+Existing-user invite caveat
+- The `trg_accept_pending_invites` Supabase trigger fires on
+  `auth.users` INSERT — it auto-promotes pending invites the moment a
+  matching email signs up. For users who **already** have an account,
+  the trigger doesn't fire. The MembersPanel notes this on screen and
+  suggests they sign up with the invited email (no separate
+  accept-invite flow yet — add later if needed).
+
+CSP / hardening
+- CSP unchanged this chunk; see `docs/security-review.md` for the trade-off (legacy bundle still needs `unsafe-inline`/`unsafe-eval` for its CDN scripts). Tightening will pair cleanly with retiring `/legacy`.
+
+**Stop signal hit:** owner can invite a second email, the invite shows up under Pending, the trigger auto-accepts on signup, and the new member sees the budget in their switcher.
+
+**Open questions:** none. Rehaul plan §4 in-scope items are now all shipped.
