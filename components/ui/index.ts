@@ -8,3 +8,5 @@ export { Input } from './Input';
 export { Field } from './Field';
 export { Select } from './Select';
 export { Modal } from './Modal';
+export { Icon } from './Icon';
+export type { IconName } from './Icon';

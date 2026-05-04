@@ -7,28 +7,44 @@
  *
  * Light-mode variant intentionally omitted — see docs/rehaul-plan.md §4.
  *
- * ink-mute and neg deviate slightly from design-refs/src/theus-tokens.jsx
- * for WCAG AA compliance — see docs/contrast-report.md.
+ * Palette: Sterling navy (Chunk 12 — Sterling foundations). Source of
+ * truth: design-refs/src/tokens.jsx (dark variant). Earlier WCAG notes
+ * in docs/contrast-report.md are stale; --ink-faint is decorative only.
  */
 
 :root {
-  --bg: #0f1a14;
-  --bg-soft: #162420;
-  --bg-panel: #1c2c26;
+  --bg: #0A0E1A;
+  --bg-soft: #0d1322;
+  --bg-panel: #141a2e;
+  --bg-elev: #10162a;
+  --surface-hi: #1a2138;
 
-  --ink: #efe9d8;
-  --ink-soft: #c7bfa9;
-  --ink-mute: #8e866e;
+  --ink: #F5F6FA;
+  --ink-soft: #B6BCD0;
+  --ink-mute: #7480A0;
+  --ink-faint: #4A5476;
 
-  --rule: rgba(239, 233, 216, 0.16);
-  --grid: rgba(239, 233, 216, 0.05);
+  --rule: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --grid: rgba(255, 255, 255, 0.05);
 
-  --accent: #d8b055;
-  --accent-soft: rgba(216, 176, 85, 0.2);
+  --accent: #7B8BFF;
+  --accent-soft: rgba(123, 139, 255, 0.15);
+  --accent-hi: #A78BFA;
 
-  --pos: #7fb58a;
-  --pos-soft: rgba(127, 181, 138, 0.18);
+  --pos: #5EE6A8;
+  --pos-soft: rgba(94, 230, 168, 0.12);
 
-  --neg: #e9673e;
-  --neg-soft: rgba(233, 103, 62, 0.16);
+  --neg: #FF7A8A;
+  --neg-soft: rgba(255, 122, 138, 0.12);
+
+  --warn: #FFC979;
+
+  --chip: rgba(255, 255, 255, 0.06);
+  --chip-hi: rgba(255, 255, 255, 0.10);
+
+  /* Sterling vocabulary aliases */
+  --surface: var(--bg-panel);
+  --line: var(--rule);
+  --bg-subtle: var(--bg-soft);
 }
