@@ -10,3 +10,4 @@ export { Select } from './Select';
 export { Modal } from './Modal';
 export { Icon } from './Icon';
 export type { IconName } from './Icon';
+export { PeriodToggle } from './PeriodToggle';

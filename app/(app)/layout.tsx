@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 import { getOrCreateUserBudget, listBudgets } from '@/lib/data/budgets';
 import { Sidebar } from '@/components/nav/Sidebar';
+import { Topbar } from '@/components/nav/Topbar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isSupabaseConfigured()) {
@@ -27,8 +28,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         budgets={budgets}
         activeBudgetId={budget.id}
       />
-      <div className="min-w-0 px-10 py-10">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <div className="flex min-w-0 flex-col">
+        <Topbar fxRate={budget.fx_rate} baseCurrency={budget.base_currency} />
+        <main className="flex-1 px-10 py-10">
+          <div className="mx-auto max-w-6xl">{children}</div>
+        </main>
       </div>
     </div>
   );

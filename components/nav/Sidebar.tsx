@@ -5,27 +5,27 @@ import { NavItem } from './NavItem';
 import { UserCard } from './UserCard';
 import { BudgetSwitcher } from './BudgetSwitcher';
 import type { Budget } from '@/lib/supabase/types';
+import type { IconName } from '@/components/ui/Icon';
 
-const NAV = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/transactions', label: 'Transactions' },
-  { href: '/accounts', label: 'Accounts' },
-  { href: '/categories', label: 'Categories' },
-  { href: '/forecast', label: 'Forecast' },
+const NAV: { href: string; label: string; icon: IconName; badge?: string }[] = [
+  { href: '/dashboard', label: 'Overview', icon: 'home' },
+  { href: '/transactions', label: 'Transactions', icon: 'list' },
+  { href: '/accounts', label: 'Accounts', icon: 'wallet' },
+  { href: '/categories', label: 'Categories', icon: 'tag' },
+  { href: '/forecast', label: 'Forecast', icon: 'chart' },
+  { href: '/coach', label: 'Coach', icon: 'sparkle', badge: 'New' },
 ];
 
-const TOOLS = [
-  { href: '/members', label: 'Members' },
-  { href: '/import', label: 'Import XLSX' },
+const TOOLS: { href: string; label: string; icon: IconName }[] = [
+  { href: '/members', label: 'Members', icon: 'user' },
+  { href: '/import', label: 'Import XLSX', icon: 'upload' },
 ];
 
 /**
- * Left sidebar shell. Server component — receives identity props from
- * the (app) layout. Active-state highlighting in NavItem (client).
- *
- * Modeled on design-refs/src/dashboard.jsx 14–50: 232 px wide, bgSubtle
- * panel, "Manage" group header in mono, nav items rounded-lg with
- * accent-soft active state, identity card pinned bottom.
+ * Left sidebar shell. Modeled on design-refs/src/dashboard.jsx 14-50:
+ * 232 px wide, bg-subtle panel, "Manage" group header in mono 0.18em,
+ * nav items rounded-lg with surface+line active state, identity card
+ * pinned bottom.
  */
 export function Sidebar({
   email,
@@ -41,30 +41,30 @@ export function Sidebar({
   activeBudgetId: string;
 }) {
   return (
-    <aside className="flex flex-col gap-8 border-r border-rule bg-bg-soft px-5 py-7 sticky top-0 h-screen overflow-y-auto">
-      <div className="px-3 pb-2">
+    <aside className="sticky top-0 flex h-screen flex-col gap-8 overflow-y-auto border-r border-line bg-bg-subtle px-4 py-6">
+      <div className="px-2 pb-2">
         <TheusLockup size={22} />
       </div>
 
       <nav className="flex-1">
-        <Mono size="xs" className="px-3 mb-3 block">
+        <Mono size="xs" className="mb-2 block px-2.5">
           Manage
         </Mono>
         <ul className="flex flex-col gap-0.5">
           {NAV.map((it) => (
             <li key={it.href}>
-              <NavItem href={it.href} label={it.label} />
+              <NavItem href={it.href} label={it.label} icon={it.icon} badge={it.badge} />
             </li>
           ))}
         </ul>
 
-        <Mono size="xs" className="mt-6 px-3 mb-3 block">
+        <Mono size="xs" className="mb-2 mt-6 block px-2.5">
           Tools
         </Mono>
         <ul className="flex flex-col gap-0.5">
           {TOOLS.map((it) => (
             <li key={it.href}>
-              <NavItem href={it.href} label={it.label} />
+              <NavItem href={it.href} label={it.label} icon={it.icon} />
             </li>
           ))}
         </ul>
@@ -74,10 +74,8 @@ export function Sidebar({
 
       <UserCard email={email} budgetName={budgetName} baseCurrency={baseCurrency} />
 
-      <div className="px-1 -mt-3 flex items-center justify-between">
-        <Mono size="xs" className="tracking-[0.18em]">
-          {BUILD_VERSION}
-        </Mono>
+      <div className="-mt-3 flex items-center justify-between px-1">
+        <Mono size="xs">{BUILD_VERSION}</Mono>
         <Mono size="xs" tone="mute">
           {BUILD_DATE}
         </Mono>

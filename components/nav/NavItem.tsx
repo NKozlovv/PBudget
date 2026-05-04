@@ -3,20 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Icon, type IconName } from '@/components/ui/Icon';
 
 /**
  * Sidebar nav row.
- * Modeled on design-refs/src/dashboard.jsx 22–34: padding 10/12,
- * borderRadius 8, fontSize 13 weight 500, active state =
- * accent-soft bg + accent text.
+ * Modeled on design-refs/src/dashboard.jsx 21-34: padding 10/12,
+ * borderRadius 8, fontSize 13 weight 500. Active state: surface bg +
+ * line border + accent-colored icon.
  */
 export function NavItem({
   href,
   label,
+  icon,
   badge,
 }: {
   href: string;
   label: string;
+  icon?: IconName;
   badge?: string;
 }) {
   const pathname = usePathname();
@@ -26,20 +29,22 @@ export function NavItem({
     <Link
       href={href}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors',
+        'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-[13px] font-medium transition-colors',
         active
-          ? 'bg-accent-soft text-accent font-medium'
-          : 'text-ink-soft hover:bg-bg-panel hover:text-ink',
+          ? 'border-line bg-surface text-ink'
+          : 'border-transparent text-ink-soft hover:bg-surface hover:text-ink',
       )}
     >
+      {icon ? (
+        <Icon
+          name={icon}
+          size={16}
+          className={active ? 'text-accent' : 'text-ink-mute'}
+        />
+      ) : null}
       <span className="flex-1">{label}</span>
       {badge ? (
-        <span
-          className={cn(
-            'rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.06em]',
-            active ? 'bg-accent text-bg' : 'bg-bg-panel text-ink-mute',
-          )}
-        >
+        <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-accent">
           {badge}
         </span>
       ) : null}
