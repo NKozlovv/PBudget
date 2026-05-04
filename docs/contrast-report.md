@@ -1,47 +1,50 @@
-# Theus — WCAG contrast report (Chunk 1)
+# Theus — WCAG contrast report
 
-Verified by computing real WCAG 2.1 luminance + contrast ratios. Targets:
+Verified by computing WCAG 2.1 relative luminance + contrast ratios. Targets:
 
-- **AA normal text** ≥ 4.5:1 (body, captions ≤ 18pt regular / 14pt bold)
-- **AA large text** ≥ 3.0:1 (headings ≥ 18pt / 14pt bold)
+- **AA normal text** ≥ 4.5:1
+- **AA large text** ≥ 3.0:1 (≥ 18pt / 14pt bold)
 - **AAA normal text** ≥ 7.0:1
 
-## Foreground × background matrix
+## Sterling palette (current — Chunk 12)
 
-| Foreground | On `--bg` (#0F1A14) | On `--bg-soft` (#162420) | On `--bg-panel` (#1C2C26) |
+Foreground × background matrix on the three primary surfaces:
+
+| Foreground | On `--bg` #0A0E1A | On `--bg-soft` #0d1322 | On `--bg-panel` #141a2e |
 | --- | --- | --- | --- |
-| `--ink` #EFE9D8 | **14.70** AAA | 13.25 AAA | 12.05 AAA |
-| `--ink-soft` #C7BFA9 | 9.72 AAA | 8.71 AAA | 7.97 AAA |
-| `--ink-mute` #8E866E ★ | **4.91** AA | 4.38 AA | 4.02 AA-Large |
-| `--accent` #D8B055 ★ | 8.71 AAA | 7.85 AAA | 7.14 AAA |
-| `--pos` #7FB58A | 7.54 AAA | 6.78 AA | 6.18 AA |
-| `--neg` #E9673E ★ | **5.50** AA | 4.92 AA | 4.50 AA |
+| `--ink` #F5F6FA | **17.75** AAA | 17.07 AAA | 15.55 AAA |
+| `--ink-soft` #B6BCD0 | 10.04 AAA | 9.66 AAA | 8.79 AAA |
+| `--ink-mute` #7480A0 | **4.81** AA | 4.62 AA | 4.21 AA-Large |
+| `--ink-faint` #4A5476 ⚠ | **2.65** FAIL | 2.55 FAIL | 2.32 FAIL |
+| `--accent` #7B8BFF | 6.31 AA | 6.07 AA | 5.52 AA |
+| `--accent-hi` #A78BFA | 6.32 AA | 6.07 AA | 5.53 AA |
+| `--pos` #5EE6A8 | 12.21 AAA | 11.74 AAA | 10.69 AAA |
+| `--neg` #FF7A8A | 7.64 AAA | 7.34 AAA | 6.69 AA |
+| `--warn` #FFC979 | 12.92 AAA | 12.42 AAA | 11.31 AAA |
 
-## Adjustments from source palette
+## Decorative-only tokens
 
-Two tokens were nudged from `design-refs/src/theus-tokens.jsx` to clear AA:
+`--ink-faint` fails AA at 2.65:1 against `--bg`. It is **decorative
+only** — used for the ⌘K kbd hint in the topbar, kbd-pill borders,
+and similar non-essential glyphs. Sterling uses it intentionally for
+this purpose; do **not** put body text or interactive labels in it.
 
-| Token | Source value | Source ratio (on bg) | New value | New ratio (on bg) | Why |
-| --- | --- | --- | --- | --- | --- |
-| `--ink-mute` | `#7E7762` | 3.99 | **`#8E866E`** | 4.91 | Used for mono labels (10–11px tracked); 3.99 fails AA for small text |
-| `--neg` | `#D9603A` | 4.82 | **`#E9673E`** | 5.50 | Used for expense/loss numerals; 4.82 only narrowly passes, and on `--bg-panel` it dropped to 3.95 (AA-Large only) |
-| `--accent` | `#C9A24A` | 7.43 | **`#D8B055`** | 8.71 | Brightened per design feedback; brass character preserved (just lifts the L value) |
+## Sterling source values
 
-Both shifts preserve hue and saturation feel; they only nudge lightness up. Approved deviation, documented here so the reference palette and the production tokens stay reconciled.
-
-## Combinations not in production code
-
-These pairings are NOT used and should be flagged in review if they ever appear:
-
-- `--ink-mute` on `--bg-panel` is 4.02 — only AA-Large. Don't put body text in mute on the elevated panel surface; use `--ink-soft` instead.
-- `--neg` on `--bg-panel` is 4.50 — passes AA but tight. Prefer placing neg numerals on the page bg.
+These contrast values come from Sterling's source tokens
+(`design-refs/src/tokens.jsx`) applied unmodified. Earlier Theus
+adjustments to `--ink-mute`, `--neg`, and `--accent` (recorded in this
+file's prior version) no longer apply — Sterling's source palette is
+the authority.
 
 ## Methodology
 
 - Linearization per [WCAG 2.1 Relative Luminance](https://www.w3.org/TR/WCAG21/#dfn-relative-luminance)
 - Ratio = (L1 + 0.05) / (L2 + 0.05), where L1 is the lighter luminance.
-- Computed via `awk` (see commit history if you want to re-derive).
 
 ## Re-running
 
-If the palette is updated, re-run the awk block from the Chunk 1 commit message and update the matrix above. Any FG/BG pair below 4.5:1 must either be moved to a different surface or have its lightness adjusted.
+If the palette is updated, recompute and update the matrix above. Any
+foreground/background pair below 4.5:1 used for body text must be
+moved to a different surface or recolored. `--ink-faint` is the
+explicit exception for decorative use.

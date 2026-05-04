@@ -554,3 +554,100 @@ CSP / hardening
 **Stop signal hit:** owner can invite a second email, the invite shows up under Pending, the trigger auto-accepts on signup, and the new member sees the budget in their switcher.
 
 **Open questions:** none. Rehaul plan §4 in-scope items are now all shipped.
+
+---
+
+## Chunk 12 — Sterling foundations (2026-05-04)
+
+**Heads-up:** This chunk lays the visual foundation only. **Pages will
+look broken** until subsequent chunks migrate them. Work split across
+three sessions on branch `experimental/theus-sterling-1to1`.
+
+### Session A — tokens, fonts, icons, primitives
+
+Tokens (`styles/tokens.css`)
+- Swapped Theus forest-green palette for Sterling navy (source of truth:
+  `design-refs/src/tokens.jsx` dark variant).
+- New tokens: `--bg-elev`, `--surface-hi`, `--line-strong`, `--accent-hi`,
+  `--ink-faint`, `--warn`, `--chip`, `--chip-hi`.
+- Sterling-vocabulary aliases: `--surface` (= `--bg-panel`), `--line`
+  (= `--rule`), `--bg-subtle` (= `--bg-soft`).
+
+Tailwind (`tailwind.config.ts`)
+- Wired all new color tokens (`surface`, `surface-hi`, `bg-elev`,
+  `bg-subtle`, `line`, `line-strong`, `accent-hi`, `ink-faint`, `warn`,
+  `chip`, `chip-hi`).
+- Added `mono` font family.
+- Bumped `mono-label` letter-spacing 0.14em → 0.18em (Sterling spec).
+
+Fonts (`app/layout.tsx`)
+- Restored JetBrains Mono via `next/font/google` (weights 400/500/600),
+  exposed as `--font-mono`. The Theus-era "drop JBM" decision is
+  reversed for Sterling 1:1.
+
+Components
+- `components/ui/Icon.tsx` (NEW) — full icon set ported from
+  `design-refs/src/icons.jsx` with `currentColor` default so Tailwind
+  `text-*` utilities work.
+- `components/ui/Mono.tsx` — switched to `font-mono` and tracking 0.18em.
+- `components/ui/Card.tsx` — `bg-surface border-line`.
+- `components/ui/Button.tsx` — Sterling spec: primary 14/8 padding,
+  13px text, white-on-accent; ghost on surface w/ line; new `icon`
+  size variant.
+- `components/ui/Pill.tsx` — added orthogonal `shape` prop
+  (`kbd` / `badge` / `chip`); existing color `variant` API preserved
+  so callers don't break.
+- `components/ui/index.ts` — exports `Icon` + `IconName` type.
+
+### Session B — layout chrome
+
+- `components/ui/PeriodToggle.tsx` (NEW) — segmented pill group, default
+  Week/Month/Quarter/YTD/All; visually 1:1 with `dashboard.jsx` 117-121.
+- `components/ui/KpiTile.tsx` — surface bg, optional `hero` radial
+  gradient overlay, optional Icon-prefixed delta indicator.
+- `components/nav/Topbar.tsx` (NEW) — search input visual w/ ⌘K hint,
+  FX rate chip with green dot, bell button, "+ New" primary; visually
+  1:1 with `dashboard.jsx` 52-68. Search and bell are non-functional
+  placeholders. The "+ New" button takes an optional `onNewTransaction`
+  prop; wiring is deferred.
+- `app/(app)/layout.tsx` — Topbar slotted above main content, fed
+  `fx_rate` and `base_currency` from the active budget.
+- `components/nav/NavItem.tsx` — added `icon` prop, Sterling active
+  state (surface bg + line border + accent-colored icon).
+- `components/nav/Sidebar.tsx` — per-item icons for both Manage and
+  Tools sections, new Coach entry with "New" badge.
+- `components/nav/UserCard.tsx` — 32×32 gradient avatar
+  (`accent`→`accent-hi`), Inter 12/600 name, JBM 10/inkMute subtitle
+  (`{currency} · primary`), settings icon button.
+- `app/(app)/coach/page.tsx` (NEW) — "Coach — coming soon" stub card.
+- `components/ui/index.ts` — exports `PeriodToggle`.
+
+### Session C — verification + docs
+
+- Recomputed Sterling contrast ratios (see `docs/contrast-report.md`).
+  All foreground/background pairs pass AA against `--bg`, `--bg-soft`,
+  and `--bg-panel` **except** `--ink-faint` (#4A5476, 2.65:1) which is
+  intentionally decorative-only — used for the ⌘K kbd hint and similar
+  non-essential glyphs. Earlier Theus adjustments to `--ink-mute`,
+  `--neg`, `--accent` no longer apply; Sterling source values are now
+  the authority.
+- Swept `text-ink-faint` usage: only the Topbar ⌘K hint uses it,
+  consistent with its decorative-only purpose.
+
+### What still looks broken (deferred to future chunks)
+
+- All page-level components (`app/(app)/dashboard`, `transactions`,
+  `accounts`, `categories`, `forecast`, `import`, `members`,
+  `styleguide`) still use the old layout, copy, and palette
+  assumptions — they render but are visually inconsistent with
+  Sterling.
+- The `+ New` button is wired through but does nothing yet — global
+  transaction-create wiring lands in a later chunk.
+- Search and bell are placeholder visuals.
+
+**Stop signal hit:** layout chrome (sidebar + topbar + identity card
++ coach stub) renders 1:1 with `design-refs/src/dashboard.jsx`. Token
+swap completed without page-level edits. Foundations ready for
+page-by-page migration in subsequent chunks.
+
+**Open questions:** none.
