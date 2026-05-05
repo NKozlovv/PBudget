@@ -11,10 +11,14 @@ export function CategoryDonut({
   data,
   size = 160,
   strokeWidth = 22,
+  centerLabel,
+  centerSublabel,
 }: {
   data: CategorySlice[];
   size?: number;
   strokeWidth?: number;
+  centerLabel?: string;
+  centerSublabel?: string;
 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const r = (size - strokeWidth) / 2;
@@ -23,43 +27,56 @@ export function CategoryDonut({
   let off = 0;
   return (
     <div className="flex items-center gap-5">
-      <svg
-        viewBox={`0 0 ${size} ${size}`}
-        width={size}
-        height={size}
-        role="img"
-        aria-label="Spend by category"
-        style={{ flexShrink: 0 }}
-      >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="var(--rule)"
-          strokeWidth={strokeWidth}
-        />
-        {data.map((d) => {
-          const len = total > 0 ? (d.value / total) * c : 0;
-          const dash = `${len} ${c - len}`;
-          const dashOffset = -off;
-          off += len;
-          return (
-            <circle
-              key={d.name}
-              cx={size / 2}
-              cy={size / 2}
-              r={r}
-              fill="none"
-              stroke={categoryColor(d.name)}
-              strokeWidth={strokeWidth}
-              strokeDasharray={dash}
-              strokeDashoffset={dashOffset}
-              transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            />
-          );
-        })}
-      </svg>
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg
+          viewBox={`0 0 ${size} ${size}`}
+          width={size}
+          height={size}
+          role="img"
+          aria-label="Spend by category"
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="var(--rule)"
+            strokeWidth={strokeWidth}
+          />
+          {data.map((d) => {
+            const len = total > 0 ? (d.value / total) * c : 0;
+            const dash = `${len} ${c - len}`;
+            const dashOffset = -off;
+            off += len;
+            return (
+              <circle
+                key={d.name}
+                cx={size / 2}
+                cy={size / 2}
+                r={r}
+                fill="none"
+                stroke={categoryColor(d.name)}
+                strokeWidth={strokeWidth}
+                strokeDasharray={dash}
+                strokeDashoffset={dashOffset}
+                transform={`rotate(-90 ${size / 2} ${size / 2})`}
+              />
+            );
+          })}
+        </svg>
+        {centerLabel ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="font-sans text-[18px] font-semibold tabular-nums tracking-tight text-ink">
+              {centerLabel}
+            </div>
+            {centerSublabel ? (
+              <div className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+                {centerSublabel}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       <ul className="flex-1 flex flex-col gap-2 min-w-0">
         {data.length === 0 ? (

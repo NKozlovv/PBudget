@@ -1,344 +1,236 @@
+import { Card, CardHeader } from '@/components/ui';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
-import { countTransactions, listTransactions } from '@/lib/data/transactions';
-import { Card, CardHeader, Mono, Num, Pill, Button } from '@/components/ui';
-import { PageHeader } from '@/components/nav/PageHeader';
+import { listTransactions } from '@/lib/data/transactions';
+import { createClient } from '@/lib/supabase/server';
 import { IncomeSpendBars } from '@/components/charts/IncomeSpendBars';
 import { CategoryDonut } from '@/components/charts/CategoryDonut';
-import { fmtCurrency, fmtEUR, txToEUR, signedAmount } from '@/lib/money';
-import { dateDisplay } from '@/lib/date';
+import { Greeting } from '@/components/dashboard/Greeting';
+import { PeriodToggleClient } from '@/components/dashboard/PeriodToggleClient';
+import { HeroBalanceTile } from '@/components/dashboard/HeroBalanceTile';
+import { MonthKpiTile } from '@/components/dashboard/MonthKpiTile';
+import { AccountsList, type AccountRow } from '@/components/dashboard/AccountsList';
+import { RecentActivityList } from '@/components/dashboard/RecentActivityList';
+import { parsePeriod, monthLong } from '@/lib/dashboard/period';
 import {
   totalBalanceEUR,
   monthTotalsEUR,
   lastNMonthsTotals,
   categorySpendEUR,
+  accountsTrajectoryEUR,
+  accountBalanceNativeAt,
+  accountsCurrentEUR,
 } from '@/lib/balance';
-import { categoryColor } from '@/lib/categoryColor';
+import { dateToISO } from '@/lib/date';
 
 export const metadata = { title: 'Dashboard · Theus' };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const period = parsePeriod(sp.period);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const userName = deriveUserName(user?.user_metadata, user?.email);
+
   const budget = await getOrCreateUserBudget();
-  const [accounts, txCount, allTx, recentTx] = await Promise.all([
+  const [accounts, allTx, recentTx] = await Promise.all([
     listAccounts(budget.id),
-    countTransactions(budget.id),
     listTransactions({ budgetId: budget.id }),
     listTransactions({ budgetId: budget.id, limit: 8 }),
   ]);
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const fxRate = budget.fx_rate;
 
-  const balanceEUR = totalBalanceEUR({ accounts, transactions: allTx, fxRate: budget.fx_rate });
-  const monthTotals = monthTotalsEUR({
-    transactions: allTx,
-    year,
-    month,
-    fxRate: budget.fx_rate,
-  });
-  const last6 = lastNMonthsTotals({
+  // Hero numbers
+  const balanceEUR = totalBalanceEUR({ accounts, transactions: allTx, fxRate });
+  const monthTotals = monthTotalsEUR({ transactions: allTx, year, month, fxRate });
+
+  // Per-month series (12 months ending this month)
+  const last12 = lastNMonthsTotals({
     transactions: allTx,
     endYear: year,
     endMonth: month,
-    count: 6,
-    fxRate: budget.fx_rate,
+    count: 12,
+    fxRate,
   });
-  const catSlices = categorySpendEUR({
-    transactions: allTx,
-    year,
-    month,
-    fxRate: budget.fx_rate,
-  });
+  const incomeTrend = last12.map((m) => m.income);
+  const expenseTrend = last12.map((m) => m.expense);
 
-  const dateKicker = today.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
+  // 6-month average expense (excluding current month) for the insight subline.
+  const last7 = lastNMonthsTotals({
+    transactions: allTx,
+    endYear: year,
+    endMonth: month,
+    count: 7,
+    fxRate,
   });
+  const priorSix = last7.slice(0, 6);
+  const avgMonthSpend =
+    priorSix.length > 0 ? priorSix.reduce((s, b) => s + b.expense, 0) / priorSix.length : 0;
+  const prevMonth = priorSix.at(-1);
+  const prevIncome = prevMonth?.income ?? 0;
+  const prevExpense = prevMonth?.expense ?? 0;
+
+  // 12-month total-balance trajectory (sum across all accounts at each month-end).
+  const trajectory = accountsTrajectoryEUR({
+    accounts,
+    transactions: allTx,
+    endYear: year,
+    endMonth: month,
+    count: 12,
+    fxRate,
+  });
+  const balanceSeries = trajectory.map((p) =>
+    Object.values(p.balances).reduce((s, n) => s + n, 0),
+  );
+  const prevBalance =
+    balanceSeries.length >= 2 ? (balanceSeries[balanceSeries.length - 2] ?? 0) : balanceEUR;
+
+  // Category mix (this month).
+  const catSlices = categorySpendEUR({ transactions: allTx, year, month, fxRate });
+  const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
+
+  // Per-account balances (native + EUR).
+  const eurMap = accountsCurrentEUR({ accounts, transactions: allTx, fxRate });
+  const today = dateToISO(now);
+  const accountRows: AccountRow[] = accounts.map((a) => ({
+    account: a,
+    native: accountBalanceNativeAt({
+      accountId: a.id,
+      date: today,
+      openingBalance: a.opening_balance,
+      transactions: allTx,
+    }),
+    eur: eurMap.get(a.id) ?? 0,
+  }));
+
+  const monthLabel = monthLong(month);
 
   return (
-    <>
-      <PageHeader
-        kicker={dateKicker}
-        title="Overview"
-        tagline="money understood."
-        actions={<Button>+ Add transaction</Button>}
-      />
-
-      {/* Hero balance + KPI strip */}
-      <div className="mt-10 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <HeroBalance value={balanceEUR} budgetName={budget.name} txCount={txCount} />
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
-          <KpiCard label="Income · this month" value={fmtEUR(monthTotals.income)} tone="pos" />
-          <KpiCard label="Spend · this month" value={fmtEUR(monthTotals.expense)} tone="neg" />
-          <KpiCard
-            label="Net · this month"
-            value={fmtEUR(monthTotals.net)}
-            tone={monthTotals.net >= 0 ? 'pos' : 'neg'}
-          />
-        </div>
+    <div className="flex flex-col gap-6">
+      {/* Greeting + insight + period toggle */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <Greeting
+          now={now}
+          userName={userName}
+          monthSpend={monthTotals.expense}
+          avgMonthSpend={avgMonthSpend}
+        />
+        <PeriodToggleClient value={period} />
       </div>
 
-      {/* Charts row: IncomeSpendBars + CategoryDonut */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+      {/* Hero KPIs */}
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
+        <HeroBalanceTile
+          balance={balanceEUR}
+          prevBalance={prevBalance}
+          trend={balanceSeries}
+          accountCount={accounts.length}
+        />
+        <MonthKpiTile
+          label={`Income · ${monthLabel}`}
+          amount={monthTotals.income}
+          prevAmount={prevIncome}
+          trend={incomeTrend}
+          tone="pos"
+          kind="income"
+        />
+        <MonthKpiTile
+          label={`Spending · ${monthLabel}`}
+          amount={monthTotals.expense}
+          prevAmount={prevExpense}
+          trend={expenseTrend}
+          tone="neg"
+          kind="spending"
+        />
+      </div>
+
+      {/* Cashflow + Spending mix row */}
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <Card>
           <CardHeader
-            title="Income vs Spend"
-            subtitle={<Mono size="xs">last 6 months</Mono>}
+            title="Cash flow"
+            subtitle={
+              <span className="text-[11px] text-ink-mute">Income vs spending · monthly</span>
+            }
             right={
-              <div className="flex items-center gap-3">
-                <LegendDot color="var(--pos)" label="income" />
-                <LegendDot color="var(--accent)" label="spend" />
+              <div className="flex items-center gap-3.5 text-[11px] text-ink-soft">
+                <LegendDot color="var(--pos)">Income</LegendDot>
+                <LegendDot color="var(--accent)">Spending</LegendDot>
               </div>
             }
           />
-          <div className="mt-5">
-            <IncomeSpendBars months={last6} />
+          <div className="mt-4">
+            <IncomeSpendBars months={last12} />
           </div>
         </Card>
 
         <Card>
           <CardHeader
-            title="Spend by category"
-            subtitle={<Mono size="xs">this month</Mono>}
-            right={
-              catSlices.length > 0 ? (
-                <Mono size="xs">{catSlices.length} categories</Mono>
-              ) : null
+            title="Spending mix"
+            subtitle={
+              <span className="text-[11px] text-ink-mute">
+                {monthLabel} · {catSlices.length} categor{catSlices.length === 1 ? 'y' : 'ies'}
+              </span>
             }
           />
-          <div className="mt-5">
-            <CategoryDonut data={catSlices} />
+          <div className="mt-4">
+            <CategoryDonut
+              data={catSlices}
+              size={150}
+              strokeWidth={20}
+              centerLabel={catTotal > 0 ? `€${(catTotal / 1000).toFixed(1)}k` : '€0'}
+              centerSublabel="total"
+            />
           </div>
         </Card>
       </div>
 
-      {/* Recent transactions */}
-      <Section
-        title="Recent transactions"
-        right={
-          <Mono size="xs">
-            showing {recentTx.length} of {txCount}
-          </Mono>
-        }
-      >
-        {recentTx.length === 0 ? (
-          <Empty>No transactions yet.</Empty>
-        ) : (
-          <Card padded={false} className="overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-rule">
-                  <Th className="w-[110px]">Date</Th>
-                  <Th>Description</Th>
-                  <Th>Category</Th>
-                  <Th className="w-[110px]">Type</Th>
-                  <Th align="right" className="w-[140px]">
-                    Amount
-                  </Th>
-                  <Th align="right" className="w-[120px]">
-                    EUR
-                  </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTx.map((t) => {
-                  const eur = txToEUR(t, budget.fx_rate);
-                  const signed = signedAmount({ type: t.type, amount: eur });
-                  const tone = signed > 0 ? 'pos' : signed < 0 ? 'neg' : 'mute';
-                  return (
-                    <tr
-                      key={t.id}
-                      className="border-b border-rule/60 last:border-0 hover:bg-bg-soft/50 transition-colors"
-                    >
-                      <Td>
-                        <Num size={12} tone="mute">
-                          {dateDisplay(t.date).toUpperCase()}
-                        </Num>
-                      </Td>
-                      <Td className="text-ink">{t.comment || '—'}</Td>
-                      <Td>
-                        {t.category ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span
-                              className="h-2 w-2 shrink-0 rounded-sm"
-                              style={{ background: categoryColor(t.category) }}
-                            />
-                            <span className="text-[13px] text-ink-soft">{t.category}</span>
-                          </span>
-                        ) : (
-                          <span className="text-ink-mute">—</span>
-                        )}
-                      </Td>
-                      <Td>
-                        <Pill
-                          variant={
-                            t.type === 'income'
-                              ? 'pos'
-                              : t.type === 'adjustment'
-                                ? 'accent'
-                                : 'outline'
-                          }
-                        >
-                          {t.type}
-                        </Pill>
-                      </Td>
-                      <Td align="right">
-                        <Num size={14} weight={500} tone="soft">
-                          {fmtCurrency(t.amount, t.currency)}
-                        </Num>
-                      </Td>
-                      <Td align="right">
-                        <Num size={15} weight={600} tone={tone}>
-                          {fmtEUR(signed)}
-                        </Num>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Card>
-        )}
-      </Section>
-    </>
+      {/* Accounts + Recent activity row */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
+        <AccountsList rows={accountRows} />
+        <RecentActivityList transactions={recentTx} accounts={accounts} now={now} />
+      </div>
+    </div>
   );
 }
 
-function HeroBalance({
-  value,
-  budgetName,
-  txCount,
-}: {
-  value: number;
-  budgetName: string;
-  txCount: number;
-}) {
-  const [whole, cents] = formatHero(value);
+function LegendDot({ color, children }: { color: string; children: React.ReactNode }) {
   return (
-    <Card className="p-7 lg:p-8">
-      <div className="flex items-baseline justify-between">
-        <Mono>Total balance</Mono>
-        <Mono size="xs">
-          {budgetName} · {txCount} tx
-        </Mono>
-      </div>
-      <div className="mt-4 flex items-baseline gap-1">
-        <span className="text-ink-mute text-base">€</span>
-        <Num size={56} weight={600} letterSpacing="-0.04em">
-          {whole}
-        </Num>
-        <Num size={22} weight={500} tone="mute">
-          {cents}
-        </Num>
-      </div>
-      <p className="mt-3 text-[12px] text-ink-mute">
-        Sum of account openings + all transactions, converted to EUR.
-      </p>
-    </Card>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: 'pos' | 'neg' | 'default';
-}) {
-  return (
-    <Card className="p-5">
-      <Mono size="xs">{label}</Mono>
-      <div className="mt-2">
-        <Num size={28} weight={600} tone={tone === 'default' ? 'default' : tone}>
-          {value}
-        </Num>
-      </div>
-    </Card>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-soft">
       <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
-      <Mono size="xs">{label}</Mono>
+      {children}
     </span>
   );
 }
 
-function Section({
-  title,
-  right,
-  children,
-}: {
-  title: string;
-  right?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mt-12">
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
+function deriveUserName(metadata: unknown, email: string | null | undefined): string {
+  const meta = (metadata && typeof metadata === 'object' ? metadata : {}) as Record<
+    string,
+    unknown
+  >;
+  const full = typeof meta.full_name === 'string' ? meta.full_name : null;
+  const name = typeof meta.name === 'string' ? meta.name : null;
+  const candidate = full ?? name;
+  if (candidate) {
+    const first = candidate.trim().split(/\s+/)[0];
+    if (first) return first;
+  }
+  if (email) {
+    const local = email.split('@')[0] ?? '';
+    const cleaned = local.split(/[._\-+]/)[0] ?? local;
+    if (cleaned) return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+  return 'there';
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <Card padded={false} className="px-6 py-10 text-center text-sm text-ink-mute">
-      {children}
-    </Card>
-  );
-}
-
-function Th({
-  children,
-  align = 'left',
-  className = '',
-}: {
-  children: React.ReactNode;
-  align?: 'left' | 'right';
-  className?: string;
-}) {
-  return (
-    <th
-      className={`px-4 py-3 text-[10px] font-medium uppercase tracking-[0.06em] text-ink-mute ${
-        align === 'right' ? 'text-right' : 'text-left'
-      } ${className}`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-  className = '',
-}: {
-  children: React.ReactNode;
-  align?: 'left' | 'right';
-  className?: string;
-}) {
-  return (
-    <td className={`px-4 py-3 text-sm ${align === 'right' ? 'text-right' : ''} ${className}`}>
-      {children}
-    </td>
-  );
-}
-
-function formatHero(n: number): [string, string] {
-  const sign = n < 0 ? '−' : '';
-  const abs = Math.abs(n);
-  const [w, c] = abs.toFixed(2).split('.');
-  const wWith = sign + (w ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return [wWith, `.${c ?? '00'}`];
-}

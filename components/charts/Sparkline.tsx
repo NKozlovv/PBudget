@@ -1,17 +1,23 @@
 /**
- * Tiny static sparkline for the auth preview card. No data binding —
- * decorative only. Modeled on the SparkArea in design-refs/src/theus-dashboard.jsx
- * and the Sparkline used in design-refs/src/auth.jsx (line 33).
+ * Static sparkline. Originally for the auth preview card; now also used
+ * by the dashboard hero + KPI tiles. Modeled on design-refs/src/charts.jsx
+ * Sparkline: gradient area fill from `color` plus a single-stroke line.
  */
 export function Sparkline({
   data,
   width = 336,
   height = 60,
+  color = 'var(--accent)',
+  fillFrom,
   className,
 }: {
   data: number[];
   width?: number;
   height?: number;
+  /** Stroke + fill color. Pass any CSS color or var(--token). */
+  color?: string;
+  /** Override the gradient start color (defaults to `color` at 0.4 alpha). */
+  fillFrom?: string;
   className?: string;
 }) {
   if (data.length < 2) return null;
@@ -28,6 +34,7 @@ export function Sparkline({
     .join(' ');
   const last = points[points.length - 1];
   const area = `${line} L${width},${height} L0,${height} Z`;
+  const gradId = `spk-${Math.random().toString(36).slice(2, 8)}`;
 
   return (
     <svg
@@ -38,16 +45,22 @@ export function Sparkline({
       className={className}
       aria-hidden
     >
-      <path d={area} fill="var(--accent-soft)" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={fillFrom ?? color} stopOpacity={fillFrom ? 1 : 0.4} />
+          <stop offset="100%" stopColor={fillFrom ?? color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
       <path
         d={line}
         fill="none"
-        stroke="var(--accent)"
+        stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {last ? <circle cx={last[0]} cy={last[1]} r={2.5} fill="var(--accent)" /> : null}
+      {last ? <circle cx={last[0]} cy={last[1]} r={2.5} fill={color} /> : null}
     </svg>
   );
 }

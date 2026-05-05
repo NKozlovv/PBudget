@@ -651,3 +651,93 @@ swap completed without page-level edits. Foundations ready for
 page-by-page migration in subsequent chunks.
 
 **Open questions:** none.
+
+---
+
+## Chunk 13 — Dashboard Sterling 1:1
+
+Rebuilt `app/(app)/dashboard/page.tsx` to match
+`design-refs/src/dashboard.jsx` (lines 76–301) section-for-section.
+
+### Sections
+
+1. **Greeting + insight + period toggle**
+   (`components/dashboard/Greeting.tsx`,
+   `components/dashboard/PeriodToggleClient.tsx`).
+   JBM kicker `{Month YYYY · WK NN}` (ISO week), Inter 28/600 -0.02em
+   greeting `Good {morning|afternoon|evening}, {name}.`, subline with
+   the month spend as a JBM bold ink number and `{X}% under/over your
+   average` colored pos/neg. Period toggle is a client component that
+   writes to `?period=` for deep-linking; default `Month`.
+2. **Hero KPI grid** (`HeroBalanceTile`, `MonthKpiTile`). Three columns
+   `1.4fr / 1fr / 1fr`. Hero has the brass radial accent gradient,
+   Inter 56/600 tabular total with separate cents, JBM delta
+   `+€X (Y%)` colored pos/neg, and a 12-month sparkline driven by
+   `accountsTrajectoryEUR` summed across accounts. Income / Spending
+   tiles get a colored dot, big tabular number with split cents, JBM
+   `±X.X%` delta colored by what's "good" (income up = pos, spending
+   down = pos), and a colored 12-month sparkline.
+3. **Cashflow + Spending mix row** (`1.5fr / 1fr`). `IncomeSpendBars`
+   now fed 12 months of `lastNMonthsTotals`. `CategoryDonut` extended
+   with optional `centerLabel` / `centerSublabel` (e.g. `€2.4k` /
+   `total`).
+4. **Accounts + Recent activity row** (`1fr / 1.3fr`,
+   `components/dashboard/AccountsList.tsx`,
+   `components/dashboard/RecentActivityList.tsx`). Accounts: tinted
+   initial tile, native amount in JBM, share-of-total in JBM mute.
+   Activity: day-grouped (`Today` / `Yesterday` / `27 Apr`) rows with
+   `${color}1F` icon tile from `categoryColor()` + `categoryIcon()`,
+   merchant + `category · account` subline, and a signed JBM amount
+   colored pos for inflows, ink for outflows (neg color reserved for
+   "alarming").
+
+### New / changed files
+
+- `components/charts/Sparkline.tsx` — added `color` and `fillFrom`
+  props (default still brass; auth `BrandPanel` call unchanged).
+- `components/charts/CategoryDonut.tsx` — added `centerLabel` /
+  `centerSublabel` (centered total inside the donut).
+- `components/dashboard/Greeting.tsx`,
+  `PeriodToggleClient.tsx`, `HeroBalanceTile.tsx`,
+  `MonthKpiTile.tsx`, `AccountsList.tsx`,
+  `RecentActivityList.tsx` — new section components.
+- `lib/dashboard/categoryIcon.ts` — name → `IconName` mapping (housing
+  → home-icon, groceries → food, salary → briefcase, etc.; falls back
+  to `tag`).
+- `lib/dashboard/period.ts` — `Period` union, `parsePeriod`, ISO-week
+  computation, time-of-day greeting helper, `monthLong`.
+- `app/(app)/dashboard/page.tsx` — rebuilt; reads `?period=` (Next 15
+  `Promise<searchParams>`), pulls user metadata via
+  `supabase.auth.getUser()` for the greeting name (falls back to the
+  email local-part, then `there`).
+
+### Couldn't match exactly (and why)
+
+- **Coach insight bar** (ref lines 181–197) — skipped per
+  `CLAUDE.md §7` ("Coach view" out of scope). Will land with the
+  Coach feature.
+- **Period toggle scope** — only the *URL state* and the section
+  *labels* (`Income · April`) are wired. Numerical re-scoping
+  (week/quarter/YTD/all) for KPIs and charts stays month-based for
+  this chunk; full re-scoping is a follow-up. Confirmed with user
+  before implementing.
+- **`+€X (Y%) vs last month` hero delta** — Sterling shows hardcoded
+  `+€1,410 (4.7%)`. Ours is computed from `accountsTrajectoryEUR`
+  (sum across accounts at each month-end). The shape matches.
+- **Account row subtitle** — Sterling shows literal copy like
+  `Daily · €` per account. Ours is computed from currency
+  (`EUR · primary` / `USD · foreign`); we don't store a per-account
+  blurb. Worth adding later if the user wants it.
+- **Greeting time-of-day** — uses `Date#getHours()` in server time.
+  Flagged for a future user-specific timezone fix.
+
+### Verification
+
+- TypeScript / lint / build **not run** in this session — Node isn't
+  available on the worktree machine. User to run
+  `npm run typecheck && npm run lint && npm run build` locally.
+  Code was reviewed manually against the types it consumes
+  (Next 15 `Promise<searchParams>`, `noUncheckedIndexedAccess`
+  guards, `IconName` literals, `categoryColor` hex outputs).
+
+**Open questions:** none.
