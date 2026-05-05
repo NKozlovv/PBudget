@@ -1,12 +1,16 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/nav/PageHeader';
+import { Icon } from '@/components/ui';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listCategories, listSubcategoriesForBudget } from '@/lib/data/categories';
 import { listMonthsWithTransactions, listTransactions } from '@/lib/data/transactions';
 import { Filters } from '@/components/transactions/Filters';
+import { StatStrip } from '@/components/transactions/StatStrip';
 import { TransactionsTable } from '@/components/transactions/TransactionsTable';
+import { AddTransactionButton } from '@/components/transactions/AddTransactionButton';
+import { monthName, monthOfDate, yearOfDate } from '@/lib/date';
 import type { TxType } from '@/lib/supabase/types';
 import type { TxSortField } from '@/lib/data/transactions';
 
@@ -39,6 +43,16 @@ function parseDir(value: string | undefined): 'asc' | 'desc' | undefined {
   return value === 'asc' || value === 'desc' ? value : undefined;
 }
 
+function metaLine(month: string | undefined, count: number): string {
+  const noun = count === 1 ? 'entry' : 'entries';
+  if (month) {
+    const yr = yearOfDate(`${month}-01`);
+    const mo = monthOfDate(`${month}-01`);
+    return `${count} ${noun} · ${monthName(mo)} ${yr}`;
+  }
+  return `${count} ${noun} · all time`;
+}
+
 export default async function TransactionsPage({
   searchParams,
 }: {
@@ -69,22 +83,28 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader
-        kicker="all activity"
+        kicker="Ledger"
         title="Transactions"
-        meta={`${transactions.length} matching ${
-          transactions.length === 1 ? 'transaction' : 'transactions'
-        } · click any cell to edit · click a header to sort`}
+        meta={metaLine(sp.month, transactions.length)}
         actions={
-          <Link
-            href="/import"
-            className="inline-flex items-center gap-2 rounded-[10px] border border-rule px-[22px] py-3 text-[13px] font-medium text-ink hover:bg-bg-soft transition-colors"
-          >
-            Import XLSX
-          </Link>
+          <>
+            <Link
+              href="/import"
+              className="inline-flex items-center gap-1.5 rounded-[10px] border border-rule bg-surface px-3.5 py-2 text-[13px] font-medium text-ink hover:bg-surface-hi transition-colors"
+            >
+              <Icon name="upload" size={13} className="text-ink-mute" />
+              Import
+            </Link>
+            <AddTransactionButton />
+          </>
         }
       />
 
-      <div className="mt-8">
+      <div className="mt-6">
+        <StatStrip transactions={transactions} budgetFxRate={budget.fx_rate} />
+      </div>
+
+      <div className="mt-5">
         <Suspense fallback={null}>
           <Filters
             accounts={accounts}
@@ -96,7 +116,7 @@ export default async function TransactionsPage({
         </Suspense>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4">
         <TransactionsTable
           transactions={transactions}
           accounts={accounts}

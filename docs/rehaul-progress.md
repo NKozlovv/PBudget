@@ -741,3 +741,119 @@ Rebuilt `app/(app)/dashboard/page.tsx` to match
   guards, `IconName` literals, `categoryColor` hex outputs).
 
 **Open questions:** none.
+
+---
+
+## Chunk 14 — Transactions Sterling 1:1
+
+Rebuilt the transactions page to match
+`design-refs/src/transactions.jsx` lines 3–115. First of four
+page-by-page rebuilds.
+
+### Sections
+
+1. **Page header** — kicker `Ledger`, title `Transactions`, meta
+   `{N} entries · {Month YYYY}` (or `· all time` when no month
+   filter). Right-side actions: outlined `Import` link + brass
+   `+ Add transaction` button.
+2. **Stat strip** (`components/transactions/StatStrip.tsx`) — 4-tile
+   In / Out / Net / Avg-per-day strip computed from the filtered
+   transaction set in EUR. Sterling 1-px-grid pattern via `gap-px` on
+   a `bg-rule` track. In tinted pos, Out tinted neg, Net pos/neg by
+   sign, Avg ink. JBM 22/600 numbers with mono kicker labels.
+3. **Filter row** (`components/transactions/Filters.tsx`) — full
+   rewrite to a single horizontal pill row:
+   - 4 type pills (`All / Expenses / Income / Adjustments`) with
+     active-inverted state writing `?type=`.
+   - Vertical 1-px divider.
+   - 3 dropdown pills (Account / Category / Month). Cascading
+     subcategory pill appears only when a category is selected and
+     auto-clears on category change.
+   - Right cluster: collapsible search pill (icon-only when empty,
+     expands inline on click), sort pill (Date · newest by default —
+     URL stays clean), and a small ghost `Clear` link when any
+     filter is set.
+   - Pill dropdowns use the `<PillSelect>` pattern: a styled
+     `FilterPill` rendered statically with a transparent native
+     `<select>` overlaid for free OS popover + keyboard handling.
+4. **Day-grouped list** (`components/transactions/DayGroupedList.tsx`)
+   replaces the old `<table>`. Each day group has a header strip
+   (`Today · 29 Apr`-style mono label + JBM signed total) and rows.
+   Row layout is a 5-col grid: icon-tile / merchant-and-sub /
+   category-chip / account-mono / amount.
+5. **Selection without checkboxes** — the leading 36×36 tinted icon
+   tile doubles as the select target (Gmail / Linear pattern). Click
+   it to toggle; on hover it cross-fades to a check. Selected rows
+   get an `accent-soft` background, a 3-px brass left strip, and the
+   tile flips to a solid brass tile with check. When any row is
+   selected, all tiles show a low-opacity check so multi-select is
+   discoverable. Click anywhere else on a row → opens the edit
+   modal.
+6. **Currency display** — primary line shows native amount in the
+   account's currency (sign-tinted, JBM); for non-EUR rows, a
+   second muted line below shows `≈ ±€{eur}` so the budget-currency
+   comparison stays one glance away. EUR rows render one line. The
+   ref's `(× 0.854)` rate column was dropped — the EUR equivalent is
+   more useful than the raw rate.
+7. **Edit modal** reuses `TransactionForm` with prefilled defaults;
+   includes a `Delete this transaction` ghost link below the form
+   that hands off to the existing delete-confirm modal. Bulk-delete
+   via the floating `BulkActionBar` (unchanged).
+
+### New / changed files
+
+- `components/ui/FilterPill.tsx` — Sterling pill button with
+  `active` / `icon` / `trailingIcon` variants. Token-only.
+- `components/ui/index.ts` — exports `FilterPill`.
+- `lib/transactions/grouping.ts` — `groupTransactionsByDate()` with
+  `Today · DD MMM` / `Yesterday · DD MMM` / `DD MMM` labels and a
+  signed-EUR day total.
+- `components/transactions/StatStrip.tsx` — new.
+- `components/transactions/DayGroupedList.tsx` — new.
+- `components/transactions/AddTransactionButton.tsx` — new client
+  trigger that fires a `transactions:add` window event the
+  `TransactionsTable` listens for. Lets the server-rendered page
+  header own the brass Add button without state plumbing.
+- `components/transactions/Filters.tsx` — full rewrite (pill row,
+  cascading subcategory, inline `PillSelect`).
+- `components/transactions/TransactionsTable.tsx` — orchestrator
+  only: owns mode (idle / add / edit / delete / bulkDelete),
+  selection set, modals. No more `<table>`, no more inline-cell
+  edit, no more sortable header columns.
+- `app/(app)/transactions/page.tsx` — new header copy + actions,
+  StatStrip insertion, dropped the inline `+ Add` from below the
+  filter row.
+- **Deleted:** `components/transactions/SortableHeader.tsx` (sort
+  moved to the pill row), `components/transactions/EditableCell.tsx`
+  (replaced by modal edit).
+
+### Couldn't match exactly (and why)
+
+- **Per-column sort headers** — the ref doesn't have any (it's a
+  list, not a table). All sorting now lives in the single sort pill
+  on the right of the filter row. The data layer's
+  `sort=…&dir=…` query support is preserved; only the UI affordance
+  changed.
+- **Export button** — ref shows it next to Import; we have no
+  export server action and the user asked to omit. Skipped this
+  chunk; revisit if/when an export action is built.
+- **Native popover styling** — `<PillSelect>` overlays a transparent
+  native `<select>` over a styled FilterPill. The trigger looks
+  Sterling but the dropdown panel itself is OS-native. A fully
+  custom popover (token-styled menu, keyboard arrows, search-in-
+  menu) is a separate primitive worth building once and reusing
+  for accounts / categories filters too — deferred.
+- **Bulk edit** — only bulk-delete is wired. Bulk-edit needs a
+  separate field-picker UX; explicitly deferred per user.
+
+### Verification
+
+- TypeScript / lint / build **not run** in this session — Node
+  isn't available on the worktree machine. User runs the build via
+  Vercel preview deploy. Code reviewed manually against the types
+  it consumes (`TxInput`, `Transaction`, `Account`, Next 15
+  `Promise<searchParams>`, `noUncheckedIndexedAccess` guards,
+  `IconName` literals).
+
+**Open questions:** none. Awaiting user confirmation before
+starting Chunk 15 (Accounts).
