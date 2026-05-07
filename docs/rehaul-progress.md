@@ -1048,3 +1048,113 @@ is the **YTD monthly average** (proxy); insight line reads
 
 **Open questions:** none. Awaiting user confirmation before
 starting Chunk 17 (Forecast).
+
+---
+
+## Chunk 17 — Forecast Sterling 1:1
+
+Rebuilt the forecast page to match
+`design-refs/src/forecast.jsx`. Fourth and final page-by-page
+rebuild — all four primary views are now Sterling-aligned.
+
+### Sections
+
+1. **Page header** — kicker `Looking ahead`, title `Forecast`,
+   meta `Projection based on N months of history`. Period chip
+   toggle on the right (`3 / 6 / 12 / 24 mo`, default 3) wired to
+   `?h=` URL param. Active chip inverts to `bg-bg`.
+2. **Hero card** (`components/forecast/ForecastHero.tsx`) — single
+   rounded card. 3-up KPI grid with vertical 1-px dividers between
+   columns: `Today` (ink), `In N months` (accent), `End of year`
+   (accent-hi). Each future KPI has a JBM mono delta line. Below
+   the KPIs, the projection line chart, then a legend strip
+   (`Actual` solid, `Projected` dashed).
+3. **Projection line**
+   (`components/charts/ForecastLine.tsx`) — past 12 month-end
+   balances + today + projected horizon, all in EUR. Two `<path>`
+   segments share the accent stroke; the projected segment is
+   dashed and 0.65 opacity. Soft accent area fill under the actual
+   portion. Vertical dashed marker at "today". 4 evenly-spaced
+   x-axis month labels, max-balance tick on the right.
+4. **Two-up below** — 1.4fr / 1fr.
+   - **Per-category outlook** (`components/forecast/PerCategoryOutlook.tsx`)
+     — top 5 expense categories by projected next-month spend. Each
+     row: name, mono `€proj / €avg avg`, horizontal bar with a
+     dashed-edge tinted "avg" slice and a solid coloured "projected"
+     slice on top. Bars normalize to the largest projected.
+   - **Coach insight** (`components/forecast/CoachInsightCard.tsx`)
+     — gradient brass-tinted card with sparkle kicker. Static
+     copy: `If you keep your savings rate of {pct}%, you'll reach
+     €{milestone} by {Month YYYY} — about N months from now.`
+     Milestone snaps to next 5k step (10k once balance ≥ 20k).
+     Falls back to a neutral message when avgNet ≤ 0. **No `Set
+     this as a goal` button** — goals infra not built; per
+     CLAUDE.md §7 the coach view is out of scope.
+5. **Burn-rate tables** — full-width sections below. Expense first
+   (always), income second (only when there's data). Restyled to
+   `bg-bg-soft` rounded card chrome with mono uppercase column
+   headers. Subtitle now embeds the projection caveat ("projection
+   extends YTD pace").
+
+### New / changed files
+
+- `lib/forecast/projection.ts` — `projectionSeries()` (past +
+  today + projected at avgNet pace), `nextMilestone()` /
+  `milestoneEta()` helpers for the coach insight, and a tiny
+  `eomAhead()` utility.
+- `components/charts/ForecastLine.tsx` — past-vs-projected SVG
+  line with dashed continuation, vertical "today" marker, area
+  fill under actual.
+- `components/forecast/HorizonToggle.tsx` — Sterling pill-row
+  segmented control writing `?h=`.
+- `components/forecast/ForecastHero.tsx` — single hero card with
+  3-up KPIs + chart + legend.
+- `components/forecast/PerCategoryOutlook.tsx` — top-N projected
+  bar list.
+- `components/forecast/CoachInsightCard.tsx` — gradient brass
+  card with savings-rate + milestone copy.
+- `components/forecast/BurnRateTable.tsx` — restyled (Sterling
+  card chrome, mono uppercase column headers).
+- `app/(app)/forecast/page.tsx` — full rewrite. Reads `?h=`,
+  builds the projection series, drops the old
+  `HeroProjection` / `KpiCard` / `YearSummary` / `LegendDot`
+  helpers. The "Income vs Spend · year view" bar card and the
+  closing prose paragraph were removed; their information is
+  redundant with the hero line and the burn-rate subtitles.
+- **Deleted:** `components/charts/ForecastBars.tsx` (no remaining
+  usages).
+
+### Couldn't match exactly (and why)
+
+- **Scenarios card** — explicitly skipped per user
+  (out-of-scope; needs scenario storage + editing UX).
+- **`Set this as a goal` button** — explicitly skipped per user
+  (no goals infra).
+- **Period toggle scope** — only the projection line's forward
+  length, the middle KPI's label, and the middle KPI's value
+  rescope with the toggle. The EOY KPI stays pinned to Dec 31 of
+  the current year.
+- **Hero per-category numbers in ref are placeholders**
+  (`c.spent * 0.92`). Ours is computed from real
+  `burnRatesEUR.avgMonthly` plus a small uplift when the current
+  month is trending above avg.
+
+### Verification
+
+- TypeScript / lint / build **not run** in this session — Node
+  isn't available on the worktree machine. User runs the build
+  via Vercel preview deploy. Code reviewed manually against the
+  existing `BurnRateRow`, `accountBalanceEURAt`,
+  `totalBalanceEUR`, `ytdAverages` shapes and the Next 15
+  `Promise<searchParams>` contract.
+
+### Page-by-page rebuild status
+
+- ✅ Chunk 14 — Transactions
+- ✅ Chunk 15 — Accounts
+- ✅ Chunk 16 — Categories
+- ✅ Chunk 17 — Forecast
+
+All four primary views now render in Sterling × Theus 1:1.
+
+**Open questions:** none.
