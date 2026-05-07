@@ -857,3 +857,93 @@ page-by-page rebuilds.
 
 **Open questions:** none. Awaiting user confirmation before
 starting Chunk 15 (Accounts).
+
+---
+
+## Chunk 15 — Accounts Sterling 1:1
+
+Rebuilt the accounts page to match
+`design-refs/src/transactions.jsx const Accounts` (lines 118-204).
+Second of four page-by-page rebuilds.
+
+### Sections
+
+1. **Net-worth hero** (`components/accounts/AccountsHero.tsx`) —
+   replaces the standard `PageHeader`. Mono kicker `Net worth`,
+   44/600 tabular total with mute cents, MTD delta in JBM mono with
+   arrow icon and pos/neg color, brass `Add account` button on the
+   right (window-event trigger like Transactions).
+2. **Distribution bar**
+   (`components/accounts/AccountsDistributionBar.tsx`) — replaces
+   the Donut. 10-px stacked horizontal bar (segments `flex` by EUR
+   balance, 2-px gaps so each swatch reads distinct), legend below
+   with name + percentage. Negative balances clamp to 0 width but
+   still appear in the legend.
+3. **Account card grid** (`components/accounts/AccountCard.tsx`) —
+   replaces the HTML table. 2-col grid of cards. Each card: 3-px
+   top color strip, 40×40 tinted icon tile (briefcase for
+   payroll-named accounts, wallet otherwise) + name + sub-line
+   (`{CCY} · {first-word}`), chevron-right glyph, big native amount
+   (30/600), `≈ €{eur}` mute mono line for non-EUR accounts, MTD
+   delta in JBM with arrow + color, and a per-account 6-month mini
+   chart on the right.
+4. **AccountMiniChart** (`components/accounts/AccountMiniChart.tsx`)
+   — upgraded sparkline with axes per user request: faint baseline
+   + dashed top tick, mono `{max}` and `{min}` labels at the right
+   edge in compact form, three x-axis month labels (first / mid /
+   last) at the bottom. 220×70 by default, single-color area fill
+   from the account swatch.
+5. **Add card** — dashed-border placeholder card at the end of the
+   grid; click → opens the same add modal. Matches ref's `Connect
+   or add manually` block, copy adapted (`Bank, brokerage, cash,
+   USD payroll`).
+
+### New / changed files
+
+- `lib/accounts/summary.ts` — `accountsSummary()` returns
+  `AccountSummary[]` with native + EUR current, native + EUR MTD
+  delta, and a 6-point sparkline series. Built on top of
+  `accountBalanceNativeAt` / `accountBalanceEURAt`.
+- `components/accounts/AccountsHero.tsx` — new.
+- `components/accounts/AccountsDistributionBar.tsx` — new.
+- `components/accounts/AccountMiniChart.tsx` — new.
+- `components/accounts/AccountCard.tsx` — new (`AccountCard` +
+  `AddAccountCard`).
+- `components/accounts/AddAccountButton.tsx` — new client trigger
+  using window event `accounts:add`.
+- `components/accounts/AccountsGrid.tsx` — replaces
+  `AccountsTable.tsx`. Orchestrator-only: owns mode (idle / add /
+  edit / delete), modals, listens for `accounts:add`. Click
+  anywhere on a card → edit modal. Edit modal has a `Delete this
+  account` ghost link below the form (same pattern as the
+  Transactions edit modal).
+- `app/(app)/accounts/page.tsx` — rewrote to render Hero +
+  DistributionBar + AccountsGrid. Dropped trajectory chart and
+  donut card.
+- **Deleted:** `components/accounts/AccountsTable.tsx` (replaced),
+  `components/charts/AccountsTrajectory.tsx` (no remaining usages).
+
+### Couldn't match exactly (and why)
+
+- **Bulk select** — explicitly skipped per user (accounts are too
+  few for bulk operations to be useful).
+- **Per-account sub-line copy** — ref shows literal copy per
+  account (e.g. `Daily spending`); we don't store that. Ours is
+  computed from currency + name first-word. Worth adding a
+  per-account `description` column later if desired.
+- **Sparkline length** — user picked 6 month-end points (vs ref's
+  6, vs the 12 we previously used on the trajectory chart). Axes
+  added per user request to make the small chart self-describing.
+- **Color picker** — out-of-scope; account swatch is still the
+  hash-stable `categoryColor("acct:${id}")`.
+
+### Verification
+
+- TypeScript / lint / build **not run** in this session — Node
+  isn't available on the worktree machine. User runs the build via
+  Vercel preview deploy. Code reviewed manually against existing
+  `accountBalanceNativeAt` / `accountBalanceEURAt` helpers and the
+  `Account` / `Transaction` row types.
+
+**Open questions:** none. Awaiting user confirmation before
+starting Chunk 16 (Categories).
