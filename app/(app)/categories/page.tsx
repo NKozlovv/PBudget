@@ -5,17 +5,21 @@ import {
   listSubcategoriesForBudget,
 } from '@/lib/data/categories';
 import { listTransactions } from '@/lib/data/transactions';
-import { categoryTotalsByKindEUR } from '@/lib/balance';
-import { CategoriesPanel } from '@/components/categories/CategoriesPanel';
-import { fmtEUR } from '@/lib/money';
-import { eomDateStr } from '@/lib/date';
+import {
+  categoriesSummary,
+  subcategoriesSummary,
+  type SubcategorySummary,
+} from '@/lib/categories/summary';
+import { CategoriesClient } from '@/components/categories/CategoriesClient';
+import { AddCategoryButton } from '@/components/categories/AddCategoryButton';
+import { monthName } from '@/lib/date';
 import type { Subcategory } from '@/lib/supabase/types';
 
 export const metadata = { title: 'Categories · Theus' };
 
 export default async function CategoriesPage() {
   const budget = await getOrCreateUserBudget();
-  const [expense, income, allSubs, transactions] = await Promise.all([
+  const [expenseCats, incomeCats, allSubs, transactions] = await Promise.all([
     listCategories(budget.id, 'expense'),
     listCategories(budget.id, 'income'),
     listSubcategoriesForBudget(budget.id),
@@ -25,35 +29,6 @@ export default async function CategoriesPage() {
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
-  const firstOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-  const lastOfMonth = eomDateStr(year, month);
-  const firstOfYear = `${year}-01-01`;
-  const lastOfYear = `${year}-12-31`;
-
-  const expenseMonth = categoryTotalsByKindEUR({
-    transactions,
-    fxRate: budget.fx_rate,
-    kind: 'expense',
-    range: { fromDate: firstOfMonth, toDate: lastOfMonth },
-  });
-  const expenseYTD = categoryTotalsByKindEUR({
-    transactions,
-    fxRate: budget.fx_rate,
-    kind: 'expense',
-    range: { fromDate: firstOfYear, toDate: lastOfYear },
-  });
-  const incomeMonth = categoryTotalsByKindEUR({
-    transactions,
-    fxRate: budget.fx_rate,
-    kind: 'income',
-    range: { fromDate: firstOfMonth, toDate: lastOfMonth },
-  });
-  const incomeYTD = categoryTotalsByKindEUR({
-    transactions,
-    fxRate: budget.fx_rate,
-    kind: 'income',
-    range: { fromDate: firstOfYear, toDate: lastOfYear },
-  });
 
   const subcategoriesById: Record<string, Subcategory[]> = {};
   for (const s of allSubs) {
@@ -61,48 +36,72 @@ export default async function CategoriesPage() {
     subcategoriesById[s.category_id]!.push(s);
   }
 
-  const totalExpenseThisMonth = sum(expenseMonth.perCategory);
-  const totalIncomeThisMonth = sum(incomeMonth.perCategory);
+  const expense = categoriesSummary({
+    categories: expenseCats,
+    subcategoriesById,
+    transactions,
+    fxRate: budget.fx_rate,
+    kind: 'expense',
+    year,
+    month,
+  });
+  const income = categoriesSummary({
+    categories: incomeCats,
+    subcategoriesById,
+    transactions,
+    fxRate: budget.fx_rate,
+    kind: 'income',
+    year,
+    month,
+  });
+
+  // Pre-compute per-category subcategory summaries so the drill-down modal
+  // can render without re-fetching transactions client-side.
+  const subSummariesByCatId: Record<string, SubcategorySummary[]> = {};
+  for (const c of expenseCats) {
+    subSummariesByCatId[c.id] = subcategoriesSummary({
+      category: c,
+      subcategories: subcategoriesById[c.id] ?? [],
+      transactions,
+      fxRate: budget.fx_rate,
+      kind: 'expense',
+      year,
+      month,
+    });
+  }
+  for (const c of incomeCats) {
+    subSummariesByCatId[c.id] = subcategoriesSummary({
+      category: c,
+      subcategories: subcategoriesById[c.id] ?? [],
+      transactions,
+      fxRate: budget.fx_rate,
+      kind: 'income',
+      year,
+      month,
+    });
+  }
+
+  const totalCount = expenseCats.length + incomeCats.length;
 
   return (
     <>
       <PageHeader
-        kicker="taxonomy"
+        kicker="Where it goes"
         title="Categories"
-        meta={`${expense.length} expense · ${income.length} income · ${fmtEUR(
-          totalExpenseThisMonth,
-          { decimals: 0 },
-        )} spent / ${fmtEUR(totalIncomeThisMonth, { decimals: 0 })} earned this month.`}
+        meta={`${monthName(month)} ${year} · ${totalCount} ${
+          totalCount === 1 ? 'category' : 'categories'
+        } tracked`}
+        actions={<AddCategoryButton />}
       />
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-2">
-        <CategoriesPanel
+      <div className="mt-6">
+        <CategoriesClient
           budgetId={budget.id}
-          kind="expense"
-          title="Expense"
-          categories={expense}
-          subcategoriesById={subcategoriesById}
-          totalsThisMonth={Object.fromEntries(expenseMonth.perCategory)}
-          totalsYTD={Object.fromEntries(expenseYTD.perCategory)}
-          subTotalsYTD={Object.fromEntries(expenseYTD.perSubcategory)}
-        />
-        <CategoriesPanel
-          budgetId={budget.id}
-          kind="income"
-          title="Income"
-          categories={income}
-          subcategoriesById={subcategoriesById}
-          totalsThisMonth={Object.fromEntries(incomeMonth.perCategory)}
-          totalsYTD={Object.fromEntries(incomeYTD.perCategory)}
-          subTotalsYTD={Object.fromEntries(incomeYTD.perSubcategory)}
+          expense={expense}
+          income={income}
+          subSummariesByCatId={subSummariesByCatId}
         />
       </div>
     </>
   );
-}
-
-function sum(map: Map<string, number>): number {
-  let s = 0;
-  for (const v of map.values()) s += v;
-  return s;
 }

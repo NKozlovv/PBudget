@@ -947,3 +947,104 @@ Second of four page-by-page rebuilds.
 
 **Open questions:** none. Awaiting user confirmation before
 starting Chunk 16 (Categories).
+
+---
+
+## Chunk 16 — Categories Sterling 1:1
+
+Rebuilt the categories page to match
+`design-refs/src/categories.jsx`. Third of four page-by-page
+rebuilds. Followed **Option B** per user choice — the ref's spend-vs-
+budget UX without adding a `monthly_budget` schema column. "Budget"
+is the **YTD monthly average** (proxy); insight line reads
+`This month is N% above your YTD average.`
+
+### Sections
+
+1. **Page header** — kicker `Where it goes`, title `Categories`,
+   meta `{Month YYYY} · N categories tracked`, brass `New category`
+   button on the right (window-event trigger, dispatches an
+   expense-add by default).
+2. **Summary card** (`components/categories/CategoriesSummaryCard.tsx`)
+   — donut on the left (180 px, 24 px stroke, segments by this-
+   month spend, center label `€{compact}` of avg), 3-up KPI strip
+   on the right (`Spent / YTD avg / Remaining` with pos/neg tone on
+   Remaining), segmented `flex` progress bar below, insight line:
+   `This month is +N% above your YTD average. K categories are
+   running over: Cat A, Cat B`.
+3. **Category list** — single rounded card with mono uppercase
+   header strip and 6-col grid rows
+   (`components/categories/CategoryRow.tsx`):
+   icon-tile / name + `subs · txCount this month` / spent vs avg
+   with `% of avg (+N%)` / progress bar (red when over, with a 2px
+   neg cap at the right edge for >100%) / avg-per-month / chevron.
+   Click anywhere on a row → drill-down modal.
+4. **Drill-down modal**
+   (`components/categories/CategoryDetailModal.tsx`) — header strip
+   with the category icon + tinted tile, this-month total + YTD
+   avg/mo. Subcategories list shows per-sub this-month + YTD totals
+   with inline Rename / Delete. Footer has `Rename` /
+   `Delete category` actions. Nested modals for rename / delete /
+   add-sub flows (Radix Dialog supports nesting).
+5. **Income recap** (`components/categories/IncomeRecap.tsx`) —
+   stripped row list below the expense table (no progress bars,
+   since "over budget" is meaningless for income). Header shows
+   panel total + `+N%` vs YTD avg (pos/neg tone matches what's
+   "good" for income — above avg = pos).
+6. **Add income inline link** under the recap (`+ New income
+   category`). The header's primary `New category` button always
+   creates an expense category, since that's the dominant flow.
+
+### New / changed files
+
+- `lib/categories/summary.ts` — `categoriesSummary()` per kind
+  (this-month + YTD total + YTD-avg + tx count + over flag +
+  pctVsAvg) and `subcategoriesSummary()` per category.
+- `components/categories/AddCategoryButton.tsx` — header trigger,
+  window event `categories:add`.
+- `components/categories/CategoriesSummaryCard.tsx` — donut + KPIs
+  + progress + insight.
+- `components/categories/CategoryRow.tsx` — 6-col grid row matching
+  the ref.
+- `components/categories/CategoryDetailModal.tsx` — drill-down with
+  subs, rename, delete (cat & sub).
+- `components/categories/IncomeRecap.tsx` — stripped income block.
+- `components/categories/CategoriesClient.tsx` — orchestrator that
+  owns drill-down + add-modal state, listens for window event.
+- `app/(app)/categories/page.tsx` — rewrote: pre-computes all
+  summaries server-side, hands plain serialisable data to the
+  client.
+- **Deleted:** `components/categories/CategoriesPanel.tsx`
+  (replaced by the row + drill-down split).
+
+### Couldn't match exactly (and why)
+
+- **Per-row "Avg / month" mono number** — ref shows
+  `c.spent * 0.92` (placeholder). Ours is the real
+  `ytd / monthsElapsed`.
+- **Income panel** — ref doesn't show one (categories.jsx is
+  expense-only). Ours surfaces income as a stripped recap below
+  the main table; matches Theus's two-kind data model without
+  cluttering the spend-tracking visual language.
+- **Per-category budget editing** — explicitly skipped in this
+  chunk (Option B). When you want budgets to be a real column,
+  Option A is queued: add `monthly_budget` numeric on
+  `categories`, edit the form, wire it through
+  `CategoriesSummaryCard` + `CategoryRow`. Estimated half-chunk.
+- **Coach insight phrasing** — the "K categories running over"
+  list shows up to 3 names + `+N more` overflow.
+
+### Verification
+
+- TypeScript / lint / build **not run** in this session — Node
+  isn't available on the worktree machine. User runs the build via
+  Vercel preview deploy. Code reviewed manually against the
+  primitives' types and the existing
+  `createCategoryAction` /
+  `renameCategoryAction` / `deleteCategoryAction` /
+  `createSubcategoryAction` /
+  `renameSubcategoryAction` /
+  `deleteSubcategoryAction` action signatures.
+
+**Open questions:** none. Awaiting user confirmation before
+starting Chunk 17 (Forecast).
