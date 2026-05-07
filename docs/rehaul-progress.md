@@ -1158,3 +1158,78 @@ rebuild — all four primary views are now Sterling-aligned.
 All four primary views now render in Sterling × Theus 1:1.
 
 **Open questions:** none.
+
+---
+
+## Chunk 18 — Final pass: Auth + Coach + cleanup (2026-05-07)
+
+Closing the Sterling 1:1 effort with three small alignments and a
+version bump.
+
+### Auth (1:1 with `design-refs/src/auth.jsx`)
+
+- `components/auth/SocialButtons.tsx` — new shared component for the
+  Google + Apple SSO row + "or" divider. Buttons are non-functional
+  placeholders (`type="button"` with no handler) — the SSO icons
+  (`logo-google`, `logo-apple`) didn't exist back at Chunk 2.1, so the
+  row was skipped. Now that they're in `Icon.tsx`, the row renders.
+- `SignInForm` and `SignUpForm` now mount `<SocialButtons />` between
+  the AuthHeader and the email field — exact spacing from the ref.
+- Primary CTA (`Sign in` / `Create account`) now uses the
+  `arrow-right` `<Icon>` glyph instead of a Unicode arrow. Loading
+  states still show "Signing in…" / "Creating…" without the arrow.
+- `BrandPanel` and `AuthHeader` already matched the ref (lockup top,
+  editorial centered with sparkline preview card, footer pinned
+  bottom) — no changes there.
+- Field labels stay in **Inter** (uppercase tracked) — that's what the
+  ref uses (`fontFamily: 'inherit'`); JBM is reserved for the kicker,
+  the divider text, and the brand-panel footer.
+
+### Coach (`/coach`)
+
+- Replaced the plain "Coming soon" placeholder with stub-with-real-
+  chrome modeled on `design-refs/src/coach.jsx`:
+  - Beta badge (sparkle icon) + 36 px headline ("Your money has
+    patterns. Theus reads them, and tells you what to do next.").
+  - 4-tile streak strip (Coach streak / Lessons completed / Saved /
+    Next check-in) with em-dash placeholders rendered in JBM
+    22/600 — values use `text-ink-mute` so they don't read as real
+    stats. Tile icons (pulse, book, arrow-up, bell) match the ref.
+  - Single empty-state insights card: surface bg, line border, radius
+    14, padding 20, sparkle icon in an accent-soft 38x38 rounded-10
+    tile, title "Coach is learning your patterns.", body about the
+    four-week threshold.
+- Skipped: the three hard-coded insight cards (no engine yet) and
+  the right-column "Your path" learning module (out of scope).
+
+### Cleanup
+
+- `lib/version.ts` → `v2.1.0-α` / `2026-05-07` / "Sterling 1:1 —
+  structural parity reached".
+- `CLAUDE.md` §6 rewritten to "Sterling 1:1, palette TBD" with notes
+  on JBM being back, the new `Icon` component, and the Topbar.
+  Section 3 stack note flipped from "No JetBrains Mono" to
+  "Inter + JetBrains Mono + Instrument Serif".
+- Hex audit (`grep -rn '#[0-9A-Fa-f]\{6\}' components/ app/`): only
+  legitimate matches remain — Google brand-logo SVG fills inside
+  `Icon.tsx` (Google's brand palette is non-tokenizable) and the
+  `<Swatch>` examples in `app/styleguide/page.tsx` (token reference,
+  values are intentionally literal).
+
+### Verification
+
+- TypeScript / lint / build **not run** in this session — Node
+  isn't available on the worktree machine. User confirms via the
+  Vercel preview deploy; sidebar version marker should now read
+  `v2.1.0-α`.
+
+### Page-by-page rebuild status
+
+- ✅ Chunk 14 — Transactions
+- ✅ Chunk 15 — Accounts
+- ✅ Chunk 16 — Categories
+- ✅ Chunk 17 — Forecast
+- ✅ Chunk 18 — Auth + Coach + cleanup
+
+Sterling 1:1 closed. Palette decisions deferred — current tokens
+remain in place as the working theme.

@@ -3,8 +3,9 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Button, Field, Input } from '@/components/ui';
+import { Button, Field, Icon, Input } from '@/components/ui';
 import { AuthHeader } from './AuthHeader';
+import { SocialButtons } from './SocialButtons';
 
 export function SignUpForm() {
   const [email, setEmail] = useState('');
@@ -52,6 +53,8 @@ export function SignUpForm() {
         subtitle="Three minutes. No card. Your data stays yours."
       />
 
+      <SocialButtons />
+
       <div className="flex flex-col gap-4">
         <Field label="Email">
           {({ id }) => (
@@ -92,8 +95,18 @@ export function SignUpForm() {
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending} className="mt-7 w-full py-3.5">
-        {pending ? 'Creating…' : 'Create account →'}
+      <Button
+        type="submit"
+        disabled={pending}
+        className="mt-7 w-full py-3.5 inline-flex items-center justify-center gap-2"
+      >
+        {pending ? (
+          'Creating…'
+        ) : (
+          <>
+            Create account <Icon name="arrow-right" size={15} />
+          </>
+        )}
       </Button>
 
       <p className="mt-6 text-center text-[13px] text-ink-mute">

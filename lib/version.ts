@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.0.0-α';
-export const BUILD_DATE = '2026-05-03';
-export const BUILD_NOTE = 'Theus rehaul — feature parity reached';
+export const BUILD_VERSION = 'v2.1.0-α';
+export const BUILD_DATE = '2026-05-07';
+export const BUILD_NOTE = 'Sterling 1:1 — structural parity reached';

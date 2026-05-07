@@ -4,8 +4,9 @@ import { useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Button, Field, Input } from '@/components/ui';
+import { Button, Field, Icon, Input } from '@/components/ui';
 import { AuthHeader } from './AuthHeader';
+import { SocialButtons } from './SocialButtons';
 
 export function SignInForm() {
   const router = useRouter();
@@ -44,6 +45,8 @@ export function SignInForm() {
         title="Sign in"
         subtitle="Pick up where you left off."
       />
+
+      <SocialButtons />
 
       <div className="flex flex-col gap-4">
         <Field label="Email">
@@ -89,8 +92,18 @@ export function SignInForm() {
         </p>
       ) : null}
 
-      <Button type="submit" disabled={pending} className="mt-7 w-full py-3.5">
-        {pending ? 'Signing in…' : 'Sign in →'}
+      <Button
+        type="submit"
+        disabled={pending}
+        className="mt-7 w-full py-3.5 inline-flex items-center justify-center gap-2"
+      >
+        {pending ? (
+          'Signing in…'
+        ) : (
+          <>
+            Sign in <Icon name="arrow-right" size={15} />
+          </>
+        )}
       </Button>
 
       <p className="mt-6 text-center text-[13px] text-ink-mute">

@@ -53,8 +53,8 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
 - **Framework:** Next.js 15 (App Router), React 19, TypeScript (strict,
   `noUncheckedIndexedAccess`).
 - **Styling:** Tailwind v3 with semantic CSS-variable tokens
-  (`styles/tokens.css`). No JetBrains Mono — the project is Inter +
-  Instrument Serif italic for brand moments only.
+  (`styles/tokens.css`). Inter + JetBrains Mono (mono labels and
+  numerics) + Instrument Serif italic for brand moments only.
 - **Auth + data:** Supabase via `@supabase/ssr` (browser client + server
   client + middleware-cookie refresh). Server components run direct
   queries via `lib/data/*`; mutations go through `app/actions/*` server
@@ -159,26 +159,34 @@ confirmation a deploy is live.
 
 ## 6. Design direction (current)
 
-**Sterling structural language** + **Theus identity**. Tokens in
-`styles/tokens.css`. Detail: `docs/rehaul-plan.md` §5.
+**Sterling 1:1, palette TBD.** The structural language now matches the
+Sterling references in `design-refs/src/*.jsx` cell-for-cell across
+Dashboard / Transactions / Accounts / Categories / Forecast / Coach /
+Auth. Palette tokens (the deep-green / brass / sage / rust set) live in
+`styles/tokens.css` and are still the working theme, but treat them as
+**provisional** — the user may swap palettes once structure is locked.
 
-Quick reference:
-- bg: `#0F1A14` (deep forest), bg-soft: `#162420`, bg-panel: `#1C2C26`
-- ink: `#EFE9D8` (cream), ink-soft: `#C7BFA9`, ink-mute: `#8E866E`
-- accent: `#D8B055` (brass — CTAs, highlights, active states)
-- pos: `#7FB58A` (sage — income / gains)
-- neg: `#E9673E` (rust — expenses / losses)
-- Cards `rounded-2xl` (16 px), buttons `rounded-[10px]`, pills `rounded-full`
-- Mono uppercase tracked labels are **Inter** (the project deliberately
-  dropped JetBrains Mono — it looked typewriter-y and Sterling refs use
-  Inter for these too)
+Notes:
+- **JetBrains Mono is back.** Mono uppercase tracked labels (kickers,
+  KPI labels, footers, divider text, mono-numeric values where the ref
+  uses mono) render in JBM via `font-mono` (configured in
+  `app/layout.tsx` + `tailwind.config.ts`). Earlier rehaul iterations
+  dropped JBM in favour of Inter; that decision is reversed.
+- **Icon component** (`components/ui/Icon.tsx`) — monoline stroke icon
+  set ported from `design-refs/src/icons.jsx`, plus the `logo-google`
+  and `logo-apple` brand glyphs used by the auth SSO row.
+- **Topbar** — full-width header on each protected page (search,
+  period toggle, "+ Add" CTA) per the Sterling shell. Sidebar still
+  shows the build version at the bottom.
+- Cards `rounded-2xl` (16 px) / `rounded-[14px]` (Sterling panels),
+  buttons `rounded-[10px]`, pills `rounded-full`.
 - Italic Instrument Serif is reserved for the brand tagline ("money
-  understood.") — only on the auth screen and dashboard hero
+  understood.") — auth brand panel + dashboard hero only.
 
 The earlier "Modern Soft" direction in the legacy CLAUDE.md is
 **superseded**. Same goes for the v0.5.3 roadmap (Builds 2–5) — see
-`docs/rehaul-plan.md` for the new chunk plan and
-`docs/rehaul-progress.md` for what's landed.
+`docs/rehaul-plan.md` for the chunk plan and `docs/rehaul-progress.md`
+for what's landed.
 
 ---
 
