@@ -39,6 +39,9 @@ export function CategoriesSummaryCard({
   const strokeWidth = 24;
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
+  // See CategoryDonut.tsx for why: hides the anti-aliasing seam between
+  // adjacent stroke-dasharray segments without skewing proportions.
+  const SEAM_OVERLAP = 1;
   let off = 0;
 
   return (
@@ -58,10 +61,11 @@ export function CategoriesSummaryCard({
             {sorted
               .filter((s) => s.thisMonth > 0)
               .map((s) => {
-                const len = totalThisMonth > 0 ? (s.thisMonth / totalThisMonth) * c : 0;
+                const exact = totalThisMonth > 0 ? (s.thisMonth / totalThisMonth) * c : 0;
+                const len = Math.min(exact + SEAM_OVERLAP, c);
                 const dash = `${len} ${c - len}`;
                 const dashOffset = -off;
-                off += len;
+                off += exact;
                 return (
                   <circle
                     key={s.category.id}

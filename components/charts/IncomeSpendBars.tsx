@@ -18,6 +18,11 @@ interface HoverData {
  * pace (see lib/balance.ts#forecastYear) and rendered lighter + dashed so
  * the actual/projected boundary reads at a glance, same visual language as
  * the Forecast page's projection line.
+ *
+ * Income = pos (green), Spend = neg (red/rust) — matching the sign color
+ * used everywhere else in the app (KPI tiles, the ledger). An earlier
+ * version used the brass accent color for Spend, which didn't read as
+ * "money going out" the way red does.
  */
 export function IncomeSpendBars({
   months,
@@ -34,7 +39,12 @@ export function IncomeSpendBars({
   const innerH = h - pad.t - pad.b;
   const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
   const groupW = innerW / Math.max(1, months.length);
-  const barW = (groupW - 10) / 2;
+  // Tight gap *within* a month's income/spend pair, much wider gap
+  // *between* months — otherwise all 24 bars read as one undifferentiated
+  // row instead of 12 clearly paired months.
+  const innerGap = 3;
+  const outerGap = Math.min(14, groupW * 0.22);
+  const barW = (groupW - outerGap - innerGap) / 2;
   const yTicks = [0, max * 0.25, max * 0.5, max * 0.75, max];
   // Vertical marker at the actual → projected boundary, so it's obvious at
   // a glance where "so far" ends and the forecast begins.
@@ -52,6 +62,22 @@ export function IncomeSpendBars({
         role="img"
         aria-label="Income vs spending, January through December, with a forecast for months not yet reached"
       >
+        {/* Alternating month bands — a second visual cue (besides spacing)
+            tying each income/spend pair to one month. */}
+        {months.map((m, i) =>
+          i % 2 === 1 ? (
+            <rect
+              key={`band-${m.year}-${m.month}`}
+              x={pad.l + i * groupW}
+              y={pad.t}
+              width={groupW}
+              height={innerH}
+              fill="var(--bg-panel)"
+              opacity={0.35}
+            />
+          ) : null,
+        )}
+
         {yTicks.map((y, i) => {
           const py = pad.t + innerH - (y / max) * innerH;
           return (
@@ -105,7 +131,7 @@ export function IncomeSpendBars({
         ) : null}
 
         {months.map((m, i) => {
-          const x = pad.l + i * groupW + 5;
+          const x = pad.l + i * groupW + outerGap / 2;
           const incH = (m.income / max) * innerH;
           const spdH = (m.expense / max) * innerH;
           const projected = m.projected;
@@ -129,17 +155,17 @@ export function IncomeSpendBars({
                 onMouseLeave={hide}
               />
               <rect
-                x={x + barW + 5}
+                x={x + barW + innerGap}
                 y={pad.t + innerH - spdH}
                 width={barW}
                 height={Math.max(spdH, 1)}
-                {...barProps('var(--accent)')}
+                {...barProps('var(--neg)')}
                 onMouseEnter={(e) => show(e, { label: m.label, kind: 'spend', value: m.expense, projected })}
                 onMouseMove={(e) => show(e, { label: m.label, kind: 'spend', value: m.expense, projected })}
                 onMouseLeave={hide}
               />
               <text
-                x={x + barW + 2.5}
+                x={pad.l + i * groupW + groupW / 2}
                 y={h - 10}
                 fontSize="9"
                 fontFamily="var(--font-inter)"
@@ -157,7 +183,7 @@ export function IncomeSpendBars({
         <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>
           <span className="font-medium text-ink">{hover.data.label}</span>
           <span className="mx-1 text-ink-mute">·</span>
-          <span className={hover.data.kind === 'income' ? 'text-pos' : 'text-accent'}>
+          <span className={hover.data.kind === 'income' ? 'text-pos' : 'text-neg'}>
             {hover.data.kind === 'income' ? 'Income' : 'Spend'} {fmtEUR(hover.data.value, { decimals: 0 })}
           </span>
           {hover.data.projected ? <span className="ml-1 text-ink-mute">(projected)</span> : null}

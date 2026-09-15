@@ -25,9 +25,17 @@ export function CategoryDonut({
   centerSublabel?: string;
 }) {
   const { containerRef, hover, show, hide } = useChartHover<CategorySlice>();
-  const total = data.reduce((s, d) => s + d.value, 0);
+  const positive = data.filter((d) => d.value > 0);
+  const total = positive.reduce((s, d) => s + d.value, 0);
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
+  // Adjacent stroke-dasharray segments can show a hairline seam between them
+  // (anti-aliasing at the arc boundary, most visible on the biggest slice
+  // next to the smallest ones) — render each segment slightly longer than
+  // its exact share so it overlaps into the next one by a fraction of a
+  // pixel. `off` still advances by the *exact* length, so proportions and
+  // the tooltip/legend stay accurate; only the rendered stroke overlaps.
+  const SEAM_OVERLAP = 1;
 
   let off = 0;
   return (
@@ -48,11 +56,12 @@ export function CategoryDonut({
             stroke="var(--rule)"
             strokeWidth={strokeWidth}
           />
-          {data.map((d) => {
-            const len = total > 0 ? (d.value / total) * c : 0;
+          {positive.map((d) => {
+            const exact = total > 0 ? (d.value / total) * c : 0;
+            const len = Math.min(exact + SEAM_OVERLAP, c);
             const dash = `${len} ${c - len}`;
             const dashOffset = -off;
-            off += len;
+            off += exact;
             return (
               <circle
                 key={d.name}
@@ -96,10 +105,10 @@ export function CategoryDonut({
       </div>
 
       <ul className="flex-1 flex flex-col gap-2 min-w-0">
-        {data.length === 0 ? (
-          <li className="text-sm text-ink-mute">No expense data this month yet.</li>
+        {positive.length === 0 ? (
+          <li className="text-sm text-ink-mute">Not enough history yet.</li>
         ) : (
-          data.slice(0, 6).map((d) => (
+          positive.slice(0, 6).map((d) => (
             <li key={d.name} className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 min-w-0">
                 <span
@@ -114,9 +123,9 @@ export function CategoryDonut({
             </li>
           ))
         )}
-        {data.length > 6 ? (
+        {positive.length > 6 ? (
           <li className="text-[11px] text-ink-mute pt-1">
-            + {data.length - 6} more
+            + {positive.length - 6} more
           </li>
         ) : null}
       </ul>

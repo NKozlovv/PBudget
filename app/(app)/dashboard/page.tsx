@@ -15,7 +15,7 @@ import {
   totalBalanceEUR,
   monthTotalsEUR,
   lastNMonthsTotals,
-  categorySpendEUR,
+  burnRatesEUR,
   accountsTrajectoryEUR,
   accountBalanceNativeAt,
   accountsCurrentEUR,
@@ -98,20 +98,29 @@ export default async function DashboardPage() {
   const prevBalance =
     balanceSeries.length >= 2 ? (balanceSeries[balanceSeries.length - 2] ?? 0) : balanceEUR;
 
-  // Category mix (working month).
-  const catSlices = categorySpendEUR({ transactions: allTx, year, month, fxRate });
+  // Category mix — average monthly spend per category, year to date
+  // (through the working month), not a single month's raw total. A single
+  // month is noisy (one big one-off purchase can dominate the whole ring);
+  // the YTD average is the more honest "where does my money typically go"
+  // picture, and matches the "YTD avg" language already used on the
+  // Categories page.
+  const catBurnRates = burnRatesEUR({ transactions: allTx, year, endMonth: month, fxRate, kind: 'expense' });
+  const catSlices = catBurnRates.map((r) => ({ name: r.name, value: r.avgMonthly }));
   const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
 
-  // Cash flow chart: full Jan–Dec of the current calendar year — months up
-  // to and including today are real, the rest projected at the YTD average
-  // pace (same logic the Forecast page uses). Anchored to today rather
-  // than the working month: the in-progress month already has partial
-  // real data worth showing as "actual so far", and this chart is framed
-  // as a forecast, not a "completed months only" summary.
+  // Cash flow chart: full Jan–Dec of the current calendar year. Months
+  // through the working month (last completed) are real; the rest —
+  // including the in-progress current month, which usually has too little
+  // data to plot honestly — are projected at the YTD average pace (same
+  // logic the Forecast page uses). Falls back to "nothing actual yet" only
+  // in the rare case the working month rolled into the previous year (i.e.
+  // it's currently January).
+  const cashFlowYear = now.getFullYear();
+  const cashFlowEndMonth = year === cashFlowYear ? month : -1;
   const yearBuckets = forecastYear({
     transactions: allTx,
-    year: now.getFullYear(),
-    endMonth: now.getMonth(),
+    year: cashFlowYear,
+    endMonth: cashFlowEndMonth,
     fxRate,
   });
 
@@ -184,7 +193,7 @@ export default async function DashboardPage() {
             right={
               <div className="flex items-center gap-3.5 text-[11px] text-ink-soft">
                 <LegendDot color="var(--pos)">Income</LegendDot>
-                <LegendDot color="var(--accent)">Spending</LegendDot>
+                <LegendDot color="var(--neg)">Spending</LegendDot>
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-soft">
                   <span
                     className="h-2 w-2 rounded-sm border border-ink-mute"
@@ -205,7 +214,7 @@ export default async function DashboardPage() {
             title="Spending mix"
             subtitle={
               <span className="text-[11px] text-ink-mute">
-                {monthLabel} · {catSlices.length} categor{catSlices.length === 1 ? 'y' : 'ies'}
+                YTD average · {catSlices.length} categor{catSlices.length === 1 ? 'y' : 'ies'}
               </span>
             }
           />
@@ -215,7 +224,7 @@ export default async function DashboardPage() {
               size={150}
               strokeWidth={20}
               centerLabel={catTotal > 0 ? `€${(catTotal / 1000).toFixed(1)}k` : '€0'}
-              centerSublabel="total"
+              centerSublabel="avg / month"
             />
           </div>
         </Card>

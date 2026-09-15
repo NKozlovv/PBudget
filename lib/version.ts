@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.5.0-α';
+export const BUILD_VERSION = 'v2.5.1-α';
 export const BUILD_DATE = '2026-09-15';
-export const BUILD_NOTE = 'Real uncategorised-text fix + year cash flow forecast + tooltip clamp';
+export const BUILD_NOTE = 'Donut seam fix, YTD spending mix, cash flow colors + grouping';

@@ -33,13 +33,15 @@ export function ForecastLine({
   const rawMax = Math.max(...values);
   const span = Math.max(rawMax - rawMin, 1) * 1.1;
   const min = rawMin - (rawMax - rawMin) * 0.05;
+  const yFor = (v: number) => padTop + ySpace - ((v - min) / span) * ySpace;
 
   // Width is fluid — using viewBox + preserveAspectRatio="none" lets the
   // SVG stretch to the parent.
   const width = 1000;
   const innerW = width - padX * 2;
   const xs = points.map((_, i) => padX + (innerW * i) / (points.length - 1));
-  const ys = values.map((v) => padTop + ySpace - ((v - min) / span) * ySpace);
+  const ys = values.map((v) => yFor(v));
+  const yTicks = [rawMin, (rawMin + rawMax) / 2, rawMax];
 
   // Find the boundary: index of the last actual point (still part of actual).
   const boundary = points.findIndex((p) => p.projected);
@@ -101,15 +103,33 @@ export function ForecastLine({
         </linearGradient>
       </defs>
 
-      {/* baseline */}
-      <line
-        x1={padX}
-        x2={width - padX}
-        y1={padTop + ySpace}
-        y2={padTop + ySpace}
-        stroke="var(--rule)"
-        strokeWidth={1}
-      />
+      {/* horizontal gridlines: min / mid / max, each with a value label */}
+      {yTicks.map((v, i) => {
+        const y = yFor(v);
+        return (
+          <g key={i}>
+            <line
+              x1={padX}
+              x2={width - padX}
+              y1={y}
+              y2={y}
+              stroke="var(--rule)"
+              strokeWidth={i === 0 ? 1 : 0.5}
+              strokeDasharray={i === 0 ? undefined : '2 3'}
+            />
+            <text
+              x={width - padX}
+              y={y - 4}
+              fontSize="10"
+              fontFamily="var(--font-inter)"
+              fill="var(--ink-mute)"
+              textAnchor="end"
+            >
+              {fmtEUR(v, { compact: true, decimals: 0 })}
+            </text>
+          </g>
+        );
+      })}
 
       {/* boundary marker (vertical dashed) */}
       {boundary > 0 ? (
@@ -168,18 +188,6 @@ export function ForecastLine({
           {points[i]!.label}
         </text>
       ))}
-
-      {/* y top tick label, right-aligned */}
-      <text
-        x={width - padX}
-        y={padTop + 2}
-        fontSize="10"
-        fontFamily="var(--font-inter)"
-        fill="var(--ink-mute)"
-        textAnchor="end"
-      >
-        {fmtEUR(rawMax, { compact: true, decimals: 0 })}
-      </text>
 
       {/* Hover hit-regions, one per point */}
       {points.map((p, i) => (

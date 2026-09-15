@@ -91,32 +91,6 @@ export interface CategorySlice {
 }
 
 /**
- * Expense category totals (EUR) for a given (year, 0-indexed month).
- * Returns slices sorted by value desc. Adjustments are excluded.
- */
-export function categorySpendEUR(args: {
-  transactions: Transaction[];
-  year: number;
-  month: number;
-  fxRate: number;
-}): CategorySlice[] {
-  const { transactions, year, month, fxRate } = args;
-  const totals = new Map<string, number>();
-  for (const t of transactions) {
-    if (t.type !== 'expense') continue;
-    const m = /^(\d{4})-(\d{2})-/.exec(t.date);
-    if (!m) continue;
-    if (Number(m[1]) !== year) continue;
-    if (Number(m[2]) - 1 !== month) continue;
-    const key = categoryDisplayName(t.category);
-    totals.set(key, (totals.get(key) ?? 0) + txToEUR(t, fxRate));
-  }
-  return [...totals.entries()]
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-}
-
-/**
  * Native-currency balance of an account up to and including `date`.
  * Mirrors legacy `accountBalanceNative()` from index.html line 1115.
  */

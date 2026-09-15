@@ -1703,3 +1703,62 @@ of either side. Threaded through all six chart components.
 file by hand, swept again for the `noUncheckedIndexedAccess`/`useRef`
 bug classes and for dangling references to the deleted PeriodToggle
 files (none found).
+
+---
+
+## Dashboard round 2: donut seam, YTD mix, cash flow polish (2026-09-15, same day)
+
+User sent two more screenshots after the previous round deployed:
+a visual seam in the Spending-mix donut, a request to make it show a
+YTD average instead of one month, and detailed feedback on the new
+Cash-flow chart (today-marker landing in the wrong place, unintuitive
+colors, hard to tell which bars belong to which month) — plus a
+direct ask to bring the same bar up across every remaining chart.
+
+- **Donut seam:** adjacent stroke-dasharray segments can show a
+  hairline anti-aliasing gap at their shared edge — a known artifact
+  of this exact technique, most visible on a big slice next to several
+  small ones (exactly this dataset: one ~50% slice against a cluster
+  of slivers). Fixed in both `CategoryDonut` and
+  `CategoriesSummaryCard` by rendering each segment ~1px longer than
+  its exact mathematical share so it overlaps into the next one;
+  `off` still advances by the *exact* length so proportions and the
+  tooltip stay accurate. Also added the `value > 0` filter
+  `CategoryDonut` was missing (present in the generic `Donut` but not
+  here) as a second defensive layer.
+- **Spending mix → YTD average:** was a single month's raw category
+  totals (noisy — one big one-off purchase dominates the whole ring).
+  Now `burnRatesEUR(...).avgMonthly` per category (function already
+  existed for the burn-rate tables) — center label now reads "avg /
+  month", subtitle "YTD average" instead of the month name.
+  `lib/balance.ts#categorySpendEUR` removed as dead code (nothing else
+  called it).
+- **Cash flow "today" landing one month early:** the chart anchored
+  the actual/projected boundary to *today* rather than the *working
+  month* — deliberate at the time ("partial data is worth showing"),
+  but in practice the in-progress month (September, ~2 weeks in) had
+  a barely-visible sliver of real data that looked like a rendering
+  bug. Switched the boundary to the working month, consistent with
+  every other "this month" reference on the dashboard (falls back to
+  "nothing actual yet" only if the working month rolled into the
+  previous year — i.e. it's currently January).
+- **Cash flow colors:** Spend bars used the brass `--accent` token;
+  changed to `--neg` (red/rust) to match the sign convention already
+  used everywhere else in the app (KPI tiles, the ledger) — green =
+  in, red = out.
+- **Cash flow month grouping:** the gap *within* an income/spend pair
+  and the gap *between* different months' pairs were numerically
+  identical, so all 24 bars read as one undifferentiated row instead
+  of 12 pairs. Tightened the within-pair gap, widened the between-
+  month gap, added a subtle alternating background band per month,
+  and centered each month's label under its *whole* pair rather than
+  offset toward one bar.
+- **Applied the same bar to the remaining chart:** `ForecastLine` only
+  had one Y-axis label (top-right max); added a proper 3-line grid
+  (min/mid/max) with value labels, matching the density now used on
+  the Dashboard's own charts. `AccountMiniChart` already had axes from
+  an earlier chunk and was left alone.
+
+**Verification:** no local build (no Node) — reviewed every changed
+file by hand, swept again for the recurring bug classes from earlier
+today (none found).
