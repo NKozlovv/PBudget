@@ -1874,3 +1874,112 @@ file by hand; re-swept `TrendLineChart.tsx`, `SavingsRateChart.tsx`,
 the two recurring bug classes (none found); checked the new
 `fmtEUR`/`FormatOptions` and `ytdAverages`/`ForecastBucket` field
 usages against their real definitions in `lib/money.ts` / `lib/balance.ts`.
+
+## Dashboard round 5: YTD-first hero tiles + a real navigation-speed pass (2026-09-15, same day)
+
+Immediate follow-up: round 4's chart padding fix didn't read as enough
+("still the same"), and five concrete asks about what the Hero/KPI row
+should actually show, plus a general "pages load too long, make it
+feel responsive" ask that went well beyond the Dashboard.
+
+**Hero/KPI tiles, redesigned:**
+- **"Saved this year" badge** — a small colored pill under the
+  `TOTAL BALANCE` kicker (top-left of the card, where asked), showing
+  real YTD income − expenses (`ytdAverages(...).totalNet`, not a
+  projection).
+- **Income/Spending tiles now headline the YTD average**, not last
+  month's total — `MonthKpiTile` dropped `amount`/`prevAmount`/`kind`
+  entirely in favor of a single `avgAmount` prop
+  (`ytd.avgIncome`/`ytd.avgExpense`). Also dropped the per-tile
+  "vs last month" delta these used to show — there's no meaningful
+  "previous period" for a running average, and the request was
+  explicitly to stop showing last-month figures here.
+- **Fixed the Total Balance "vs last month" delta**, which the user
+  correctly flagged as never really going negative. Root cause: it
+  compared the *live* balance to last month's closing balance — and
+  since this app's users enter transactions at month-end
+  (`workingMonth()`, §8f), most of the month has *zero* new
+  transactions yet, so live balance == last month's close and the
+  delta reads "+€0" for weeks at a stretch even when the household is
+  actually bleeding money. Not a bug in the math, but a metric that's
+  silent almost all the time. Redefined it as
+  EOM(last completed month) − EOM(the month before it) — two fully-
+  elapsed real months — so it's always populated and correctly signed
+  the moment last month's data is in; labeled explicitly ("Aug vs
+  Jul") so it doesn't read as reconciling against the live headline
+  number above it, which is intentionally still real-time per §8f.
+  Removed the now-dead 12-month `accountsTrajectoryEUR` trajectory
+  this used to be computed from.
+- **New 3-up stat strip** (Saved this year / Savings rate / Projected
+  EOY) under the delta line. "Savings rate" is the simple average of
+  each real month's own (income − expense) ÷ income — computed with
+  the *exact same* filter/formula as the Savings-rate card's own "YTD
+  avg" (deliberately duplicated rather than having the card export its
+  internal number, to keep the two independent and still guaranteed
+  to agree). "Projected EOY" is just `balanceYearSeries[11]` — the
+  chart already projects the balance out to December, so Dec's own
+  value *is* the EOY projection, no new math needed.
+
+**Navigation speed:** an actual audit turned up a real, systemic
+cause of "pages load too long" — not a single slow query, but the same
+answers being fetched over and over on every navigation:
+- `app/(app)/layout.tsx` (auth gate + sidebar) and *every single page*
+  under it each called `supabase.auth.getUser()` and
+  `getOrCreateUserBudget()` independently — the latter itself calling
+  `auth.getUser()` *and* `listBudgets()` again internally. That's
+  ~5–7 Supabase round trips spent re-deriving the same "who's signed
+  in, what's their budget" answer before a page's own data even
+  starts loading, on *every* navigation. Fixed with React's `cache()`
+  — Next.js's own recommended pattern for exactly this shape of
+  problem: `getAuthUser()` (new, in `lib/supabase/server.ts`) and
+  `listBudgets()`/`getOrCreateUserBudget()` (`lib/data/budgets.ts`)
+  are now per-request-memoized, so the first call anywhere in a
+  render pass hits Supabase and every later call (layout, page,
+  nested helper) reuses that same result for free. `app/(app)/layout.tsx`,
+  `app/(app)/dashboard/page.tsx`, and `app/(app)/members/page.tsx` —
+  the three places calling `auth.getUser()` directly — now go through
+  `getAuthUser()` instead so they dedupe too.
+- `listTransactions({ budgetId })`'s full-history pagination
+  (`lib/data/transactions.ts`, added in the §8g truncation fix) was
+  sequential — page 2 didn't start until page 1 finished, and so on.
+  Once the first page returns Postgres's exact row count, every
+  remaining page's offset is already known, so they now fire together
+  via `Promise.all` instead of one at a time — for a budget with
+  several thousand transactions (this one has been filled in for most
+  of a year across 13 accounts) that's N round trips collapsed to 2.
+  Applied the same fix to `listMonthsWithTransactions()` and
+  `listCategorySubcategoryPairs()`, which paginate the same way. Kept
+  the original sequential, short-page-terminated loop as a fallback
+  for the (shouldn't-happen) case where PostgREST doesn't return a
+  count despite `{ count: 'exact' }` being requested — never guess how
+  many pages to fetch in parallel when the real total is unknown; see
+  this file's top comment on why silent under-fetching here is the
+  one thing to never risk.
+- Dashboard no longer runs a second `listTransactions` query just for
+  the 8-row "recent activity" list — it was already fetching every
+  transaction for the page's own totals, sorted the same way
+  (`date desc, created_at desc`), so `allTx.slice(0, 8)` is identical
+  data for zero extra round trips.
+- Added `app/(app)/loading.tsx` — Next.js nests a route segment's
+  `loading.tsx` around every page below it in a Suspense boundary
+  automatically, so one file here covers Dashboard/Transactions/
+  Accounts/Categories/Forecast/Trends/Import/Members. The Sidebar/
+  Topbar (rendered by the layout, above this segment) stay mounted
+  and clickable immediately on navigation; only the main content area
+  shows a pulsing skeleton while the new page's data loads — that's
+  what makes navigating *feel* instant instead of the whole app going
+  blank until every query resolves.
+- Audited the other five `(app)` pages (Accounts/Categories/Forecast/
+  Trends/Transactions) for the same sequential-fetch shape — all of
+  them already `Promise.all` their own independent queries once
+  `budget` resolves, so the layout/page auth-and-budget dedup above is
+  a free win for all of them with no per-page changes needed.
+
+**Verification:** no local build (no Node) — reviewed every changed
+file by hand; re-swept every touched file for the two recurring bug
+classes (none found); traced the parallel-pagination rewrite against
+the exact-count termination logic §8g depends on to confirm the
+fallback path preserves the original safety net; grepped the whole
+tree for `HeroBalanceTile`/`MonthKpiTile` usages (dashboard page only)
+and for other direct `auth.getUser()` call sites (layout, dashboard,
+members — all now on `getAuthUser()`) to confirm nothing was missed.

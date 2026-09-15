@@ -2,7 +2,7 @@ import { Card, CardHeader } from '@/components/ui';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/server';
 import { IncomeSpendBars } from '@/components/charts/IncomeSpendBars';
 import { CategoryDonut } from '@/components/charts/CategoryDonut';
 import { SavingsRateChart } from '@/components/charts/SavingsRateChart';
@@ -18,7 +18,6 @@ import {
   monthTotalsEUR,
   lastNMonthsTotals,
   burnRatesEUR,
-  accountsTrajectoryEUR,
   accountBalanceNativeAt,
   accountBalanceEURAt,
   accountsCurrentEUR,
@@ -30,18 +29,17 @@ import { dateToISO, monthName } from '@/lib/date';
 export const metadata = { title: 'Dashboard · Theus' };
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [user, budget] = await Promise.all([getAuthUser(), getOrCreateUserBudget()]);
   const userName = deriveUserName(user?.user_metadata, user?.email);
 
-  const budget = await getOrCreateUserBudget();
-  const [accounts, allTx, recentTx] = await Promise.all([
+  const [accounts, allTx] = await Promise.all([
     listAccounts(budget.id),
     listTransactions({ budgetId: budget.id }),
-    listTransactions({ budgetId: budget.id, limit: 8 }),
   ]);
+  // allTx is already sorted date desc, created_at desc (listTransactions'
+  // default) — identical order to a separate limit:8 query, so slicing it
+  // avoids a second full round trip for the same data.
+  const recentTx = allTx.slice(0, 8);
 
   const now = new Date();
   // "This month" throughout the dashboard means the last COMPLETED
@@ -66,26 +64,29 @@ export default async function DashboardPage() {
   const priorSix = last7.slice(0, 6);
   const avgMonthSpend =
     priorSix.length > 0 ? priorSix.reduce((s, b) => s + b.expense, 0) / priorSix.length : 0;
-  const prevMonth = priorSix.at(-1);
-  const prevIncome = prevMonth?.income ?? 0;
-  const prevExpense = prevMonth?.expense ?? 0;
 
-  // 12-month total-balance trajectory (sum across all accounts at each
-  // month-end) — anchored to TODAY, since this is a real-time balance
-  // chart, not a spend/income summary.
-  const trajectory = accountsTrajectoryEUR({
-    accounts,
-    transactions: allTx,
-    endYear: now.getFullYear(),
-    endMonth: now.getMonth(),
-    count: 12,
-    fxRate,
-  });
-  const balanceSeries = trajectory.map((p) =>
-    Object.values(p.balances).reduce((s, n) => s + n, 0),
-  );
-  const prevBalance =
-    balanceSeries.length >= 2 ? (balanceSeries[balanceSeries.length - 2] ?? 0) : balanceEUR;
+  // "vs last month" delta: EOM(working month) vs EOM(the month before it) —
+  // two fully-elapsed, real months. Comparing the *live* balance to last
+  // month's close instead (as this used to) reads as stuck at "+€0" for
+  // most of the month, since this app's users fill in transactions at
+  // month-end (see workingMonth()) — until then there's simply nothing new
+  // to diff against. This version is always meaningful and correctly signed
+  // the moment last month's numbers are in.
+  function eomBalanceEUR(y: number, m: number): number {
+    const eom = new Date(y, m + 1, 0);
+    return accounts.reduce(
+      (s, a) => s + accountBalanceEURAt({ account: a, date: dateToISO(eom), transactions: allTx, fxRate }),
+      0,
+    );
+  }
+  const workingMonthEomBalance = eomBalanceEUR(year, month);
+  const priorMonth = month === 0 ? 11 : month - 1;
+  const priorMonthYear = month === 0 ? year - 1 : year;
+  const priorMonthEomBalance = eomBalanceEUR(priorMonthYear, priorMonth);
+  const monthDelta = workingMonthEomBalance - priorMonthEomBalance;
+  const monthPct =
+    priorMonthEomBalance !== 0 ? (monthDelta / Math.abs(priorMonthEomBalance)) * 100 : 0;
+  const monthDeltaLabel = `${monthName(month, true)} vs ${monthName(priorMonth, true)}`;
 
   // Category mix — average monthly spend per category, year to date
   // (through the working month), not a single month's raw total. A single
@@ -152,6 +153,24 @@ export default async function DashboardPage() {
     }
     return { label: monthName(m, true).toUpperCase(), value, projected };
   });
+  // Balance projected forward to Dec 31 at the YTD average net-savings
+  // pace — the last entry of the series above already *is* this number.
+  const projectedEOY = balanceYearSeries[11]!.value;
+
+  // "Saved this year" — real YTD income minus expenses, no projection.
+  const savingsThisYear = ytd.totalNet;
+
+  // Savings rate (avg): the simple average of each real month's own
+  // (income − expense) / income — same figure the Savings rate card below
+  // computes and labels "YTD avg", kept in sync by using the identical
+  // filter/formula rather than deriving it a different way.
+  const monthlySavingsRates = yearBuckets
+    .filter((b) => !b.projected && b.income > 0)
+    .map((b) => (b.income - b.expense) / b.income);
+  const savingsRateAvg =
+    monthlySavingsRates.length > 0
+      ? monthlySavingsRates.reduce((s, v) => s + v, 0) / monthlySavingsRates.length
+      : 0;
 
   // Per-account balances (native + EUR).
   const eurMap = accountsCurrentEUR({ accounts, transactions: allTx, fxRate });
@@ -184,27 +203,21 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
         <HeroBalanceTile
           balance={balanceEUR}
-          prevBalance={prevBalance}
+          monthDelta={monthDelta}
+          monthPct={monthPct}
+          monthDeltaLabel={monthDeltaLabel}
+          savingsThisYear={savingsThisYear}
+          savingsRateAvg={savingsRateAvg}
+          projectedEOY={projectedEOY}
           series={balanceYearSeries}
           accountCount={accounts.length}
         />
+        <MonthKpiTile label="Income" avgAmount={ytd.avgIncome} series={incomeSeries} tone="pos" />
         <MonthKpiTile
-          label={`Income · ${monthLabel}`}
-          amount={monthTotals.income}
-          prevAmount={prevIncome}
-          avgAmount={ytd.avgIncome}
-          series={incomeSeries}
-          tone="pos"
-          kind="income"
-        />
-        <MonthKpiTile
-          label={`Spending · ${monthLabel}`}
-          amount={monthTotals.expense}
-          prevAmount={prevExpense}
+          label="Spending"
           avgAmount={ytd.avgExpense}
           series={spendingSeries}
           tone="neg"
-          kind="spending"
         />
       </div>
 

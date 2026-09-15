@@ -92,17 +92,49 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
   }
 
   async function fetchAll(): Promise<Transaction[]> {
-    const all: Transaction[] = [];
-    let total: number | null = null;
-    for (let offset = 0; ; offset += PAGE_SIZE) {
-      const { data, error, count } = await baseQuery(offset === 0).range(offset, offset + PAGE_SIZE - 1);
-      if (error) throw error;
-      const page = (data ?? []) as Transaction[];
-      all.push(...page);
-      if (offset === 0) total = count ?? null;
-      if (total != null ? all.length >= total : page.length < PAGE_SIZE) break;
+    // First page tells us the exact total (see the doc comment above), so
+    // every remaining page's offset is already known — fire them all at
+    // once instead of awaiting one page at a time. For a budget with
+    // several thousand transactions this turns N sequential round trips
+    // into 1, which was the single biggest latency cost on every page that
+    // loads a full budget's history (i.e. nearly every page in the app).
+    const first = await baseQuery(true).range(0, PAGE_SIZE - 1);
+    if (first.error) throw first.error;
+    const firstPage = (first.data ?? []) as Transaction[];
+    const total = first.count;
+
+    if (total == null) {
+      // Defensive fallback: PostgREST didn't return a count even though
+      // `{ count: 'exact' }` was requested. Rather than guess how many
+      // more pages to fetch in parallel, fall back to the original
+      // sequential loop that stops on a short page — see this file's top
+      // comment on why silent under-fetching here is the one thing this
+      // function must never risk.
+      const all = [...firstPage];
+      if (firstPage.length === PAGE_SIZE) {
+        for (let offset = PAGE_SIZE; ; offset += PAGE_SIZE) {
+          const { data, error } = await baseQuery(false).range(offset, offset + PAGE_SIZE - 1);
+          if (error) throw error;
+          const page = (data ?? []) as Transaction[];
+          all.push(...page);
+          if (page.length < PAGE_SIZE) break;
+        }
+      }
+      return all;
     }
-    return all;
+
+    if (firstPage.length >= total) return firstPage;
+
+    const remainingOffsets: number[] = [];
+    for (let offset = PAGE_SIZE; offset < total; offset += PAGE_SIZE) remainingOffsets.push(offset);
+    const rest = await Promise.all(
+      remainingOffsets.map(async (offset) => {
+        const { data, error } = await baseQuery(false).range(offset, offset + PAGE_SIZE - 1);
+        if (error) throw error;
+        return (data ?? []) as Transaction[];
+      }),
+    );
+    return [firstPage, ...rest].flat();
   }
 
   if (matchUncategorised) {
@@ -132,23 +164,53 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
 export async function listMonthsWithTransactions(budgetId: string): Promise<string[]> {
   const supabase = await createClient();
   const seen = new Set<string>();
-  let total: number | null = null;
-  let collected = 0;
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error, count } = await supabase
+
+  function page(offset: number, withCount: boolean) {
+    return supabase
       .from('transactions')
-      .select('date', offset === 0 ? { count: 'exact' } : undefined)
+      .select('date', withCount ? { count: 'exact' } : undefined)
       .eq('budget_id', budgetId)
       .order('date', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
-    if (error) throw error;
-    const page = (data ?? []) as Array<{ date: string }>;
-    for (const row of page) {
+  }
+  function absorb(rows: Array<{ date: string }>) {
+    for (const row of rows) {
       if (typeof row.date === 'string' && row.date.length >= 7) seen.add(row.date.slice(0, 7));
     }
-    collected += page.length;
-    if (offset === 0) total = count ?? null;
-    if (total != null ? collected >= total : page.length < PAGE_SIZE) break;
+  }
+
+  const first = await page(0, true);
+  if (first.error) throw first.error;
+  const firstRows = (first.data ?? []) as Array<{ date: string }>;
+  absorb(firstRows);
+  const total = first.count;
+
+  if (total == null) {
+    // See listTransactions()'s fetchAll() for why an unexpectedly-missing
+    // count falls back to a sequential, short-page-terminated loop instead
+    // of guessing how many more pages to fetch in parallel.
+    if (firstRows.length === PAGE_SIZE) {
+      for (let offset = PAGE_SIZE; ; offset += PAGE_SIZE) {
+        const { data, error } = await page(offset, false);
+        if (error) throw error;
+        const rows = (data ?? []) as Array<{ date: string }>;
+        absorb(rows);
+        if (rows.length < PAGE_SIZE) break;
+      }
+    }
+    return [...seen];
+  }
+
+  if (firstRows.length < total) {
+    const remainingOffsets: number[] = [];
+    for (let offset = PAGE_SIZE; offset < total; offset += PAGE_SIZE) remainingOffsets.push(offset);
+    await Promise.all(
+      remainingOffsets.map(async (offset) => {
+        const { data, error } = await page(offset, false);
+        if (error) throw error;
+        absorb((data ?? []) as Array<{ date: string }>);
+      }),
+    );
   }
   return [...seen];
 }
@@ -162,22 +224,51 @@ export async function listCategorySubcategoryPairs(
   budgetId: string,
 ): Promise<Array<{ category: string | null; subcategory: string | null }>> {
   const supabase = await createClient();
-  const all: Array<{ category: string | null; subcategory: string | null }> = [];
-  let total: number | null = null;
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error, count } = await supabase
+  type Pair = { category: string | null; subcategory: string | null };
+
+  function page(offset: number, withCount: boolean) {
+    return supabase
       .from('transactions')
-      .select('category, subcategory', offset === 0 ? { count: 'exact' } : undefined)
+      .select('category, subcategory', withCount ? { count: 'exact' } : undefined)
       .eq('budget_id', budgetId)
       .not('subcategory', 'is', null)
       .range(offset, offset + PAGE_SIZE - 1);
-    if (error) throw error;
-    const page = (data ?? []) as Array<{ category: string | null; subcategory: string | null }>;
-    all.push(...page);
-    if (offset === 0) total = count ?? null;
-    if (total != null ? all.length >= total : page.length < PAGE_SIZE) break;
   }
-  return all;
+
+  const first = await page(0, true);
+  if (first.error) throw first.error;
+  const firstPage = (first.data ?? []) as Pair[];
+  const total = first.count;
+
+  if (total == null) {
+    // See listTransactions()'s fetchAll() for why an unexpectedly-missing
+    // count falls back to a sequential, short-page-terminated loop instead
+    // of guessing how many more pages to fetch in parallel.
+    const all = [...firstPage];
+    if (firstPage.length === PAGE_SIZE) {
+      for (let offset = PAGE_SIZE; ; offset += PAGE_SIZE) {
+        const { data, error } = await page(offset, false);
+        if (error) throw error;
+        const rows = (data ?? []) as Pair[];
+        all.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+      }
+    }
+    return all;
+  }
+
+  if (firstPage.length >= total) return firstPage;
+
+  const remainingOffsets: number[] = [];
+  for (let offset = PAGE_SIZE; offset < total; offset += PAGE_SIZE) remainingOffsets.push(offset);
+  const rest = await Promise.all(
+    remainingOffsets.map(async (offset) => {
+      const { data, error } = await page(offset, false);
+      if (error) throw error;
+      return (data ?? []) as Pair[];
+    }),
+  );
+  return [firstPage, ...rest].flat();
 }
 
 export async function countTransactions(budgetId: string): Promise<number> {

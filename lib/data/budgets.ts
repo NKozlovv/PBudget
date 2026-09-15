@@ -1,14 +1,21 @@
 import 'server-only';
+import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getAuthUser } from '@/lib/supabase/server';
 import type { Budget } from '@/lib/supabase/types';
 
 const DEFAULT_FX_RATE = 1.05;
 const DEFAULT_BUDGET_NAME = 'My Budget';
 export const ACTIVE_BUDGET_COOKIE = 'theus.active-budget';
 
-/** All budgets the signed-in user is a member of, oldest first. */
-export async function listBudgets(): Promise<Budget[]> {
+/**
+ * All budgets the signed-in user is a member of, oldest first. Cached
+ * per-request (`cache()`) — the `(app)` layout and most pages under it
+ * each call this (directly, or via `getOrCreateUserBudget()` below), and
+ * without memoization that was a fresh query per call site on every
+ * navigation for an answer that can't change mid-request.
+ */
+export const listBudgets = cache(async (): Promise<Budget[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('budgets')
@@ -16,7 +23,7 @@ export async function listBudgets(): Promise<Budget[]> {
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as Budget[];
-}
+});
 
 /**
  * Returns the user's active budget. Resolution:
@@ -28,14 +35,19 @@ export async function listBudgets(): Promise<Budget[]> {
  * Replaces the legacy single-budget `ensureBudget()` once Chunk 12 lands.
  * The function name is preserved for backwards compatibility with the
  * many callers across `app/(app)/*`.
+ *
+ * Cached per-request (`cache()`) — nearly every page calls this itself
+ * *in addition to* the `(app)` layout already resolving it for the
+ * sidebar, so without memoization every navigation paid for it twice
+ * (each a `getUser()` round trip plus a `listBudgets()` query).
  */
-export async function getOrCreateUserBudget(): Promise<Budget> {
+export const getOrCreateUserBudget = cache(async (): Promise<Budget> => {
   const supabase = await createClient();
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !userData.user) {
+  const user = await getAuthUser();
+  if (!user) {
     throw new Error('Not authenticated');
   }
-  const userId = userData.user.id;
+  const userId = user.id;
 
   const all = await listBudgets();
 
@@ -65,7 +77,7 @@ export async function getOrCreateUserBudget(): Promise<Budget> {
     .single();
   if (error) throw error;
   return data as Budget;
-}
+});
 
 export async function updateBudget(
   id: string,

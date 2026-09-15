@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 import { getOrCreateUserBudget, listBudgets } from '@/lib/data/budgets';
 import { Sidebar } from '@/components/nav/Sidebar';
@@ -10,10 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!isSupabaseConfigured()) {
     redirect('/login');
   }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) {
     redirect('/login');
   }
@@ -25,6 +22,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // GlobalAddTransactionModal / app/actions/transactionFormData.ts, which
   // used to be fetched here and made every single page navigation pay for
   // 5 extra queries.
+  //
+  // getOrCreateUserBudget()/listBudgets() are `cache()`-wrapped (see
+  // lib/data/budgets.ts), and getAuthUser() above is too — every page
+  // under this layout calls getOrCreateUserBudget() again for its own
+  // fxRate/budgetId, and that used to mean a second full
+  // getUser()+listBudgets() round trip per navigation for an answer
+  // already sitting right here.
   const [budget, budgets] = await Promise.all([getOrCreateUserBudget(), listBudgets()]);
 
   return (
