@@ -1318,9 +1318,53 @@ convention this introduces.
 - A month-count toggle (3/6/12) on `/trends`, mirroring Forecast's
   `HorizonToggle` — kept to a fixed 6 months for this version.
 
-**Verification:** TypeScript / lint / build **not run** — Node isn't
-available on this worktree machine (same as every prior chunk). User
-verifies via the Vercel preview deploy.
+**Verification:** TypeScript / lint / build **not run locally** — Node
+isn't available on this worktree machine (same as every prior chunk).
+The first Vercel build genuinely failed: `lib/categories/monthlyTrend.ts`
+compound-assigned into a `Map<string, number[]>` value's array index
+(`catValues.get(cat)![idx] += eur`), which under `noUncheckedIndexedAccess`
+types the read side as `number | undefined` even with the `!` on the
+Map lookup. Fixed with a small `bump(arr, idx, delta)` helper that
+reads with `?? 0`. Re-audited every new/changed file in this chunk for
+the same indexed-compound-assignment pattern — nothing else found.
 
 **Open questions:** the two "investigated, not fixed" items above need
 a concrete repro from the user.
+
+---
+
+## Production cutover (2026-09-15)
+
+The user explicitly ordered it, mid-conversation, after reviewing a
+Vercel deployment screenshot: *"combine branches, push everything to
+master and let's make the new theus our main page — not what was the
+old one, that is currently on master."*
+
+Checked first, since this touches production:
+- `master`'s tip (`cd6e2bf`, "v1.0.1: capitalize Adjustment type
+  badge") turned out to be a **direct ancestor** of the rehaul history
+  — the rehaul had branched off `master` at that exact commit back at
+  Chunk 0. So this was a pure fast-forward, not a real merge: no
+  conflicts, nothing auto-resolved, nothing silently dropped.
+- `experimental/theus-sterling-1to1` and `experimental/theus-rehaul`
+  both turned out to have **zero commits** not already contained in
+  this session's branch — so "combine branches" required no actual
+  merging, just fast-forwarding `master` past all of them at once.
+
+Action taken: `git push origin HEAD:master` (fast-forward,
+`cd6e2bf..971fe3d`). `master` is now the full Next.js Theus app;
+`public/legacy/index.html` (already part of the rehaul tree since
+Chunk 0) keeps the old app reachable at `/legacy`. Nothing was deleted
+— the pre-cutover `master` commit is still in history, just no longer
+the tip.
+
+CLAUDE.md updated throughout (§2, §7, §10, §12) to drop every
+`experimental/theus-rehaul`-is-staging reference — `master` is now both
+the working branch and production, and there is no branch protection
+or required-PR step enforcing anything about that. Flagged in the doc
+as a deliberate-for-now simplicity tradeoff, not a recommendation.
+
+**Not done:** cleaning up the three now-fully-superseded branches
+(`experimental/theus-rehaul`, `experimental/theus-sterling-1to1`,
+`claude/budget-app-features-fa62f0`) — left alone since deleting
+branches wasn't part of what was asked.

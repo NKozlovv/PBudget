@@ -23,17 +23,28 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
 
 **Frontend (active):**
 - Next.js 15 + React 19 + TypeScript app at the repo root
-- **GitHub repo:** the user has a private repo with the project on the
-  `experimental/theus-rehaul` branch (still side-by-side with `master`)
-- **Production:** `master` branch → https://p-budget.vercel.app (legacy
-  app at `index.html`, until the user explicitly merges)
-- **Preview:** every push to `experimental/theus-rehaul` → unique Vercel
-  preview URL
+- **GitHub repo:** the user's private repo, `NKozlovv/PBudget`
+- **Production:** `master` branch → https://p-budget.vercel.app — **is
+  the Next.js Theus app as of 2026-09-15.** The user explicitly ordered
+  the cutover ("push everything to master and let's make the new theus
+  our main page, not what was the old one"). This was a clean fast-
+  forward (master's old tip, `cd6e2bf`, was a direct ancestor of the
+  rehaul history — the rehaul had branched off it at Chunk 0), so
+  nothing was lost or overwritten.
+- Three now-superseded branches still exist on the remote:
+  `experimental/theus-rehaul` (stale, stuck at Chunk 13),
+  `experimental/theus-sterling-1to1` (Chunks 12–18), and this session's
+  `claude/budget-app-features-fa62f0` (Chunk 19, now == `master`). None
+  has any commit that isn't already on `master`. Not deleted — ask the
+  user before cleaning them up.
+- **Preview:** Vercel deploys a preview for any other branch pushed to
+  the repo (this is how Chunks 0–19 were checked before the cutover).
 
 **Frontend (legacy):**
 - Single-file `public/legacy/index.html` (~2,900 lines, ~100 KB), served
   at `/legacy` from the new app via Next.js rewrite. Frozen at v1.0.1.
-  Kept reachable indefinitely per user's side-by-side decision.
+  Still reachable at https://p-budget.vercel.app/legacy — the cutover
+  only changed what's at `/`, nothing was deleted.
 
 **Backend (Supabase):**
 - **Project URL:** `https://udcfjiuybkugbydlaltk.supabase.co`
@@ -208,12 +219,23 @@ for what's landed.
 The chunk plan lives in `docs/rehaul-plan.md` §7 and the running log is
 `docs/rehaul-progress.md`.
 
-Status as of last update:
-- ✅ Chunks 0–11: bootstrap → cutover-ready
-- 🟡 Chunk 12: Multi-budget UI (next)
-- 🟡 Chunk 13: Member invitations + tightened server hardening
-- 🚫 Out of scope: light mode, mobile, coach view, per-category color
-  editor, drill-down modal
+Status as of last update (2026-09-15):
+- ✅ Chunks 0–13: bootstrap → multi-budget UI → member invitations
+- ✅ Chunk 12 (Sterling foundations) + Chunks 14–18: Sterling 1:1
+  structural rebuild of every page, on `experimental/theus-sterling-1to1`
+- ✅ Chunk 19: bug-fix/feature-request batch (subcategory picker,
+  global add-transaction shortcut, `/trends` page, last-completed-month
+  default, JBM→Inter, etc.) — see `docs/rehaul-progress.md`
+- ✅ **Production cutover**: `master` fast-forwarded to the full
+  Next.js app; the old static site lives on at `/legacy` — see §2
+- 🚫 Out of scope (still, per plan §4): light mode, mobile-optimized
+  layout, per-category color editor, Coach's real insight engine
+  (currently a stub), forecast scenarios/goals
+- 🟡 Open: two user-reported bugs ("income importing as expense",
+  "spending-by-category numbers wrong") investigated but not
+  reproduced from code alone — see Chunk 19 entry in
+  `docs/rehaul-progress.md` for what was checked and what's needed to
+  pin it down
 
 ---
 
@@ -336,7 +358,7 @@ docs/                 # rehaul-plan.md, rehaul-progress.md,
 
 Sidebar bottom shows `BUILD_VERSION · BUILD_DATE` from `lib/version.ts`.
 Bump on every meaningful deploy so the user knows the new build is live.
-Current: `v2.0.0-α — Theus rehaul, feature parity reached`.
+Current: `v2.2.0-α — Bug fixes + Trends page + global add-transaction`.
 
 ---
 
@@ -344,11 +366,24 @@ Current: `v2.0.0-α — Theus rehaul, feature parity reached`.
 
 ### Deploy flow
 
-- Edit code locally on `experimental/theus-rehaul`
-- `git add . && git commit -m "..." && git push`
-- Vercel auto-deploys in ~30 seconds (preview URL for the experimental
-  branch; production URL only on `master`)
-- User checks the preview URL; the sidebar version marker confirms the
+**Since the 2026-09-15 cutover, `master` is both the working branch and
+production** — there's no separate `experimental/theus-rehaul` staging
+step anymore (see §2). This means every push to `master` deploys
+straight to https://p-budget.vercel.app for real. Two ways to work
+safely:
+- For a small, well-understood change: commit and push directly to
+  `master` (`git add . && git commit -m "..." && git push`), same as
+  every chunk before it — just know it's live in ~30s this time, not a
+  preview.
+- For anything larger or riskier: push to a feature/session branch
+  first, let Vercel build its own preview URL, confirm it works, *then*
+  merge/push to `master`. This project doesn't currently enforce PRs or
+  branch protection on `master` — that's a deliberate simplicity
+  tradeoff, not an oversight, but it means nothing stops a bad push
+  from going live immediately. If the user wants that changed
+  (required PR review, a protected branch, etc.), it hasn't been asked
+  for yet.
+- User checks the deploy; the sidebar version marker confirms the
   new build is live
 
 ### Local checks
@@ -362,9 +397,12 @@ npm run build       # full production build
 
 ### Don't forget
 
-- Don't break `master`. The legacy app at `master` is currently
-  production. The rehaul lives on `experimental/theus-rehaul` until the
-  user explicitly merges (and even then, side-by-side per their decision).
+- Don't break `master`. It **is** the Next.js Theus app now (the
+  legacy app moved to `/legacy` in the 2026-09-15 cutover — see §2) and
+  it deploys live on every push, so treat any push to it with the care
+  that implies. Node isn't available in most agent worktrees for this
+  project (see "Local checks" above) — when in doubt about a risky
+  change, push to a side branch and check the Vercel preview first.
 - Never use `localStorage` / `sessionStorage` — everything is Supabase.
 - Keep the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
   not in source.
@@ -396,13 +434,13 @@ npm run build       # full production build
    landed, what was skipped, and why. Most important file in the project.
 2. Skim `docs/rehaul-plan.md` for the original architecture decisions
    and chunk numbering.
-3. Check the sidebar version marker on the live preview (`v2.0.0-α` or
+3. Check the sidebar version marker on the live site (`v2.2.0-α` or
    newer) so you know which build you're looking at.
 4. The legacy app is still at `/legacy` — useful for visual diffs and
    parity checks. Not the source of truth anymore.
-5. Don't break `master`. Treat it as production. Every change goes via
-   `experimental/theus-rehaul` (current rehaul branch) until the user
-   explicitly merges.
+5. `master` **is** production and there's no separate staging branch as
+   of the 2026-09-15 cutover — see §2 and §10. Push carefully; prefer a
+   side branch + Vercel preview for anything non-trivial.
 6. When in doubt about scope or design, ask. The user has corrected
    typography and geometry mistakes mid-chunk; they prefer the
    correction over the polish.
