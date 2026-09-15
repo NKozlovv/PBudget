@@ -2117,3 +2117,39 @@ recurring bug classes (none found); grepped the whole `components/`
 tree for `preserveAspectRatio` to confirm every `"none"` user was
 caught and `IncomeSpendBars`'s `"meet"` (a different, non-distorting
 mode) was correctly left alone.
+
+## Total Balance chart: start-of-year point + decluttered hero tile (2026-09-15, same day)
+
+Two follow-ups on the Hero row: the Total Balance chart's "JAN" point
+is actually end-of-January (already includes January's activity), so
+there was nowhere to see the true opening balance the year started
+from; and the Hero card itself had grown a stack of six vertically-
+piled blocks (badge → breakdown text → big number → delta → stat strip
+→ chart) across several rounds of additions, reading as cluttered next
+to the much simpler 4-block Income/Spending tiles beside it.
+
+- **Start-of-year point:** `balanceYearSeries` (`app/(app)/dashboard/page.tsx`)
+  now prepends a `{ label: 'START', value, projected: false }` point —
+  the real account balance at Dec 31 of the previous year
+  (`accountBalanceEURAt` at `new Date(cashFlowYear, 0, 0)`, i.e. day 0
+  of January) — ahead of the existing Jan–Dec end-of-month points. The
+  series goes from 12 points to 13; `TrendLineChart` needed no changes
+  (its x-tick/boundary logic already operates generically over
+  whatever array it's given), but `projectedEOY` — which reads the
+  series' last entry — moved from index 11 to index 12.
+- **Hero tile decluttered:** removed the "+€X saved this year" pill
+  that sat above the big number — it was pure duplication of the first
+  stat-strip cell just below it. Its "€X in − €Y out" breakdown moved
+  into that cell as a small sub-line (new optional `sub` prop on the
+  tile's internal `Stat` component) instead of floating as a separate
+  top-level block. Net: one fewer stacked section, no information
+  lost, and the card's proportions now sit closer to the KPI tiles'
+  simpler shape instead of visibly dominating the row.
+
+**Verification:** no local build (no Node) — traced `balanceYearSeries`
+index math by hand after the prepend (12 real months → indices 1–12,
+so `projectedEOY = balanceYearSeries[12]`, not `[11]`) rather than
+assuming; re-swept both changed files for the two recurring bug
+classes (none found); confirmed `monthsInRed` (no longer displayed)
+was fully removed — prop, computation, and JSX — rather than left as
+dead code.

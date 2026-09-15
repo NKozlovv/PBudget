@@ -4,11 +4,17 @@ import { fmtEUR } from '@/lib/money';
 
 /**
  * Large "Total balance" hero. Modeled on
- * design-refs/src/dashboard.jsx 126-150: brass radial accent,
- * tabular Inter big number with separate cents, a "saved this year" badge
- * up top, a month-over-month delta, three YTD stat chips (saved this
- * year / savings rate / projected EOY), then a year-to-date + forecast
- * line chart.
+ * design-refs/src/dashboard.jsx 126-150: brass radial accent, tabular
+ * Inter big number with separate cents, a month-over-month delta, three
+ * YTD stat chips (saved this year / savings rate / projected EOY), then a
+ * year-to-date + forecast line chart.
+ *
+ * Used to also show a separate "+€X saved this year" pill above the big
+ * number — dropped as a distinct element since it just duplicated the
+ * first stat chip below; its in/out breakdown moved into that chip's own
+ * sub-line instead. Card was accumulating one stacked block per feature
+ * round (badge → breakdown → delta → stat strip → chart) and reading as
+ * cluttered/misaligned next to the much simpler Income/Spending tiles.
  */
 export function HeroBalanceTile({
   balance,
@@ -18,7 +24,6 @@ export function HeroBalanceTile({
   savingsThisYear,
   savingsIncome,
   savingsExpense,
-  monthsInRed,
   savingsRateAvg,
   projectedEOY,
   series,
@@ -34,12 +39,10 @@ export function HeroBalanceTile({
   monthDeltaLabel: string;
   /** YTD real income − expenses (not projected). */
   savingsThisYear: number;
-  /** YTD real income, for the "€X in − €Y out" breakdown. */
+  /** YTD real income, for the "€X in − €Y out" sub-line. */
   savingsIncome: number;
-  /** YTD real expenses, for the same breakdown. */
+  /** YTD real expenses, for the same sub-line. */
   savingsExpense: number;
-  /** Count of real months so far this year that were net-negative. */
-  monthsInRed: number;
   /** Average of each real month's (income − expense) / income, 0..1. */
   savingsRateAvg: number;
   /** Balance projected forward to Dec 31 at the YTD average net pace. */
@@ -51,7 +54,6 @@ export function HeroBalanceTile({
   const up = monthDelta >= 0;
   const deltaToneClass = up ? 'text-pos' : 'text-neg';
   const deltaSign = up ? '+' : '−';
-  const savedToneClass = savingsThisYear >= 0 ? 'text-pos' : 'text-neg';
 
   return (
     <Card className="relative overflow-hidden p-7 lg:p-8">
@@ -70,25 +72,6 @@ export function HeroBalanceTile({
           <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-soft">
             <Icon name="eye" size={13} className="text-ink-mute" />
             <span className="font-mono">{accountCount} accounts</span>
-          </span>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${savedToneClass}`}
-            style={{
-              background: savingsThisYear >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)',
-            }}
-          >
-            {savingsThisYear >= 0 ? '+' : '−'}
-            {fmtEUR(Math.abs(savingsThisYear), { decimals: 0 })} saved this year
-          </span>
-          <span className="text-[11px] text-ink-mute">
-            {fmtEUR(savingsIncome, { decimals: 0 })} in − {fmtEUR(savingsExpense, { decimals: 0 })}{' '}
-            out
-            {monthsInRed > 0
-              ? ` · ${monthsInRed} month${monthsInRed === 1 ? '' : 's'} in the red`
-              : ''}
           </span>
         </div>
 
@@ -125,7 +108,12 @@ export function HeroBalanceTile({
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-3 rounded-xl border border-line bg-white/[0.02] px-4 py-3">
-          <Stat label="Saved this year" value={fmtEUR(savingsThisYear, { decimals: 0 })} tone={savingsThisYear >= 0 ? 'pos' : 'neg'} />
+          <Stat
+            label="Saved this year"
+            value={fmtEUR(savingsThisYear, { decimals: 0 })}
+            sub={`${fmtEUR(savingsIncome, { compact: true, decimals: 0 })} in − ${fmtEUR(savingsExpense, { compact: true, decimals: 0 })} out`}
+            tone={savingsThisYear >= 0 ? 'pos' : 'neg'}
+          />
           <Stat
             label="Savings rate"
             value={`${(savingsRateAvg * 100).toFixed(0)}%`}
@@ -147,10 +135,14 @@ export function HeroBalanceTile({
 function Stat({
   label,
   value,
+  sub,
   tone,
 }: {
   label: string;
   value: string;
+  /** Optional small caption under the value — wraps rather than truncates,
+   * since it's already kept short by the caller (compact euro formatting). */
+  sub?: string;
   tone: 'pos' | 'neg' | 'accent';
 }) {
   const toneClass = tone === 'pos' ? 'text-pos' : tone === 'neg' ? 'text-neg' : 'text-accent';
@@ -160,6 +152,7 @@ function Stat({
       <div className={`mt-0.5 truncate text-[15px] font-semibold tabular-nums ${toneClass}`}>
         {value}
       </div>
+      {sub ? <div className="mt-0.5 text-[10px] leading-tight text-ink-mute">{sub}</div> : null}
     </div>
   );
 }

@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.7.1-α';
+export const BUILD_VERSION = 'v2.7.2-α';
 export const BUILD_DATE = '2026-09-15';
-export const BUILD_NOTE = 'Fix chart aspect-ratio distortion across every line/sparkline chart';
+export const BUILD_NOTE = 'Balance chart shows start-of-year, decluttered hero tile';

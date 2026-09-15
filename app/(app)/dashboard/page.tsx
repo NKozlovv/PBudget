@@ -137,25 +137,39 @@ export default async function DashboardPage() {
     endMonth: cashFlowEndMonth,
     fxRate,
   });
+  // Every month-end point below is already *after* that month's activity —
+  // Jan's point includes January's income/expenses. Without an explicit
+  // opening balance the chart silently starts mid-swing instead of at zero
+  // activity, so prepend the true Dec-31-last-year balance as its own
+  // point ahead of Jan.
+  const startOfYear = new Date(cashFlowYear, 0, 0);
+  const startOfYearBalance = accounts.reduce(
+    (s, a) => s + accountBalanceEURAt({ account: a, date: dateToISO(startOfYear), transactions: allTx, fxRate }),
+    0,
+  );
   let lastActualBalance = balanceEUR;
-  const balanceYearSeries: TrendPoint[] = Array.from({ length: 12 }, (_, m) => {
-    const projected = m > cashFlowEndMonth;
-    let value: number;
-    if (!projected) {
-      const eom = new Date(cashFlowYear, m + 1, 0);
-      value = accounts.reduce(
-        (s, a) => s + accountBalanceEURAt({ account: a, date: dateToISO(eom), transactions: allTx, fxRate }),
-        0,
-      );
-      lastActualBalance = value;
-    } else {
-      value = lastActualBalance + ytd.avgNet * (m - cashFlowEndMonth);
-    }
-    return { label: monthName(m, true).toUpperCase(), value, projected };
-  });
+  const balanceYearSeries: TrendPoint[] = [
+    { label: 'START', value: startOfYearBalance, projected: false },
+    ...Array.from({ length: 12 }, (_, m) => {
+      const projected = m > cashFlowEndMonth;
+      let value: number;
+      if (!projected) {
+        const eom = new Date(cashFlowYear, m + 1, 0);
+        value = accounts.reduce(
+          (s, a) => s + accountBalanceEURAt({ account: a, date: dateToISO(eom), transactions: allTx, fxRate }),
+          0,
+        );
+        lastActualBalance = value;
+      } else {
+        value = lastActualBalance + ytd.avgNet * (m - cashFlowEndMonth);
+      }
+      return { label: monthName(m, true).toUpperCase(), value, projected };
+    }),
+  ];
   // Balance projected forward to Dec 31 at the YTD average net-savings
   // pace — the last entry of the series above already *is* this number.
-  const projectedEOY = balanceYearSeries[11]!.value;
+  // Index 12, not 11: index 0 is now the prepended start-of-year point.
+  const projectedEOY = balanceYearSeries[12]!.value;
 
   // "Saved this year" — real YTD income minus expenses, no projection.
   // totalIncome/totalExpense are exposed alongside it so the tile can show
@@ -165,7 +179,6 @@ export default async function DashboardPage() {
   const savingsThisYear = ytd.totalNet;
   const savingsIncome = ytd.totalIncome;
   const savingsExpense = ytd.totalExpense;
-  const monthsInRed = yearBuckets.filter((b) => !b.projected && b.net < 0).length;
 
   // Savings rate (avg): the simple average of each real month's own
   // (income − expense) / income — same figure the Savings rate card below
@@ -216,7 +229,6 @@ export default async function DashboardPage() {
           savingsThisYear={savingsThisYear}
           savingsIncome={savingsIncome}
           savingsExpense={savingsExpense}
-          monthsInRed={monthsInRed}
           savingsRateAvg={savingsRateAvg}
           projectedEOY={projectedEOY}
           series={balanceYearSeries}
