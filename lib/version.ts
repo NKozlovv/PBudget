@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.2.0-α';
-export const BUILD_DATE = '2026-09-14';
-export const BUILD_NOTE = 'Bug fixes + Trends page + global add-transaction';
+export const BUILD_VERSION = 'v2.3.0-α';
+export const BUILD_DATE = '2026-09-15';
+export const BUILD_NOTE = 'Themed dropdowns + faster filters + Trends redesign';

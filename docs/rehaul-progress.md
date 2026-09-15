@@ -1368,3 +1368,76 @@ as a deliberate-for-now simplicity tradeoff, not a recommendation.
 (`experimental/theus-rehaul`, `experimental/theus-sterling-1to1`,
 `claude/budget-app-features-fa62f0`) — left alone since deleting
 branches wasn't part of what was asked.
+
+---
+
+## Post-cutover fixes (2026-09-15, same day)
+
+### `/` was still the Chunk 0 debug page
+
+`app/page.tsx` had never been replaced once real auth landed — it was
+still the "01 · in progress" status card linking out to `/login` etc.
+User caught this live on production right after the cutover. Now a
+plain server redirect: signed-in → `/dashboard`, otherwise → `/login`
+(mirrors the check already in `(app)/layout.tsx`).
+
+### Themed dropdowns, transactions perf, Trends redesign
+
+User sent a screenshot of the Transactions "Month" filter showing a
+plain white OS-native `<select>` popup floating over the dark UI —
+this was the known, documented gap from Chunk 14
+("Native popover styling ... deferred") finally getting flagged.
+Fixed properly this time rather than deferred again:
+
+- New shared primitives: `components/ui/useDismissable.ts` (click-
+  outside/Escape close) and `components/ui/OptionsList.tsx` (the
+  actual themed popup panel). No new npm dependency — Node/npm aren't
+  available in this environment to safely update a lockfile, so this
+  is hand-rolled rather than pulling in `@radix-ui/react-select`.
+- `components/ui/Select.tsx` rewritten on top of them, **same external
+  API** (`value` / `onChange(e) => e.target.value` / `<option>`
+  children / `id`) — every call site (`TransactionForm`, `AccountForm`,
+  `BudgetSwitcher`) needed zero changes. Internally it fakes the change
+  event (`{ target: { value } }`) rather than driving a real hidden
+  `<select>`, which is safe only because every call site was verified
+  to read nothing but `e.target.value`.
+- `Filters.tsx`'s `PillSelect` (Account/Category/Subcategory/Month/
+  Sort — the exact dropdown in the screenshot) rewritten the same way,
+  swapping the invisible-overlaid-`<select>` trick for a real popup.
+
+Transactions filter slowness: the search box was calling `update()` →
+`router.push()` (a full server round-trip refetching everything) on
+**every keystroke**. Debounced to 350ms. Separately, the page was
+rendering all matching rows unconditionally (a prior chunk removed the
+row cap "per user request" back when there wasn't 1000+ real rows to
+contend with) — now caps rendering to 150 with a "Load N more"
+control, while still fetching the full filtered set once so the stat
+strip's totals stay correct (only the *rendering*, the expensive part,
+is capped).
+
+Trends page: was hardcoded to a fixed 6-month window
+(`VISIBLE_MONTHS = 6`). Now spans from the earliest expense transaction
+through the working month, capped at 120 months as a sanity ceiling.
+Redesigned per user feedback ("too messy and bleak"):
+`components/trends/TrendsSummary.tsx` (new 4-tile strip, same pattern
+as Transactions' `StatStrip`), sticky category column (now that the
+table can genuinely scroll wide with full history), collapsible
+category rows (client component now, `useState<Set<string>>`), cell
+styling swapped from solid red/green background blocks to colored text
++ a small trend-arrow icon, and categories with zero activity across
+the whole window are filtered out instead of rendering an all-dashes
+row.
+
+**Caught a real build break in this batch too:** `useRef<T>(null)`
+where `T` doesn't itself include `null` fails to typecheck under this
+project's React 19 types (confirmed by an existing correct usage in
+`BudgetSwitcher.tsx`: `useRef<HTMLDivElement | null>(null)`) — the
+first draft of `useDismissable` had this bug. Swept every `useRef<...>`
+call in the repo before pushing; only the one needed fixing.
+
+**Verification:** as always, no local `npm run build` (no Node in this
+environment) — reviewed every new/changed file by hand for the
+`noUncheckedIndexedAccess` and `useRef` generic-typing traps that broke
+the build earlier the same day. User confirms via the live site since
+`master` deploys straight to production now (see the cutover entry
+above).
