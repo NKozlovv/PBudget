@@ -1532,3 +1532,69 @@ pushing; none found this round.
 
 **Verification:** no local build (no Node). User confirms on the live
 site — `master` is production now.
+
+---
+
+## Data-correctness audit: silent transaction truncation (2026-09-15)
+
+User report: the Accounts page showed a "Deel, €" account holding
+€3,000 (its untouched opening balance) when its transaction history
+should have netted it to €0 — and asked for a full audit of the
+balance/money math, not just a patch for that one card, with an
+explicit "there should be no bugs in logic" bar to clear.
+
+**Audited, found correct:** `lib/money.ts` (`signedAmount`, `txToEUR`),
+`lib/balance.ts` (every `accountBalanceNativeAt` /
+`accountBalanceEURAt` / `totalBalanceEUR` / `monthTotalsEUR` / etc.),
+`lib/accounts/summary.ts`, and the xlsx classify/parse path (re-checked
+against the legacy port, still byte-identical). All arithmetic and
+account_id/date filtering logic is sound.
+
+**Root cause found:** not a math bug — a silent data-fetching one. See
+CLAUDE.md §8g for the full writeup. Short version: every "give me all
+this budget's transactions" call had no `.range()`/`.limit()`, and
+PostgREST caps unbounded selects at ~1000 rows server-side with no
+error. Ordered `date desc`, so the *oldest* transactions were the ones
+silently dropped once a budget passed 1000 total transactions — which
+this budget has (recall the transactions page showed "1000 entries" a
+few chunks ago; that was itself this bug, not the true count). An
+account whose real balance-affecting activity reached further back
+than the 1000-row cutoff would show a balance frozen at (or near) its
+opening balance, exactly the reported symptom.
+
+**Fixed:** `lib/data/transactions.ts` — `listTransactions()` (no-limit
+path), `listMonthsWithTransactions()`, `listCategorySubcategoryPairs()`
+all now page through explicitly with an exact-count-based termination
+condition (robust to any actual per-request cap, not just 1000 — see
+the code comment). This is the shared data layer behind Dashboard,
+Accounts, Categories, Forecast, and Trends, so one fix corrects all
+five.
+
+**Also found and fixed while auditing:** `TransactionForm.tsx`'s manual
+Add/Edit flow accepted a **negative** amount for Expense/Income types
+(validation only rejected zero/NaN). Combined with `signedAmount()`
+negating expenses, a manually-entered negative expense would silently
+*credit* the account instead of debiting it — and since every display
+path renders `Math.abs(tx.amount)` with the sign coming from `type`,
+a transaction affected by this would look completely normal in the
+ledger (right category, right description, normal-looking amount) —
+only the account balance would be quietly wrong. Fixed by normalizing
+to `Math.abs()` for expense/income (Adjustment is the one type that
+legitimately encodes direction in the sign, left as typed). This is a
+latent bug, not necessarily *the* explanation for the reported case —
+but if the discrepancy isn't fully explained by the truncation fix,
+this is the next thing to check (search the ledger for suspicious
+entries, though the display bug above means it won't visually stand
+out).
+
+**Not fixed (flagged, low stakes):** `app/actions/transactionFormData.ts`
+still has one unbounded transactions read (category/subcategory pairs,
+for the "most used subcategory" suggestion) — doesn't feed any
+displayed total, left alone to keep this batch focused; noted in
+CLAUDE.md §8g for whoever touches that file next.
+
+**Verification:** no local build (no Node) — reviewed every changed
+line by hand, including another sweep for the `noUncheckedIndexedAccess`
+/ `useRef` bug classes from earlier today (none found). Can't confirm
+against the user's live data directly (no DB access from this
+environment) — asked the user to check the Accounts page again post-deploy.

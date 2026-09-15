@@ -294,6 +294,47 @@ number, not a monthly summary. Don't route balance code through
 **Forecast** was deliberately left alone (it already has its own
 horizon toggle and is forward-looking, not a "this month" view).
 
+### 8g. Unbounded Supabase selects silently truncate at ~1000 rows (2026-09)
+
+**This one produced wrong financial numbers with no error anywhere** — an
+account's displayed balance quietly stopped reflecting its real
+transaction history. Root cause: PostgREST caps any `select()` with no
+explicit `.range()`/`.limit()` at a server-side default (`db-max-rows`,
+1000 unless the Supabase project changed it). Every "give me every
+transaction in this budget" call (`listTransactions({ budgetId })` with
+no `limit` — Dashboard, Accounts, Categories, Forecast, Trends all call
+it exactly this way) was written assuming that returns everything. Once
+a budget passed 1000 total transactions, it silently came back
+truncated — ordered by `date desc`, so the **oldest** transactions were
+the ones dropped — and every balance/total computed from that array
+was wrong, with no error, no warning, nothing to indicate the array
+was incomplete.
+
+**Fix applied:** `lib/data/transactions.ts`'s `listTransactions()` (and
+`listMonthsWithTransactions()`, `listCategorySubcategoryPairs()`) now
+page through explicitly when no `limit` is requested, using an exact
+row count fetched via `{ count: 'exact' }` on the first page so the
+loop terminates on "collected that many rows," not on "a page came
+back shorter than asked for" (the latter would itself be silently
+wrong if this project's real per-request cap is below the 1000-row
+page size used here — a short page would look identical to "no more
+data"). See the function's own doc comment for the full reasoning.
+
+**If you add a new place that needs every transaction in a budget:**
+use `listTransactions({ budgetId })` (no `limit`) — don't write a fresh
+`supabase.from('transactions').select('*').eq('budget_id', …)` inline
+anywhere, even in a `'use server'` action. `app/actions/transactionFormData.ts`
+currently still has one small unbounded read (the category/subcategory
+pairs query, for the "most used subcategory" suggestion) — low-stakes
+since it only affects a suggestion, not a displayed total, but worth
+routing through the paginated helper if it's ever touched again.
+
+**Symptom to watch for:** any total, balance, or average that looks
+"stuck" or lower than it should be, especially for data reaching back
+further than a few hundred transactions. Regression coverage: none yet
+(would need a >1000-row fixture) — this was caught from a user-reported
+discrepancy on the Accounts page, not a test.
+
 ---
 
 ## 9. Code architecture

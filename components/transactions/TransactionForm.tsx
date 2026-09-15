@@ -68,8 +68,8 @@ export function TransactionForm({
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    const parsedAmount = Number(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+    const rawAmount = Number(amount);
+    if (!Number.isFinite(rawAmount) || rawAmount === 0) {
       setError('Amount must be a non-zero number.');
       return;
     }
@@ -77,6 +77,13 @@ export function TransactionForm({
       setError('Pick an account.');
       return;
     }
+    // Expense/income amounts are always stored as a positive magnitude —
+    // direction comes from `type`, not the sign of `amount` (signedAmount()
+    // in lib/money.ts negates expenses and would double-flip a negative
+    // entry here, silently crediting the account instead of debiting it).
+    // Adjustments are the one type that encodes direction in the sign
+    // itself, so leave those as typed.
+    const parsedAmount = type === 'adjustment' ? rawAmount : Math.abs(rawAmount);
     setPending(true);
     const res = await onSubmit({
       budget_id: budgetId,
