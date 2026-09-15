@@ -54,7 +54,10 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
       .select('*', withCount ? { count: 'exact' } : undefined)
       .eq('budget_id', filters.budgetId);
     if (filters.type) query = query.eq('type', filters.type);
-    if (filters.category === UNCATEGORISED) query = query.or('category.is.null,category.eq.');
+    // Both import and manual entry normalize a blank category to NULL
+    // (never ''), so a plain IS NULL check is all that's needed here —
+    // simpler and safer than a hand-built .or() filter string.
+    if (filters.category === UNCATEGORISED) query = query.is('category', null);
     else if (filters.category) query = query.eq('category', filters.category);
     if (filters.subcategory) query = query.eq('subcategory', filters.subcategory);
     if (filters.accountId) query = query.eq('account_id', filters.accountId);

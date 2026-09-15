@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.4.1-α';
+export const BUILD_VERSION = 'v2.4.2-α';
 export const BUILD_DATE = '2026-09-15';
-export const BUILD_NOTE = 'Fix: silent 1000-row truncation on transaction totals';
+export const BUILD_NOTE = 'Fix uncategorised filter + show subcategory on ledger rows';

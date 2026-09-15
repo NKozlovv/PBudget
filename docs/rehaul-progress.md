@@ -1598,3 +1598,31 @@ line by hand, including another sweep for the `noUncheckedIndexedAccess`
 / `useRef` bug classes from earlier today (none found). Can't confirm
 against the user's live data directly (no DB access from this
 environment) — asked the user to check the Accounts page again post-deploy.
+
+---
+
+## Small fixes round (2026-09-15, same day)
+
+- **Stopped double-pushing to `claude/budget-app-features-fa62f0`** —
+  user asked why every push went to two branches. It was leftover
+  habit from right after the cutover; pointless now that `master` is
+  the working branch. Push `master` only from here on — see CLAUDE.md
+  §2/§10.
+- **Uncategorised filter fix:** the actual bug — `listTransactions`'s
+  `UNCATEGORISED` case used a hand-built `.or('category.is.null,
+  category.eq.')` PostgREST filter string (untestable from this
+  environment, no live Postgres to check the exact grammar against).
+  Simplified to a plain `.is('category', null)` — both the import path
+  and manual entry already normalize a blank category to `NULL`, never
+  `''`, so the empty-string half of the OR was unnecessary risk anyway.
+  Separately, the user's real confusion turned out to be a display bug,
+  not the filter itself: `DayGroupedList`'s description column fell
+  back to the literal text **"Uncategorised"** when a row had neither
+  a comment nor a category, which reads exactly like a category tag
+  even though it isn't one. Changed the fallback text to "No
+  description" so it can't be mistaken for a category value.
+- **Subcategory now shown on the Transactions ledger:** the category
+  column (`DayGroupedList` col 3) shows the subcategory as a small
+  label under the category chip whenever the row has one — previously
+  it only appeared in the description column's secondary line, and
+  only when the row had no comment.

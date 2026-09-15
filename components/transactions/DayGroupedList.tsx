@@ -143,32 +143,42 @@ export function DayGroupedList({
                   </span>
                 </button>
 
-                {/* Col 2: merchant + subcategory (click → edit) */}
+                {/* Col 2: description (click → edit). Falls back to the
+                    category name, never to a bare "Uncategorised" — that
+                    read as a tag/category itself rather than "nothing was
+                    entered here". */}
                 <button
                   type="button"
                   onClick={() => onEdit(tx)}
                   className="flex min-w-0 flex-col items-start text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   <span className="truncate text-[13px] font-medium text-ink">
-                    {tx.comment?.trim() || catName || 'Uncategorised'}
+                    {tx.comment?.trim() || catName || 'No description'}
                   </span>
                   <span className="truncate text-[11px] text-ink-mute">
-                    {tx.subcategory || (tx.comment ? catName : '—')}
+                    {tx.comment?.trim() && catName ? catName : '—'}
                   </span>
                 </button>
 
-                {/* Col 3: category chip */}
+                {/* Col 3: category + subcategory */}
                 <button
                   type="button"
                   onClick={() => onEdit(tx)}
                   className="text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   {catName ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
-                      style={{ background: `${color}1A`, color }}
-                    >
-                      {catName}
+                    <span className="flex flex-col items-start gap-1">
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
+                        style={{ background: `${color}1A`, color }}
+                      >
+                        {catName}
+                      </span>
+                      {tx.subcategory ? (
+                        <span className="truncate pl-0.5 text-[10px] text-ink-mute">
+                          {tx.subcategory}
+                        </span>
+                      ) : null}
                     </span>
                   ) : (
                     <span className="text-[11px] text-ink-mute">—</span>

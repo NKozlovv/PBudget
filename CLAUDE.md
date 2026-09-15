@@ -31,14 +31,21 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
   forward (master's old tip, `cd6e2bf`, was a direct ancestor of the
   rehaul history — the rehaul had branched off it at Chunk 0), so
   nothing was lost or overwritten.
-- Three now-superseded branches still exist on the remote:
-  `experimental/theus-rehaul` (stale, stuck at Chunk 13),
-  `experimental/theus-sterling-1to1` (Chunks 12–18), and this session's
-  `claude/budget-app-features-fa62f0` (Chunk 19, now == `master`). None
-  has any commit that isn't already on `master`. Not deleted — ask the
-  user before cleaning them up.
+- Three now-superseded branches exist on the remote, frozen at whatever
+  they last had: `experimental/theus-rehaul` (stale, stuck at Chunk
+  13), `experimental/theus-sterling-1to1` (Chunks 12–18), and
+  `claude/budget-app-features-fa62f0` (frozen 2026-09-15 — was kept in
+  sync with `master` push-for-push right after the cutover out of
+  habit; the user pointed out that's pointless once `master` **is**
+  the working branch, so it stopped). None has any commit that isn't
+  already on `master`. Not deleted — ask the user before cleaning them
+  up.
+- **Push only to `master`** going forward — there's no reason to
+  double-push to a second branch now that `master` is both working
+  branch and production (see §10).
 - **Preview:** Vercel deploys a preview for any other branch pushed to
-  the repo (this is how Chunks 0–19 were checked before the cutover).
+  the repo, if you deliberately want one for a risky change (see §10)
+  — that's how Chunks 0–19 were checked before the cutover.
 
 **Frontend (legacy):**
 - Single-file `public/legacy/index.html` (~2,900 lines, ~100 KB), served
