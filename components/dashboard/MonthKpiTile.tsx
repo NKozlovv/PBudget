@@ -1,18 +1,17 @@
 import { Card, Icon, Mono } from '@/components/ui';
-import { Sparkline } from '@/components/charts/Sparkline';
+import { TrendLineChart, type TrendPoint } from '@/components/charts/TrendLineChart';
 
 /**
  * Income / Spending KPI tile. Modeled on
  * design-refs/src/dashboard.jsx 152-178: kicker + colored dot,
  * big tabular number with separate cents, % delta vs prior period
- * (in the "good" direction's color), sparkline.
+ * (in the "good" direction's color), year-to-date + forecast line chart.
  */
 export function MonthKpiTile({
   label,
   amount,
   prevAmount,
-  trend,
-  trendLabels,
+  series,
   tone,
   /** When `tone === 'spending'`, "down" is good — show ↓ in pos color. */
   kind,
@@ -20,8 +19,7 @@ export function MonthKpiTile({
   label: string;
   amount: number;
   prevAmount: number;
-  trend: number[];
-  trendLabels?: string[];
+  series: TrendPoint[];
   tone: 'pos' | 'neg';
   kind: 'income' | 'spending';
 }) {
@@ -75,9 +73,9 @@ export function MonthKpiTile({
         <div className="mt-1.5 text-[12px] text-ink-mute">no prior period</div>
       )}
 
-      {trend.length > 1 ? (
+      {series.length > 1 ? (
         <div className="mt-5">
-          <Sparkline data={trend} labels={trendLabels} width={300} height={48} color={sparkColor} />
+          <TrendLineChart data={series} width={300} height={90} color={sparkColor} />
         </div>
       ) : null}
     </Card>

@@ -1,24 +1,22 @@
 import { Card, Icon, Mono } from '@/components/ui';
-import { Sparkline } from '@/components/charts/Sparkline';
+import { TrendLineChart, type TrendPoint } from '@/components/charts/TrendLineChart';
 import { fmtEUR } from '@/lib/money';
 
 /**
  * Large "Total balance" hero. Modeled on
  * design-refs/src/dashboard.jsx 126-150: brass radial accent,
  * tabular Inter big number with separate cents, "+X (Y%) vs last month"
- * delta, then a 12-month sparkline.
+ * delta, then a year-to-date + forecast line chart.
  */
 export function HeroBalanceTile({
   balance,
   prevBalance,
-  trend,
-  trendLabels,
+  series,
   accountCount,
 }: {
   balance: number;
   prevBalance: number;
-  trend: number[];
-  trendLabels?: string[];
+  series: TrendPoint[];
   accountCount: number;
 }) {
   const [whole, cents] = splitMoney(balance);
@@ -81,15 +79,9 @@ export function HeroBalanceTile({
           <span className="text-[12px] text-ink-mute">vs. last month</span>
         </div>
 
-        {trend.length > 1 ? (
+        {series.length > 1 ? (
           <div className="mt-5">
-            <Sparkline
-              data={trend}
-              labels={trendLabels}
-              width={500}
-              height={64}
-              color="var(--accent)"
-            />
+            <TrendLineChart data={series} width={500} height={100} color="var(--accent)" />
           </div>
         ) : null}
       </div>

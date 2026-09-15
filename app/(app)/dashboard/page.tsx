@@ -5,6 +5,7 @@ import { listTransactions } from '@/lib/data/transactions';
 import { createClient } from '@/lib/supabase/server';
 import { IncomeSpendBars } from '@/components/charts/IncomeSpendBars';
 import { CategoryDonut } from '@/components/charts/CategoryDonut';
+import type { TrendPoint } from '@/components/charts/TrendLineChart';
 import { Greeting } from '@/components/dashboard/Greeting';
 import { HeroBalanceTile } from '@/components/dashboard/HeroBalanceTile';
 import { MonthKpiTile } from '@/components/dashboard/MonthKpiTile';
@@ -18,10 +19,12 @@ import {
   burnRatesEUR,
   accountsTrajectoryEUR,
   accountBalanceNativeAt,
+  accountBalanceEURAt,
   accountsCurrentEUR,
   forecastYear,
+  ytdAverages,
 } from '@/lib/balance';
-import { dateToISO, monthName, monthOfDate, yearOfDate } from '@/lib/date';
+import { dateToISO, monthName } from '@/lib/date';
 
 export const metadata = { title: 'Dashboard · Theus' };
 
@@ -50,18 +53,6 @@ export default async function DashboardPage() {
   // Hero numbers
   const balanceEUR = totalBalanceEUR({ accounts, transactions: allTx, fxRate });
   const monthTotals = monthTotalsEUR({ transactions: allTx, year, month, fxRate });
-
-  // Per-month series (12 months ending at the working month)
-  const last12 = lastNMonthsTotals({
-    transactions: allTx,
-    endYear: year,
-    endMonth: month,
-    count: 12,
-    fxRate,
-  });
-  const incomeTrend = last12.map((m) => m.income);
-  const expenseTrend = last12.map((m) => m.expense);
-  const monthTrendLabels = last12.map((m) => `${monthName(m.month)} ${m.year}`);
 
   // 6-month average expense (excluding the working month) for the insight subline.
   const last7 = lastNMonthsTotals({
@@ -92,9 +83,6 @@ export default async function DashboardPage() {
   const balanceSeries = trajectory.map((p) =>
     Object.values(p.balances).reduce((s, n) => s + n, 0),
   );
-  const balanceTrendLabels = trajectory.map(
-    (p) => `${monthName(monthOfDate(p.date))} ${yearOfDate(p.date)}`,
-  );
   const prevBalance =
     balanceSeries.length >= 2 ? (balanceSeries[balanceSeries.length - 2] ?? 0) : balanceEUR;
 
@@ -122,6 +110,46 @@ export default async function DashboardPage() {
     year: cashFlowYear,
     endMonth: cashFlowEndMonth,
     fxRate,
+  });
+
+  // Hero tile charts: same Jan–Dec + forecast shape as the Cash flow
+  // chart, just reshaped as {label, value, projected} for the more
+  // compact TrendLineChart used inside the tiles. Income/Spending reuse
+  // yearBuckets directly; Balance needs its own series (yearBuckets only
+  // has income/expense, not running balance) — real month-end balances
+  // through the working month, then extended forward from the last real
+  // balance at the YTD average net-savings pace.
+  const incomeSeries: TrendPoint[] = yearBuckets.map((b) => ({
+    label: b.label,
+    value: b.income,
+    projected: b.projected,
+  }));
+  const spendingSeries: TrendPoint[] = yearBuckets.map((b) => ({
+    label: b.label,
+    value: b.expense,
+    projected: b.projected,
+  }));
+  const ytdForBalance = ytdAverages({
+    transactions: allTx,
+    year: cashFlowYear,
+    endMonth: cashFlowEndMonth,
+    fxRate,
+  });
+  let lastActualBalance = balanceEUR;
+  const balanceYearSeries: TrendPoint[] = Array.from({ length: 12 }, (_, m) => {
+    const projected = m > cashFlowEndMonth;
+    let value: number;
+    if (!projected) {
+      const eom = new Date(cashFlowYear, m + 1, 0);
+      value = accounts.reduce(
+        (s, a) => s + accountBalanceEURAt({ account: a, date: dateToISO(eom), transactions: allTx, fxRate }),
+        0,
+      );
+      lastActualBalance = value;
+    } else {
+      value = lastActualBalance + ytdForBalance.avgNet * (m - cashFlowEndMonth);
+    }
+    return { label: monthName(m, true).toUpperCase(), value, projected };
   });
 
   // Per-account balances (native + EUR).
@@ -156,16 +184,14 @@ export default async function DashboardPage() {
         <HeroBalanceTile
           balance={balanceEUR}
           prevBalance={prevBalance}
-          trend={balanceSeries}
-          trendLabels={balanceTrendLabels}
+          series={balanceYearSeries}
           accountCount={accounts.length}
         />
         <MonthKpiTile
           label={`Income · ${monthLabel}`}
           amount={monthTotals.income}
           prevAmount={prevIncome}
-          trend={incomeTrend}
-          trendLabels={monthTrendLabels}
+          series={incomeSeries}
           tone="pos"
           kind="income"
         />
@@ -173,8 +199,7 @@ export default async function DashboardPage() {
           label={`Spending · ${monthLabel}`}
           amount={monthTotals.expense}
           prevAmount={prevExpense}
-          trend={expenseTrend}
-          trendLabels={monthTrendLabels}
+          series={spendingSeries}
           tone="neg"
           kind="spending"
         />

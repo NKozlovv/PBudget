@@ -1762,3 +1762,56 @@ direct ask to bring the same bar up across every remaining chart.
 **Verification:** no local build (no Node) — reviewed every changed
 file by hand, swept again for the recurring bug classes from earlier
 today (none found).
+
+## Dashboard round 3: Hero/KPI tile charts brought to the same standard (2026-09-15, same day)
+
+User called out that the previous "year + forecast + axis" pass only
+touched the Cash flow chart and Forecast page — the three Hero/KPI
+tiles (Total Balance, Income, Spending) still had the old bare,
+axis-less `Sparkline` rolling-12-month line. Brought them up to the
+same visual language:
+
+- **New `components/charts/TrendLineChart.tsx`:** compact version of
+  the `ForecastLine` pattern, sized for a KPI tile rather than a full
+  card — solid line for actual months, dashed + 60%-opacity for
+  projected, a small filled marker at the actual/projected boundary,
+  min/max Y gridlines with compact value labels, up to 3 x-axis month
+  labels (first / boundary / last — a full 12-label row doesn't fit a
+  tile this narrow), and the same hover-tooltip wiring
+  (`useChartHover` + `ChartTooltip`) already used elsewhere.
+- **`HeroBalanceTile` / `MonthKpiTile`:** swapped `Sparkline` for
+  `TrendLineChart`; props changed from `trend: number[]` +
+  `trendLabels?: string[]` to a single `series: TrendPoint[]`.
+- **`app/(app)/dashboard/page.tsx`:** all three tiles now plot the
+  full current calendar year (Jan–Dec), not a rolling 12-month window,
+  with the same actual/projected boundary as the Cash flow chart
+  (`workingMonth`, via `cashFlowEndMonth`):
+  - Income / Spending reuse the already-computed `yearBuckets`
+    (`forecastYear(...)`) directly — no new aggregation needed.
+  - Balance gets its own series (`yearBuckets` only carries
+    income/expense, not a running balance): real month-end balances
+    for months through the working month
+    (`accountBalanceEURAt` summed across accounts), then extended
+    forward from the last real balance at the YTD average net-savings
+    pace (`ytdAverages(...).avgNet`) for the remaining months — the
+    same forward-projection logic the Forecast page already uses,
+    just anchored to a real balance instead of €0.
+  - `Sparkline` itself is untouched and still used by `AccountMiniChart`
+    (accounts page) and `BrandPanel` (auth screen decoration) — neither
+    needed this treatment.
+  - Removed now-dead `lastNMonthsTotals`-based `incomeTrend` /
+    `expenseTrend` / `monthTrendLabels` / `balanceTrendLabels` local
+    variables; the 7-month `last7`/`priorSix` window computed from the
+    same helper is unrelated and stays (Greeting insight line + KPI
+    tile month-over-month deltas).
+
+**Verification:** no local build (no Node) — traced every new/changed
+call against its real function signature in `lib/balance.ts` /
+`lib/date.ts` / `lib/money.ts` (`ytdAverages`, `accountBalanceEURAt`,
+`forecastYear`, `monthName`, `fmtEUR`'s `FormatOptions`) rather than
+assuming; grepped for the two recurring bug classes
+(`noUncheckedIndexedAccess` compound assignment, `useRef` without
+`| null`) across every file touched — none found; grepped the whole
+tree for `HeroBalanceTile`/`MonthKpiTile`/`Sparkline` usages to confirm
+no dangling references to the old `trend`/`trendLabels` props survived
+outside the dashboard page.
