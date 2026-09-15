@@ -39,15 +39,20 @@ export function TrendLineChart({
   const { containerRef, hover, show, hide } = useChartHover<TrendPoint>();
   if (data.length < 2) return null;
 
-  const pad = { l: 30, r: 4, t: 10, b: 14 };
+  const pad = { l: 38, r: 8, t: 20, b: 20 };
   const innerW = width - pad.l - pad.r;
   const innerH = height - pad.t - pad.b;
 
   const values = data.map((d) => d.value);
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
-  const span = Math.max(rawMax - rawMin, 1) * 1.1;
-  const min = rawMin - (rawMax - rawMin) * 0.05;
+  // Pad the domain well beyond the raw min/max so the plotted line never
+  // touches the gridlines/labels it's measured against — a tight domain
+  // otherwise puts the highest and lowest points right on top of their own
+  // axis labels, which reads as cramped rather than "the peak."
+  const range = Math.max(rawMax - rawMin, 1);
+  const span = range * 1.4;
+  const min = rawMin - range * 0.2;
   const yFor = (v: number) => pad.t + innerH - ((v - min) / span) * innerH;
 
   const xs = data.map((_, i) => pad.l + (innerW * i) / (data.length - 1));
@@ -111,12 +116,12 @@ export function TrendLineChart({
                 y2={y}
                 stroke="var(--rule)"
                 strokeWidth="0.5"
-                strokeDasharray={i === 0 ? '2 3' : undefined}
+                strokeDasharray="2 3"
               />
               <text
-                x={pad.l - 5}
-                y={y + (i === 0 ? 3 : -2)}
-                fontSize="8"
+                x={pad.l - 7}
+                y={y + 3}
+                fontSize="9"
                 fontFamily="var(--font-inter)"
                 fill="var(--ink-mute)"
                 textAnchor="end"
@@ -159,8 +164,8 @@ export function TrendLineChart({
           <text
             key={i}
             x={xs[i]}
-            y={height - 3}
-            fontSize="8"
+            y={height - 5}
+            fontSize="9"
             fontFamily="var(--font-inter)"
             fill="var(--ink-mute)"
             textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}

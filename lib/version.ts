@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.5.2-α';
+export const BUILD_VERSION = 'v2.5.3-α';
 export const BUILD_DATE = '2026-09-15';
-export const BUILD_NOTE = 'Hero/KPI tiles: year + forecast charts with axis labels';
+export const BUILD_NOTE = 'Less-cramped tile charts, YTD averages, savings rate trend';

@@ -1,5 +1,6 @@
 import { Card, Icon, Mono } from '@/components/ui';
 import { TrendLineChart, type TrendPoint } from '@/components/charts/TrendLineChart';
+import { fmtEUR } from '@/lib/money';
 
 /**
  * Income / Spending KPI tile. Modeled on
@@ -11,6 +12,7 @@ export function MonthKpiTile({
   label,
   amount,
   prevAmount,
+  avgAmount,
   series,
   tone,
   /** When `tone === 'spending'`, "down" is good — show ↓ in pos color. */
@@ -19,6 +21,8 @@ export function MonthKpiTile({
   label: string;
   amount: number;
   prevAmount: number;
+  /** YTD average monthly amount, shown as a quick "vs. typical" reference. */
+  avgAmount: number;
   series: TrendPoint[];
   tone: 'pos' | 'neg';
   kind: 'income' | 'spending';
@@ -61,21 +65,26 @@ export function MonthKpiTile({
         </span>
       </div>
 
-      {hasPrev ? (
-        <div
-          className={`mt-1.5 inline-flex items-center gap-1 font-mono text-[12px] font-semibold ${deltaToneClass}`}
-        >
-          <Icon name={arrowName} size={11} />
-          {sign}
-          {Math.abs(pct).toFixed(1)}%
-        </div>
-      ) : (
-        <div className="mt-1.5 text-[12px] text-ink-mute">no prior period</div>
-      )}
+      <div className="mt-1.5 flex items-center gap-2.5">
+        {hasPrev ? (
+          <span
+            className={`inline-flex items-center gap-1 font-mono text-[12px] font-semibold ${deltaToneClass}`}
+          >
+            <Icon name={arrowName} size={11} />
+            {sign}
+            {Math.abs(pct).toFixed(1)}%
+          </span>
+        ) : (
+          <span className="text-[12px] text-ink-mute">no prior period</span>
+        )}
+        <span className="text-[11px] text-ink-mute">
+          avg {fmtEUR(avgAmount, { decimals: 0 })}/mo
+        </span>
+      </div>
 
       {series.length > 1 ? (
         <div className="mt-5">
-          <TrendLineChart data={series} width={300} height={90} color={sparkColor} />
+          <TrendLineChart data={series} width={300} height={104} color={sparkColor} />
         </div>
       ) : null}
     </Card>

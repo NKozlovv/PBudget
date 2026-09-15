@@ -5,6 +5,7 @@ import { listTransactions } from '@/lib/data/transactions';
 import { createClient } from '@/lib/supabase/server';
 import { IncomeSpendBars } from '@/components/charts/IncomeSpendBars';
 import { CategoryDonut } from '@/components/charts/CategoryDonut';
+import { SavingsRateChart } from '@/components/charts/SavingsRateChart';
 import type { TrendPoint } from '@/components/charts/TrendLineChart';
 import { Greeting } from '@/components/dashboard/Greeting';
 import { HeroBalanceTile } from '@/components/dashboard/HeroBalanceTile';
@@ -129,7 +130,7 @@ export default async function DashboardPage() {
     value: b.expense,
     projected: b.projected,
   }));
-  const ytdForBalance = ytdAverages({
+  const ytd = ytdAverages({
     transactions: allTx,
     year: cashFlowYear,
     endMonth: cashFlowEndMonth,
@@ -147,7 +148,7 @@ export default async function DashboardPage() {
       );
       lastActualBalance = value;
     } else {
-      value = lastActualBalance + ytdForBalance.avgNet * (m - cashFlowEndMonth);
+      value = lastActualBalance + ytd.avgNet * (m - cashFlowEndMonth);
     }
     return { label: monthName(m, true).toUpperCase(), value, projected };
   });
@@ -191,6 +192,7 @@ export default async function DashboardPage() {
           label={`Income · ${monthLabel}`}
           amount={monthTotals.income}
           prevAmount={prevIncome}
+          avgAmount={ytd.avgIncome}
           series={incomeSeries}
           tone="pos"
           kind="income"
@@ -199,6 +201,7 @@ export default async function DashboardPage() {
           label={`Spending · ${monthLabel}`}
           amount={monthTotals.expense}
           prevAmount={prevExpense}
+          avgAmount={ytd.avgExpense}
           series={spendingSeries}
           tone="neg"
           kind="spending"
@@ -254,6 +257,25 @@ export default async function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {/* Savings rate — how much of income was kept each month, YTD */}
+      <Card>
+        <CardHeader
+          title="Savings rate"
+          subtitle={
+            <span className="text-[11px] text-ink-mute">
+              (income − spending) ÷ income, by month · {now.getFullYear()} YTD
+            </span>
+          }
+        />
+        <div className="mt-4">
+          {yearBuckets.filter((b) => !b.projected && b.income > 0).length >= 2 ? (
+            <SavingsRateChart buckets={yearBuckets} />
+          ) : (
+            <p className="text-[12px] text-ink-mute">Not enough data yet.</p>
+          )}
+        </div>
+      </Card>
 
       {/* Accounts + Recent activity row */}
       <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">

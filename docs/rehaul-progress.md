@@ -1815,3 +1815,62 @@ assuming; grepped for the two recurring bug classes
 tree for `HeroBalanceTile`/`MonthKpiTile`/`Sparkline` usages to confirm
 no dangling references to the old `trend`/`trendLabels` props survived
 outside the dashboard page.
+
+## Dashboard round 4: less-cramped tiles, YTD averages, savings rate trend (2026-09-15, same day)
+
+Immediate follow-up feedback on round 3: the new Hero/KPI tile charts
+looked cramped, the user wanted to see average income/spending
+alongside the month numbers, and pointed at a screenshot of the
+pre-Theus (legacy) app's "Savings rate" card asking for the same idea
+(the old per-month "how much did I keep" trend) on the new dashboard.
+
+- **Cramped tile charts, fixed:** `TrendLineChart`'s Y-domain padding
+  was too tight — the highest/lowest point in each series landed
+  almost exactly on its own axis gridline/label, which read as
+  crowded rather than "the peak." Widened the vertical domain padding
+  (was ±5%, now ±20%, `span` factor 1.1→1.4), bumped padding
+  (`l/t/b`) and axis font size (8→9), and gave the tiles themselves a
+  bit more chart height (Hero 100→116, Income/Spending 90→104).
+- **YTD average, added:** `MonthKpiTile` takes a new `avgAmount` prop
+  and shows "avg €X,XXX/mo" next to the % delta, computed from
+  `ytdAverages(...).avgIncome` / `.avgExpense` (already being
+  computed on the page for the Balance tile's forecast — no new
+  aggregation needed, just reused and renamed `ytdForBalance` → `ytd`
+  since it now serves three tiles' worth of numbers, not one).
+  Deliberately kept this as plain text rather than an on-chart
+  reference line — the tile chart is only 300×104, and a fourth
+  visual element on top of the actual/projected split and gridlines
+  would have made the cramped-chart complaint worse, not better.
+- **New "Savings rate" card:** `components/charts/SavingsRateChart.tsx`
+  — a from-scratch inline-SVG port of the legacy `chartSavings`
+  (`public/legacy/index.html` — "Savings rate" trend, `savColor`,
+  `savingsLabels` plugin, `savingsInsight` footer). Per real
+  (non-projected) month with income, plots
+  `(income − expense) / income × 100`; unlike the Cash flow/KPI
+  charts this one doesn't project unreached months — matches the
+  legacy behavior of just leaving them blank, since a savings *rate*
+  isn't something that's meaningful to average-forward the way a
+  balance or raw income/expense total is. Segments/points/labels are
+  colored green (`--pos`) when the rate they end on is positive, red
+  (`--neg`) when it isn't; a dashed YTD-average reference line runs
+  across the chart; a one-line footer below it calls out a new best
+  month, an active positive-months streak, or falls back to the YTD
+  average — same three-way logic as the legacy `savingsInsight`
+  function, ported directly rather than re-invented. Value labels use
+  a native SVG `paintOrder="stroke"` halo (`--bg-panel` stroke behind
+  the fill) instead of the legacy's canvas-plugin trick, since this
+  app draws every chart as plain SVG with no charting library.
+  Wired into the Dashboard as a new full-width card between the
+  Cash-flow/Spending-mix row and the Accounts/Recent-activity row;
+  falls back to "Not enough data yet" text if fewer than 2 real
+  months have income (mirrors the `data.length < 2 → null` guard
+  every other chart component already uses, just surfaced as a
+  message instead of an empty card since this one sits inside an
+  always-rendered `<Card>` wrapper on the page).
+
+**Verification:** no local build (no Node) — reviewed every changed
+file by hand; re-swept `TrendLineChart.tsx`, `SavingsRateChart.tsx`,
+`MonthKpiTile.tsx`, `HeroBalanceTile.tsx`, and the dashboard page for
+the two recurring bug classes (none found); checked the new
+`fmtEUR`/`FormatOptions` and `ytdAverages`/`ForecastBucket` field
+usages against their real definitions in `lib/money.ts` / `lib/balance.ts`.

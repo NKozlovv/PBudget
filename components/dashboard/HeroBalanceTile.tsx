@@ -81,7 +81,7 @@ export function HeroBalanceTile({
 
         {series.length > 1 ? (
           <div className="mt-5">
-            <TrendLineChart data={series} width={500} height={100} color="var(--accent)" />
+            <TrendLineChart data={series} width={500} height={116} color="var(--accent)" />
           </div>
         ) : null}
       </div>
