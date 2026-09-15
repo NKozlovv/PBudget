@@ -1,9 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useEffect, useState, type SelectHTMLAttributes } from 'react';
-import { FilterPill, Icon } from '@/components/ui';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState } from 'react';
+import { FilterPill, Icon, OptionsList, useDismissable, type DropdownOption } from '@/components/ui';
 import type { Account, Category, Subcategory } from '@/lib/supabase/types';
 
 const MONTH_LABELS = [
@@ -48,6 +47,9 @@ function findSortLabel(sort: string | null, dir: string | null): string {
   return SORT_OPTIONS.find((o) => o.sort === sort && o.dir === (dir ?? 'asc'))?.label ?? 'Date · newest';
 }
 
+/** Debounce so typing a search term doesn't fire a full server round-trip per keystroke. */
+const SEARCH_DEBOUNCE_MS = 350;
+
 export function Filters({
   accounts,
   expenseCats,
@@ -76,12 +78,19 @@ export function Filters({
 
   const [searchOpen, setSearchOpen] = useState<boolean>(currentSearch.length > 0);
   const [searchValue, setSearchValue] = useState<string>(currentSearch);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keep local search in sync if URL changes externally.
+  // Keep local search in sync if URL changes externally (e.g. Clear).
   useEffect(() => {
     setSearchValue(currentSearch);
     if (currentSearch) setSearchOpen(true);
   }, [currentSearch]);
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
   function update(updates: Record<string, string>) {
     const next = new URLSearchParams(params.toString());
@@ -90,6 +99,18 @@ export function Filters({
       else next.delete(k);
     }
     router.push(`${pathname}?${next.toString()}`);
+  }
+
+  function onSearchChange(next: string) {
+    setSearchValue(next);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => update({ q: next }), SEARCH_DEBOUNCE_MS);
+  }
+
+  function clearSearch() {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setSearchValue('');
+    update({ q: '' });
   }
 
   const allCats = [...expenseCats, ...incomeCats];
@@ -138,14 +159,11 @@ export function Filters({
         active={!!currentAccount}
         value={currentAccount}
         onChange={(v) => update({ account: v })}
-      >
-        <option value="">All accounts</option>
-        {accounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name}
-          </option>
-        ))}
-      </PillSelect>
+        options={[
+          { value: '', label: 'All accounts' },
+          ...accounts.map((a) => ({ value: a.id, label: a.name })),
+        ]}
+      />
 
       {/* Category */}
       <PillSelect
@@ -154,14 +172,11 @@ export function Filters({
         active={!!currentCategory}
         value={currentCategory}
         onChange={(v) => update({ category: v, subcategory: '' })}
-      >
-        <option value="">All categories</option>
-        {allCats.map((c) => (
-          <option key={c.id} value={c.name}>
-            {c.name}
-          </option>
-        ))}
-      </PillSelect>
+        options={[
+          { value: '', label: 'All categories' },
+          ...allCats.map((c) => ({ value: c.name, label: c.name })),
+        ]}
+      />
 
       {/* Subcategory — cascades from category */}
       {currentCategory ? (
@@ -172,14 +187,11 @@ export function Filters({
           value={currentSub}
           onChange={(v) => update({ subcategory: v })}
           disabled={subcatScope.length === 0}
-        >
-          <option value="">All subcategories</option>
-          {subcatScope.map((s) => (
-            <option key={s.id} value={s.name}>
-              {s.name}
-            </option>
-          ))}
-        </PillSelect>
+          options={[
+            { value: '', label: 'All subcategories' },
+            ...subcatScope.map((s) => ({ value: s.name, label: s.name })),
+          ]}
+        />
       ) : null}
 
       {/* Month */}
@@ -189,14 +201,11 @@ export function Filters({
         active={!!currentMonth}
         value={currentMonth}
         onChange={(v) => update({ month: v })}
-      >
-        <option value="">All months</option>
-        {months.map((m) => (
-          <option key={m} value={m}>
-            {monthLabel(m)}
-          </option>
-        ))}
-      </PillSelect>
+        options={[
+          { value: '', label: 'All months' },
+          ...months.map((m) => ({ value: m, label: monthLabel(m) })),
+        ]}
+      />
 
       {/* Search — collapses to icon-only when empty */}
       <div className="ml-auto flex items-center gap-2">
@@ -208,10 +217,7 @@ export function Filters({
               autoFocus
               placeholder="Search description…"
               value={searchValue}
-              onChange={(e) => {
-                setSearchValue(e.target.value);
-                update({ q: e.target.value });
-              }}
+              onChange={(e) => onSearchChange(e.target.value)}
               onBlur={() => {
                 if (!searchValue) setSearchOpen(false);
               }}
@@ -221,10 +227,7 @@ export function Filters({
               <button
                 type="button"
                 aria-label="Clear search"
-                onClick={() => {
-                  setSearchValue('');
-                  update({ q: '' });
-                }}
+                onClick={clearSearch}
                 className="text-ink-mute hover:text-ink"
               >
                 ×
@@ -253,13 +256,8 @@ export function Filters({
               update({ sort: opt.sort, dir: opt.dir });
             }
           }}
-        >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.key} value={o.key}>
-              {o.label}
-            </option>
-          ))}
-        </PillSelect>
+          options={SORT_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
+        />
 
         {hasAnyFilter ? (
           <button
@@ -276,9 +274,9 @@ export function Filters({
 }
 
 /**
- * Pill-styled native select. The visible pill is a static element; the
- * actual `<select>` is overlaid transparently so the OS provides the
- * popover and keyboard handling for free.
+ * Themed filter pill + popup — replaces the old transparent-native-<select>
+ * overlay (whose popup rendered with unthemeable OS chrome) with the same
+ * OptionsList used by the form Select.
  */
 function PillSelect({
   label,
@@ -287,7 +285,7 @@ function PillSelect({
   value,
   onChange,
   disabled,
-  children,
+  options,
 }: {
   label: string;
   icon?: 'filter' | 'sort';
@@ -295,33 +293,34 @@ function PillSelect({
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
-  children: React.ReactNode;
-} & Pick<SelectHTMLAttributes<HTMLSelectElement>, 'children'>) {
+  options: DropdownOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismissable<HTMLDivElement>(open, () => setOpen(false));
+
   return (
-    <div className="relative inline-flex">
+    <div ref={ref} className="relative inline-flex">
       <FilterPill
         active={active}
         icon={icon}
         trailingIcon="chevron-down"
         disabled={disabled}
-        // The pill is a button so it stays focusable visually, but pointer
-        // events go to the overlaid <select>.
-        tabIndex={-1}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
       >
         {label}
       </FilterPill>
-      <select
-        aria-label={label}
-        disabled={disabled}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          'absolute inset-0 cursor-pointer opacity-0',
-          disabled && 'cursor-not-allowed',
-        )}
-      >
-        {children}
-      </select>
+      {open ? (
+        <OptionsList
+          options={options}
+          value={value}
+          onSelect={(v) => {
+            onChange(v);
+            setOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

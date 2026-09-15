@@ -33,6 +33,17 @@ interface SearchParams {
   q?: string;
   sort?: string;
   dir?: string;
+  limit?: string;
+}
+
+const DEFAULT_PAGE_SIZE = 150;
+const LOAD_MORE_STEP = 150;
+const MAX_LIMIT = 5000;
+
+function parseLimit(raw: string | undefined): number {
+  const n = raw ? Number(raw) : DEFAULT_PAGE_SIZE;
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_PAGE_SIZE;
+  return Math.min(Math.floor(n), MAX_LIMIT);
 }
 
 function parseType(value: string | undefined): TxType | undefined {
@@ -61,6 +72,17 @@ function metaLine(month: string | undefined, count: number): string {
   return `${count} ${noun} · all time`;
 }
 
+/** Builds a `Load N more` href that bumps `limit` while keeping every other filter param. */
+function loadMoreHref(sp: SearchParams, nextLimit: number): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (k === 'limit' || !v) continue;
+    params.set(k, v);
+  }
+  params.set('limit', String(nextLimit));
+  return `/transactions?${params.toString()}`;
+}
+
 export default async function TransactionsPage({
   searchParams,
 }: {
@@ -68,13 +90,17 @@ export default async function TransactionsPage({
 }) {
   const sp = await searchParams;
   const budget = await getOrCreateUserBudget();
-  const [accounts, expenseCats, incomeCats, subcategories, months, transactions, subPairs] =
+  const limit = parseLimit(sp.limit);
+  const [accounts, expenseCats, incomeCats, subcategories, months, filteredTransactions, subPairs] =
     await Promise.all([
       listAccounts(budget.id),
       listCategories(budget.id, 'expense'),
       listCategories(budget.id, 'income'),
       listSubcategoriesForBudget(budget.id),
       listMonthsWithTransactions(budget.id),
+      // Unlimited — the stat strip needs true totals for the full filtered
+      // set, not just the page being rendered. Only the *rendered* rows are
+      // capped (below), which is what was actually making the list heavy.
       listTransactions({
         budgetId: budget.id,
         type: parseType(sp.type),
@@ -88,6 +114,10 @@ export default async function TransactionsPage({
       }),
       listCategorySubcategoryPairs(budget.id),
     ]);
+
+  const totalCount = filteredTransactions.length;
+  const transactions = filteredTransactions.slice(0, limit);
+  const hasMore = totalCount > transactions.length;
 
   const subcategoriesById: Record<string, Subcategory[]> = {};
   for (const s of subcategories) {
@@ -105,7 +135,7 @@ export default async function TransactionsPage({
       <PageHeader
         kicker="Ledger"
         title="Transactions"
-        meta={metaLine(sp.month, transactions.length)}
+        meta={metaLine(sp.month, totalCount)}
         actions={
           <>
             <Link
@@ -121,7 +151,7 @@ export default async function TransactionsPage({
       />
 
       <div className="mt-6">
-        <StatStrip transactions={transactions} budgetFxRate={budget.fx_rate} />
+        <StatStrip transactions={filteredTransactions} budgetFxRate={budget.fx_rate} />
       </div>
 
       <div className="mt-5">
@@ -148,6 +178,20 @@ export default async function TransactionsPage({
           budgetFxRate={budget.fx_rate}
         />
       </div>
+
+      {hasMore ? (
+        <div className="mt-4 flex items-center justify-center gap-3 text-[12px] text-ink-mute">
+          <span>
+            Showing {transactions.length} of {totalCount}
+          </span>
+          <Link
+            href={loadMoreHref(sp, limit + LOAD_MORE_STEP)}
+            className="rounded-[10px] border border-rule bg-surface px-3.5 py-2 text-[13px] font-medium text-ink hover:bg-surface-hi transition-colors"
+          >
+            Load {Math.min(LOAD_MORE_STEP, totalCount - transactions.length)} more
+          </Link>
+        </div>
+      ) : null}
     </>
   );
 }

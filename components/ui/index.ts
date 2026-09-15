@@ -12,3 +12,6 @@ export { Icon } from './Icon';
 export type { IconName } from './Icon';
 export { PeriodToggle } from './PeriodToggle';
 export { FilterPill } from './FilterPill';
+export { OptionsList } from './OptionsList';
+export type { DropdownOption } from './OptionsList';
+export { useDismissable } from './useDismissable';
