@@ -9,7 +9,7 @@ export interface ImportSummary {
   accounts: { created: number; reused: number };
   categories: { expense: number; income: number };
   subcategories: number;
-  transactions: { inserted: number };
+  transactions: { inserted: number; expense: number; income: number; adjustment: number };
   fx: { fetched: number };
   dropped: number;
   warnings: string[];
@@ -217,13 +217,16 @@ export async function importXlsxAction(formData: FormData): Promise<ImportResult
       );
     }
 
+    const typeCounts = { expense: 0, income: 0, adjustment: 0 };
+    for (const t of parsed.transactions) typeCounts[t.type]++;
+
     return {
       ok: true,
       data: {
         accounts: { created: accountsCreated, reused: accountsReused },
         categories: { expense: expenseCatsCreated, income: incomeCatsCreated },
         subcategories: subsCreated,
-        transactions: { inserted },
+        transactions: { inserted, ...typeCounts },
         fx: { fetched: rateMap.size },
         dropped: parsed.dropped.length,
         warnings,

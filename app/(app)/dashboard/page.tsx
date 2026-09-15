@@ -11,7 +11,7 @@ import { HeroBalanceTile } from '@/components/dashboard/HeroBalanceTile';
 import { MonthKpiTile } from '@/components/dashboard/MonthKpiTile';
 import { AccountsList, type AccountRow } from '@/components/dashboard/AccountsList';
 import { RecentActivityList } from '@/components/dashboard/RecentActivityList';
-import { parsePeriod, monthLong } from '@/lib/dashboard/period';
+import { parsePeriod, monthLong, workingMonth } from '@/lib/dashboard/period';
 import {
   totalBalanceEUR,
   monthTotalsEUR,
@@ -47,15 +47,18 @@ export default async function DashboardPage({
   ]);
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  // "This month" throughout the dashboard means the last COMPLETED
+  // calendar month, not the in-progress one — the user reviews/fills in
+  // the budget at month-end for the month that just ended. Account
+  // balances (below) stay anchored to the true current date.
+  const { year, month } = workingMonth(now);
   const fxRate = budget.fx_rate;
 
   // Hero numbers
   const balanceEUR = totalBalanceEUR({ accounts, transactions: allTx, fxRate });
   const monthTotals = monthTotalsEUR({ transactions: allTx, year, month, fxRate });
 
-  // Per-month series (12 months ending this month)
+  // Per-month series (12 months ending at the working month)
   const last12 = lastNMonthsTotals({
     transactions: allTx,
     endYear: year,
@@ -66,7 +69,7 @@ export default async function DashboardPage({
   const incomeTrend = last12.map((m) => m.income);
   const expenseTrend = last12.map((m) => m.expense);
 
-  // 6-month average expense (excluding current month) for the insight subline.
+  // 6-month average expense (excluding the working month) for the insight subline.
   const last7 = lastNMonthsTotals({
     transactions: allTx,
     endYear: year,
@@ -81,12 +84,14 @@ export default async function DashboardPage({
   const prevIncome = prevMonth?.income ?? 0;
   const prevExpense = prevMonth?.expense ?? 0;
 
-  // 12-month total-balance trajectory (sum across all accounts at each month-end).
+  // 12-month total-balance trajectory (sum across all accounts at each
+  // month-end) — anchored to TODAY, since this is a real-time balance
+  // chart, not a spend/income summary.
   const trajectory = accountsTrajectoryEUR({
     accounts,
     transactions: allTx,
-    endYear: year,
-    endMonth: month,
+    endYear: now.getFullYear(),
+    endMonth: now.getMonth(),
     count: 12,
     fxRate,
   });
@@ -96,7 +101,7 @@ export default async function DashboardPage({
   const prevBalance =
     balanceSeries.length >= 2 ? (balanceSeries[balanceSeries.length - 2] ?? 0) : balanceEUR;
 
-  // Category mix (this month).
+  // Category mix (working month).
   const catSlices = categorySpendEUR({ transactions: allTx, year, month, fxRate });
   const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
 
@@ -125,6 +130,7 @@ export default async function DashboardPage({
           userName={userName}
           monthSpend={monthTotals.expense}
           avgMonthSpend={avgMonthSpend}
+          monthLabel={monthLabel}
         />
         <PeriodToggleClient value={period} />
       </div>

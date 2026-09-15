@@ -153,7 +153,7 @@ export function ForecastLine({
           x={xs[i]}
           y={height - 8}
           fontSize="10"
-          fontFamily="var(--font-mono)"
+          fontFamily="var(--font-inter)"
           fill="var(--ink-mute)"
           textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
         >
@@ -166,7 +166,7 @@ export function ForecastLine({
         x={width - padX}
         y={padTop + 2}
         fontSize="10"
-        fontFamily="var(--font-mono)"
+        fontFamily="var(--font-inter)"
         fill="var(--ink-mute)"
         textAnchor="end"
       >

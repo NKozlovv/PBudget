@@ -34,7 +34,7 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         display: ['var(--font-instrument-serif)', 'Times New Roman', 'serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        mono: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
       letterSpacing: {
         'mono-label': '0.18em',

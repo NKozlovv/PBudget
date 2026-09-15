@@ -13,6 +13,7 @@ import {
 import { CategoriesClient } from '@/components/categories/CategoriesClient';
 import { AddCategoryButton } from '@/components/categories/AddCategoryButton';
 import { monthName } from '@/lib/date';
+import { workingMonth } from '@/lib/dashboard/period';
 import type { Subcategory } from '@/lib/supabase/types';
 
 export const metadata = { title: 'Categories · Theus' };
@@ -26,9 +27,9 @@ export default async function CategoriesPage() {
     listTransactions({ budgetId: budget.id }),
   ]);
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  // "This month" here means the last completed calendar month — see
+  // lib/dashboard/period.ts#workingMonth.
+  const { year, month } = workingMonth(new Date());
 
   const subcategoriesById: Record<string, Subcategory[]> = {};
   for (const s of allSubs) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Icon, Modal, Mono } from '@/components/ui';
 import { NameForm } from './NameForm';
 import {
@@ -47,6 +47,15 @@ export function CategoryDetailModal({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [subMode, setSubMode] = useState<SubMode>({ kind: 'idle' });
   const [error, setError] = useState<string | null>(null);
+
+  // Local, optimistic copy of the subcategory list. `router.refresh()` (via
+  // `onMutated`) reconciles this with the server on the next render, but we
+  // don't want to wait on that round-trip for the modal to reflect an add /
+  // rename / delete the user just performed.
+  const [localSubs, setLocalSubs] = useState(subcategories);
+  useEffect(() => {
+    setLocalSubs(subcategories);
+  }, [subcategories]);
 
   const cat = summary.category;
   const color = categoryColor(cat.name);
@@ -103,13 +112,13 @@ export function CategoryDetailModal({
             </button>
           </div>
 
-          {subcategories.length === 0 ? (
+          {localSubs.length === 0 ? (
             <div className="px-4 py-6 text-center text-[12px] text-ink-mute">
               No subcategories yet.
             </div>
           ) : (
             <ul className="divide-y divide-rule/60">
-              {subcategories.map((s) => (
+              {localSubs.map((s) => (
                 <li
                   key={s.subcategory.id}
                   className="flex items-center gap-3 px-4 py-2.5"
@@ -252,6 +261,15 @@ export function CategoryDetailModal({
             onSubmit={async (name) => {
               const res = await createSubcategoryAction({ category_id: cat.id, name });
               if (res.ok) {
+                setLocalSubs((prev) => [
+                  ...prev,
+                  {
+                    subcategory: { id: res.data.id, category_id: cat.id, name: name.trim() },
+                    thisMonth: 0,
+                    ytd: 0,
+                    txCountThisMonth: 0,
+                  },
+                ]);
                 setSubMode({ kind: 'idle' });
                 onMutated();
               }
@@ -283,6 +301,13 @@ export function CategoryDetailModal({
                 newName,
               });
               if (res.ok) {
+                setLocalSubs((prev) =>
+                  prev.map((s) =>
+                    s.subcategory.id === sub.id
+                      ? { ...s, subcategory: { ...s.subcategory, name: newName.trim() } }
+                      : s,
+                  ),
+                );
                 setSubMode({ kind: 'idle' });
                 onMutated();
               }
@@ -310,6 +335,7 @@ export function CategoryDetailModal({
                 if (!sub) return;
                 const res = await deleteSubcategoryAction(sub.id);
                 if (res.ok) {
+                  setLocalSubs((prev) => prev.filter((s) => s.subcategory.id !== sub.id));
                   setSubMode({ kind: 'idle' });
                   onMutated();
                 } else {

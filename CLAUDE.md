@@ -53,8 +53,10 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
 - **Framework:** Next.js 15 (App Router), React 19, TypeScript (strict,
   `noUncheckedIndexedAccess`).
 - **Styling:** Tailwind v3 with semantic CSS-variable tokens
-  (`styles/tokens.css`). Inter + JetBrains Mono (mono labels and
-  numerics) + Instrument Serif italic for brand moments only.
+  (`styles/tokens.css`). Inter for everything (including mono-style
+  labels — the `font-mono` Tailwind class resolves to Inter, not an
+  actual monospace face; see §6) + Instrument Serif italic for brand
+  moments only.
 - **Auth + data:** Supabase via `@supabase/ssr` (browser client + server
   client + middleware-cookie refresh). Server components run direct
   queries via `lib/data/*`; mutations go through `app/actions/*` server
@@ -144,6 +146,8 @@ Active at the new app's `/`. Routes under `app/(app)/`:
   with full CRUD
 - `/categories` — expense + income panels with subcategories, per-row
   this-month + YTD totals, full CRUD
+- `/trends` — spend by category & subcategory, one column per month,
+  cells color-coded by month-over-month change (±10% dead zone)
 - `/forecast` — projected EOY balance, YTD averages, forecast bars
   (actual + projected), per-category burn-rate tables
 - `/import` — XLSX bulk import with FX preflight (drag-drop)
@@ -167,11 +171,20 @@ Auth. Palette tokens (the deep-green / brass / sage / rust set) live in
 **provisional** — the user may swap palettes once structure is locked.
 
 Notes:
-- **JetBrains Mono is back.** Mono uppercase tracked labels (kickers,
-  KPI labels, footers, divider text, mono-numeric values where the ref
-  uses mono) render in JBM via `font-mono` (configured in
-  `app/layout.tsx` + `tailwind.config.ts`). Earlier rehaul iterations
-  dropped JBM in favour of Inter; that decision is reversed.
+- **JetBrains Mono is dropped again (2026-09) — third and hopefully
+  final reversal.** Direct user feedback: "replace this idiotic
+  typewriter font." `app/layout.tsx` no longer loads JetBrains Mono;
+  `tailwind.config.ts`'s `mono` family now points at `var(--font-inter)`
+  instead of `var(--font-mono)`. This means every existing `font-mono`
+  class and every `Mono`/`Num` component usage kept working with **zero
+  per-component edits** — same trick as Chunk 6. If a future agent (or
+  the user) wants monospace back, do NOT re-add a `JetBrains_Mono`
+  loader and hope it sticks — ask first, this has flip-flopped twice
+  already. Two inline SVG chart labels
+  (`components/accounts/AccountMiniChart.tsx`,
+  `components/charts/ForecastLine.tsx`) had a literal
+  `fontFamily="var(--font-mono)"` and were switched to
+  `var(--font-inter)` directly since they don't go through Tailwind.
 - **Icon component** (`components/ui/Icon.tsx`) — monoline stroke icon
   set ported from `design-refs/src/icons.jsx`, plus the `logo-google`
   and `logo-apple` brand glyphs used by the auth SSO row.
@@ -242,6 +255,23 @@ Early parser used `XLSX.utils.sheet_to_json({header:1})` which has edge cases wi
 
 For USD-denominated accounts (e.g. "Deel, $"), store opening balance in **native USD** (not pre-converted to EUR). EUR conversions happen at display time using either the stored per-tx `fx_rate` or the budget's live `fxRate`. The Accounts Balance sheet has separate `€` (col C) and `$` (col D) columns — read `$` for USD accounts, `€` for EUR accounts.
 
+### 8f. "This month" means the last completed month (2026-09 decision)
+
+The user fills in the budget at month-end, reviewing the month that just
+ended — not the in-progress one. So on **Dashboard** and **Categories**,
+every "this month" calculation (KPIs, spending mix, category YTD-avg,
+the Greeting insight line) is anchored to `workingMonth(now)`
+(`lib/dashboard/period.ts`) — last calendar month, not `now`'s month —
+and `/trends` uses the same anchor for its rightmost column.
+
+**Exception:** account balances (hero tile, sparkline, accounts page)
+stay anchored to the true current date — a balance is a real-time
+number, not a monthly summary. Don't route balance code through
+`workingMonth`.
+
+**Forecast** was deliberately left alone (it already has its own
+horizon toggle and is forward-looking, not a "this month" view).
+
 ---
 
 ## 9. Code architecture
@@ -261,11 +291,15 @@ components/
   auth/               # SignInForm, SignUpForm, ResetForm, BrandPanel,
                       # AuthHeader, TheusMark
   transactions/       # Filters, TransactionsTable, TransactionForm,
-                      # EditableCell, SortableHeader, BulkActionBar
-  accounts/           # AccountsTable, AccountForm
-  categories/         # CategoriesPanel, NameForm
+                      # DayGroupedList, BulkActionBar,
+                      # GlobalAddTransactionModal (mounted in the app
+                      # shell — "N" keyboard shortcut + Topbar "+ New")
+  accounts/           # AccountsGrid, AccountCard, AccountForm
+  categories/         # CategoriesClient, CategoryRow, CategoryDetailModal,
+                      # NameForm
+  trends/             # TrendTable — /trends month-over-month breakdown
   charts/             # IncomeSpendBars, CategoryDonut, Donut,
-                      # AccountsTrajectory, ForecastBars, Sparkline
+                      # ForecastLine, Sparkline
   forecast/           # BurnRateTable
   import/             # ImportDropzone
 
@@ -275,6 +309,11 @@ lib/
   data/               # read-only repos: budgets, accounts, categories,
                       # transactions
   xlsx/               # parse, classify, dates
+  categories/         # summary (Categories page), formOptions
+                      # (subcategory dropdown + most-used auto-pick),
+                      # monthlyTrend (/trends)
+  accounts/           # defaultAccount (Cash EUR pick for Add-transaction)
+  dashboard/          # period (incl. workingMonth — see §8f), categoryIcon
   date.ts, money.ts, balance.ts, categoryColor.ts, fx.ts, env.ts,
   utils.ts, version.ts
 

@@ -1,20 +1,20 @@
 'use client';
 
 import { Icon } from '@/components/ui/Icon';
+import { GLOBAL_ADD_TRANSACTION_EVENT } from '@/components/transactions/GlobalAddTransactionModal';
 
 /**
  * Topbar — visual 1:1 match with design-refs/src/dashboard.jsx 52-68.
- * Search and bell are non-functional placeholders; the "+ New" button
- * dispatches via onNewTransaction (wiring lands in a later chunk).
+ * Search and bell are non-functional placeholders. The "+ New" button
+ * (and the global "N" shortcut) opens GlobalAddTransactionModal, mounted
+ * once in the app shell.
  */
 export function Topbar({
   fxRate,
   baseCurrency,
-  onNewTransaction,
 }: {
   fxRate?: number | null;
   baseCurrency?: string;
-  onNewTransaction?: () => void;
 }) {
   const fxLabel =
     fxRate && baseCurrency
@@ -49,8 +49,9 @@ export function Topbar({
       {/* New */}
       <button
         type="button"
-        onClick={onNewTransaction}
+        onClick={() => window.dispatchEvent(new CustomEvent(GLOBAL_ADD_TRANSACTION_EVENT))}
         className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:brightness-110"
+        title="Add transaction (N)"
       >
         <Icon name="plus" size={14} />
         New

@@ -87,6 +87,24 @@ export async function listMonthsWithTransactions(budgetId: string): Promise<stri
   return [...seen];
 }
 
+/**
+ * Lightweight (category, subcategory) projection over every transaction in
+ * the budget — used to compute "most-used subcategory per category" for the
+ * Add-transaction form without pulling full transaction rows.
+ */
+export async function listCategorySubcategoryPairs(
+  budgetId: string,
+): Promise<Array<{ category: string | null; subcategory: string | null }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('category, subcategory')
+    .eq('budget_id', budgetId)
+    .not('subcategory', 'is', null);
+  if (error) throw error;
+  return (data ?? []) as Array<{ category: string | null; subcategory: string | null }>;
+}
+
 export async function countTransactions(budgetId: string): Promise<number> {
   const supabase = await createClient();
   const { count, error } = await supabase

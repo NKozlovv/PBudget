@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { getSupabaseEnv, isSupabaseConfigured } from '@/lib/env';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/transactions', '/accounts', '/categories', '/forecast'];
+const PROTECTED_PREFIXES = [
+  '/dashboard',
+  '/transactions',
+  '/accounts',
+  '/categories',
+  '/trends',
+  '/forecast',
+];
 const AUTH_PATHS = ['/login', '/signup', '/reset'];
 
 function isProtected(pathname: string): boolean {

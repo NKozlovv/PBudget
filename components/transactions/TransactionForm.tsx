@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { Button, Field, Input, Select } from '@/components/ui';
+import { pickDefaultAccount } from '@/lib/accounts/defaultAccount';
 import type { Account, Category, Currency, TxType } from '@/lib/supabase/types';
 import type { TxInput } from '@/app/actions/transactions';
 
@@ -12,6 +13,7 @@ export interface FormDefaults {
   currency?: Currency;
   account_id?: string | null;
   category?: string | null;
+  subcategory?: string | null;
   comment?: string | null;
 }
 
@@ -20,6 +22,8 @@ export function TransactionForm({
   accounts,
   expenseCats,
   incomeCats,
+  subcategoriesByCategory = {},
+  mostUsedSubcategory = {},
   defaults,
   submitLabel,
   onSubmit,
@@ -29,6 +33,10 @@ export function TransactionForm({
   accounts: Account[];
   expenseCats: Category[];
   incomeCats: Category[];
+  /** Category name → its subcategory names. */
+  subcategoriesByCategory?: Record<string, string[]>;
+  /** Category name → most-frequently-used subcategory name. */
+  mostUsedSubcategory?: Record<string, string>;
   defaults?: FormDefaults;
   submitLabel: string;
   onSubmit: (input: TxInput) => Promise<{ ok: true } | { ok: false; error: string }>;
@@ -38,9 +46,10 @@ export function TransactionForm({
   const [date, setDate] = useState(defaults?.date ?? todayISO);
   const [type, setType] = useState<TxType>(defaults?.type ?? 'expense');
   const [accountId, setAccountId] = useState<string>(
-    defaults?.account_id ?? accounts[0]?.id ?? '',
+    defaults?.account_id ?? pickDefaultAccount(accounts)?.id ?? '',
   );
   const [category, setCategory] = useState<string>(defaults?.category ?? '');
+  const [subcategory, setSubcategory] = useState<string>(defaults?.subcategory ?? '');
   const [amount, setAmount] = useState<string>(defaults?.amount?.toString() ?? '');
   const [comment, setComment] = useState<string>(defaults?.comment ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +58,12 @@ export function TransactionForm({
   const account = accounts.find((a) => a.id === accountId);
   const currency: Currency = (defaults?.currency ?? account?.currency ?? 'EUR') as Currency;
   const cats = type === 'income' ? incomeCats : type === 'expense' ? expenseCats : [];
+  const subcatOptions = subcategoriesByCategory[category] ?? [];
+
+  function handleCategoryChange(nextCategory: string) {
+    setCategory(nextCategory);
+    setSubcategory(mostUsedSubcategory[nextCategory] ?? '');
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -71,7 +86,7 @@ export function TransactionForm({
       currency,
       account_id: accountId,
       category: category.trim() || null,
-      subcategory: null,
+      subcategory: subcategory.trim() || null,
       comment: comment.trim() || null,
     });
     setPending(false);
@@ -123,18 +138,34 @@ export function TransactionForm({
         )}
       </Field>
 
-      <Field label="Category">
-        {({ id }) => (
-          <Select id={id} value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">— None —</option>
-            {cats.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Category" className={subcatOptions.length > 0 ? undefined : 'col-span-2'}>
+          {({ id }) => (
+            <Select id={id} value={category} onChange={(e) => handleCategoryChange(e.target.value)}>
+              <option value="">— None —</option>
+              {cats.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        {subcatOptions.length > 0 ? (
+          <Field label="Subcategory">
+            {({ id }) => (
+              <Select id={id} value={subcategory} onChange={(e) => setSubcategory(e.target.value)}>
+                <option value="">— None —</option>
+                {subcatOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        ) : null}
+      </div>
 
       <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
         <Field label={`Amount (${currency})`}>

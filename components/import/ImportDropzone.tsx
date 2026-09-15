@@ -145,7 +145,12 @@ function SummaryCard({ summary }: { summary: ImportSummary }) {
     <div className="rounded-2xl border border-pos/40 bg-pos-soft px-6 py-5">
       <Mono tone="pos">Import complete</Mono>
       <div className="mt-4 grid grid-cols-2 gap-y-3 gap-x-6 sm:grid-cols-3">
-        <Stat label="Transactions" value={summary.transactions.inserted} tone="pos" />
+        <Stat
+          label="Transactions"
+          value={summary.transactions.inserted}
+          tone="pos"
+          sub={`${summary.transactions.expense} expense · ${summary.transactions.income} income · ${summary.transactions.adjustment} adjustment`}
+        />
         <Stat
           label="Accounts"
           value={summary.accounts.created}

@@ -1233,3 +1233,94 @@ version bump.
 
 Sterling 1:1 closed. Palette decisions deferred — current tokens
 remain in place as the working theme.
+
+---
+
+## Chunk 19 — bug fixes + feature requests batch (2026-09-14)
+
+A batch of user-reported bugs and feature requests, not tied to the
+Sterling chunk plan. See CLAUDE.md §8f for the "last completed month"
+convention this introduces.
+
+**Done:**
+
+- **Font:** JetBrains Mono dropped again — third reversal, direct user
+  feedback ("replace this idiotic typewriter font"). `tailwind.config.ts`
+  `mono` family now aliases to `var(--font-inter)`; `app/layout.tsx` no
+  longer loads JBM. Every existing `font-mono` class kept working
+  unchanged (same trick as Chunk 6). Two inline-SVG chart labels with a
+  literal `var(--font-mono)` fixed directly. See CLAUDE.md §6.
+- **Subcategory on the transaction form:** `TransactionForm` had no
+  subcategory field at all (`subcategory: null` was hardcoded). Added
+  one, shown only when the selected category has subcategories.
+  Selecting a category now auto-picks that category's most-used
+  subcategory (`lib/categories/formOptions.ts#mostUsedSubcategoryByCategory`,
+  fed by a new lightweight query `listCategorySubcategoryPairs` so it
+  doesn't require pulling full transaction rows) — still fully
+  overridable.
+- **Default account:** Add-transaction now defaults to the EUR account
+  named like "Cash" (`lib/accounts/defaultAccount.ts#pickDefaultAccount`,
+  matches `/cash/i` + `currency==='EUR'`), falling back to the first
+  account if there isn't one.
+- **Global "add transaction":** new `GlobalAddTransactionModal`, mounted
+  once in `(app)/layout.tsx` (which now also fetches accounts/categories/
+  subcategory data for it). Opens via the Topbar's "+ New" button (now
+  actually wired — it was a documented no-op since Chunk 12) or the "N"
+  key from anywhere in the app (ignored while typing in a field or while
+  another dialog is open). Separate from the existing page-local add
+  flow on `/transactions` (different event name) so the two don't stack.
+- **Subcategory not showing up after adding one:** `CategoryDetailModal`
+  now keeps an optimistic local copy of the subcategory list, updated
+  immediately on add/rename/delete instead of waiting on the
+  `router.refresh()` round-trip.
+- **"This month" → last completed month:** Dashboard (KPIs, spending
+  mix, cashflow bars, Greeting insight line) and Categories page now
+  anchor "this month" to `workingMonth(now)` — see CLAUDE.md §8f. Account
+  balances (hero tile, sparkline) stay real-time. Greeting copy changed
+  from "…this month" to "…in {Month}" so it reads correctly regardless
+  of how far back the working month is.
+- **New `/trends` page:** spend by category **and subcategory**, one
+  column per month (6 visible, anchored to the working month), cells
+  tinted red/green by month-over-month change with a ±10% "no change"
+  band (`components/trends/TrendTable.tsx`,
+  `lib/categories/monthlyTrend.ts`). Expense-only for this version —
+  income wasn't in scope of the request. Added to the sidebar and to
+  `middleware.ts`'s protected-route list.
+- **Import diagnostics:** `ImportSummary.transactions` now breaks out
+  expense/income/adjustment counts, shown under the Transactions stat
+  on the import success card.
+
+**Investigated, not fixed (need more info):**
+
+- **"CSV import treats income as expense" / "spending by category
+  numbers are wrong":** Went through `lib/xlsx/parse.ts` and
+  `lib/xlsx/classify.ts` line-by-line against the legacy
+  `parseXlsxRaw()` in `public/legacy/index.html` (lines 1346–1499) —
+  the TS port is byte-for-byte identical in behavior, including the
+  `Math.abs()` normalization of expense-block amounts (tested,
+  intentional — see the "amount stored as absolute value" test in
+  `test/lib/xlsx/classify.test.ts`). Also checked `monthTotalsEUR` /
+  `categorySpendEUR` / `categoryTotalsByKindEUR` in `lib/balance.ts` —
+  the math checks out. Couldn't reproduce a misclassification from code
+  review alone. Added the type-breakdown diagnostic above so the next
+  import makes the actual counts visible; next step is a concrete
+  example (a screenshot, or "category X shows €Y for March, expected
+  €Z") to pin down whether this is a parser bug, an FX-fallback drift
+  (USD dates Frankfurter couldn't price), or something else.
+
+**Skipped:**
+
+- CSV file upload (only .xlsx is supported) — user confirmed in
+  clarifying questions that the actual bug is about the existing .xlsx
+  importer, not a request for a new CSV path.
+- `/trends` income section — expense-only per the request's framing
+  ("spending by categories"); add later if wanted.
+- A month-count toggle (3/6/12) on `/trends`, mirroring Forecast's
+  `HorizonToggle` — kept to a fixed 6 months for this version.
+
+**Verification:** TypeScript / lint / build **not run** — Node isn't
+available on this worktree machine (same as every prior chunk). User
+verifies via the Vercel preview deploy.
+
+**Open questions:** the two "investigated, not fixed" items above need
+a concrete repro from the user.

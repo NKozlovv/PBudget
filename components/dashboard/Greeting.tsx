@@ -11,11 +11,14 @@ export function Greeting({
   userName,
   monthSpend,
   avgMonthSpend,
+  monthLabel,
 }: {
   now: Date;
   userName: string;
   monthSpend: number;
   avgMonthSpend: number;
+  /** Label for the month `monthSpend` covers, e.g. "March" — the last completed month. */
+  monthLabel: string;
 }) {
   const kicker = `${monthLong(now.getMonth())} ${now.getFullYear()} · WK ${isoWeek(now)}`;
   const greeting = `Good ${timeOfDayGreeting(now)}, ${userName}.`;
@@ -40,7 +43,7 @@ export function Greeting({
         <span className="font-sans text-[14px] font-semibold tabular-nums text-ink">
           {fmtEUR(monthSpend, { decimals: 0 })}
         </span>{' '}
-        this month
+        in {monthLabel}
         {hasAverage ? (
           <>
             {' '}— <span className={`${deltaToneClass} font-medium`}>{deltaCopy}</span> your average.

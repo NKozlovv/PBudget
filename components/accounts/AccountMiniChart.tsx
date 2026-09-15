@@ -94,7 +94,7 @@ export function AccountMiniChart({
         x={width - padX}
         y={topY + 3}
         fontSize="9"
-        fontFamily="var(--font-mono)"
+        fontFamily="var(--font-inter)"
         fill="var(--ink-mute)"
         textAnchor="end"
       >
@@ -104,7 +104,7 @@ export function AccountMiniChart({
         x={width - padX}
         y={gridY - 3}
         fontSize="9"
-        fontFamily="var(--font-mono)"
+        fontFamily="var(--font-inter)"
         fill="var(--ink-mute)"
         textAnchor="end"
       >
@@ -123,7 +123,7 @@ export function AccountMiniChart({
           x={xs[i]}
           y={height - 4}
           fontSize="9"
-          fontFamily="var(--font-mono)"
+          fontFamily="var(--font-inter)"
           fill="var(--ink-mute)"
           textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
         >

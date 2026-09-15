@@ -5,13 +5,21 @@ import { Icon } from '@/components/ui';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listCategories, listSubcategoriesForBudget } from '@/lib/data/categories';
-import { listMonthsWithTransactions, listTransactions } from '@/lib/data/transactions';
+import {
+  listCategorySubcategoryPairs,
+  listMonthsWithTransactions,
+  listTransactions,
+} from '@/lib/data/transactions';
 import { Filters } from '@/components/transactions/Filters';
 import { StatStrip } from '@/components/transactions/StatStrip';
 import { TransactionsTable } from '@/components/transactions/TransactionsTable';
 import { AddTransactionButton } from '@/components/transactions/AddTransactionButton';
 import { monthName, monthOfDate, yearOfDate } from '@/lib/date';
-import type { TxType } from '@/lib/supabase/types';
+import {
+  mostUsedSubcategoryByCategory,
+  subcategoriesByCategoryName,
+} from '@/lib/categories/formOptions';
+import type { TxType, Subcategory } from '@/lib/supabase/types';
 import type { TxSortField } from '@/lib/data/transactions';
 
 export const metadata = { title: 'Transactions · Theus' };
@@ -60,7 +68,7 @@ export default async function TransactionsPage({
 }) {
   const sp = await searchParams;
   const budget = await getOrCreateUserBudget();
-  const [accounts, expenseCats, incomeCats, subcategories, months, transactions] =
+  const [accounts, expenseCats, incomeCats, subcategories, months, transactions, subPairs] =
     await Promise.all([
       listAccounts(budget.id),
       listCategories(budget.id, 'expense'),
@@ -78,7 +86,19 @@ export default async function TransactionsPage({
         sortBy: parseSort(sp.sort),
         sortDir: parseDir(sp.dir),
       }),
+      listCategorySubcategoryPairs(budget.id),
     ]);
+
+  const subcategoriesById: Record<string, Subcategory[]> = {};
+  for (const s of subcategories) {
+    if (!subcategoriesById[s.category_id]) subcategoriesById[s.category_id] = [];
+    subcategoriesById[s.category_id]!.push(s);
+  }
+  const subcategoriesByCategory = subcategoriesByCategoryName(
+    [...expenseCats, ...incomeCats],
+    subcategoriesById,
+  );
+  const mostUsedSubcategory = mostUsedSubcategoryByCategory(subPairs);
 
   return (
     <>
@@ -122,6 +142,8 @@ export default async function TransactionsPage({
           accounts={accounts}
           expenseCats={expenseCats}
           incomeCats={incomeCats}
+          subcategoriesByCategory={subcategoriesByCategory}
+          mostUsedSubcategory={mostUsedSubcategory}
           budgetId={budget.id}
           budgetFxRate={budget.fx_rate}
         />

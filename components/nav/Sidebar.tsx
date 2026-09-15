@@ -12,6 +12,7 @@ const NAV: { href: string; label: string; icon: IconName; badge?: string }[] = [
   { href: '/transactions', label: 'Transactions', icon: 'list' },
   { href: '/accounts', label: 'Accounts', icon: 'wallet' },
   { href: '/categories', label: 'Categories', icon: 'tag' },
+  { href: '/trends', label: 'Trends', icon: 'pulse' },
   { href: '/forecast', label: 'Forecast', icon: 'chart' },
   { href: '/coach', label: 'Coach', icon: 'sparkle', badge: 'New' },
 ];
