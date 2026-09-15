@@ -22,6 +22,20 @@ export interface TrendPoint {
  * Replaces the old bare Sparkline (no axis at all) for these three tiles —
  * Sparkline itself is unchanged and still used for the decorative auth
  * preview card.
+ *
+ * `width`/`height` below are only the *viewBox* ratio, not literal pixels —
+ * the wrapping div is given `aspect-ratio: width / height` and the `<svg>`
+ * fills it at 100%/100%. Setting the SVG's own `height` to a fixed pixel
+ * number while `width` stayed fluid (the previous approach, still how
+ * ForecastLine/SavingsRateChart/Sparkline/AccountMiniChart work) let the
+ * *actual* rendered aspect ratio drift arbitrarily far from the viewBox's
+ * as card width changed with viewport/zoom — combined with
+ * `preserveAspectRatio="none"`, that silently stretched the X-axis by
+ * whatever factor the real width differed from the chosen viewBox width,
+ * which is what read as "crooked / zoomed and compressed." Locking the
+ * container to the intended ratio via CSS makes the rendered box always
+ * match the viewBox exactly, so X and Y always scale by the same factor —
+ * no distortion at any width.
  */
 export function TrendLineChart({
   data,
@@ -88,11 +102,11 @@ export function TrendLineChart({
   const xTickIndices = [...new Set([0, splitIdx, data.length - 1])];
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative" style={{ aspectRatio: `${width} / ${height}` }}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
-        height={height}
+        height="100%"
         preserveAspectRatio="none"
         role="img"
         aria-label={`Trend from ${valueFormat(rawMin)} to ${valueFormat(rawMax)}, with a forecast for months not yet reached`}

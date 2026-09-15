@@ -106,11 +106,15 @@ export function SavingsRateChart({
   const hitWidth = innerW / (points.length - 1);
 
   return (
-    <div ref={containerRef} className="relative">
+    // aspect-ratio locks the rendered box to the viewBox's own ratio —
+    // see TrendLineChart's doc comment for why a fixed pixel `height`
+    // with a fluid `width` (the old approach here) silently stretched the
+    // X-axis by whatever the real card width differed from viewBox width.
+    <div ref={containerRef} className="relative" style={{ aspectRatio: `${width} / ${height}` }}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
-        height={height}
+        height="100%"
         preserveAspectRatio="none"
         role="img"
         aria-label={`Savings rate by month, year-to-date average ${ytdAvg.toFixed(0)} percent`}

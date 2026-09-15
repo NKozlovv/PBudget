@@ -2069,3 +2069,51 @@ and the old URL-param helpers (`parseLimit`/`parseType`/`parseSort`/
 `parseDir`/`loadMoreHref`) to confirm nothing still referenced them;
 confirmed `OptionsList`'s only other caller (`Select.tsx`) still passes
 `value` (not `selected`) and is unaffected by the new optional prop.
+
+## Chart aspect-ratio distortion fix (2026-09-15, same day)
+
+User reported the Dashboard charts (again) as "crooked... zoomed in
+and compressed" after round 6's padding pass, this time with a clear
+screenshot. Root cause was structural, not a padding number: every
+line/sparkline chart (`TrendLineChart`, `ForecastLine`,
+`SavingsRateChart`, `AccountMiniChart`, `Sparkline`) rendered its
+`<svg>` with `width="100%"` (fluid, follows the card) but a *literal
+pixel* `height` attribute, combined with `preserveAspectRatio="none"`.
+That combination means the SVG's actual on-screen box almost never
+matches its own `viewBox` ratio — e.g. `TrendLineChart`'s hero-tile
+viewBox is 500×116, but the hero card itself renders anywhere from
+~600–900px wide depending on viewport/zoom while height stays pinned
+at 116px, so `preserveAspectRatio="none"` stretched the X-axis by
+whatever factor the real width differed from 500, every time. (The
+one chart that *didn't* show this — `IncomeSpendBars`, the Cash flow
+bars — uses `preserveAspectRatio="xMinYMid meet"` instead of `"none"`,
+which fits-and-letterboxes rather than stretching; that's why only the
+line charts were affected.)
+
+**Fix:** wrap each chart's container `<div>` in
+`style={{ aspectRatio: `${width} / ${height}` }}` and change the
+`<svg>`'s own `height` from a literal pixel number to `"100%"`. CSS
+`aspect-ratio` on the wrapper forces its rendered height to always be
+exactly `renderedWidth * (height / width)` — the same ratio the
+viewBox already assumes — so the SVG's actual box matches the viewBox
+ratio at *any* card width, and X/Y always scale by the same factor.
+Zero distortion possible now, versus "distortion whenever the card
+isn't exactly `width`px wide" before. Side effect (intentional, and
+better): these charts now scale height *with* width responsively
+instead of holding a fixed pixel height while width alone flexed —
+more in the spirit of the earlier "make the layout depend on
+resolution" feedback, not just a bug fix.
+
+Applied identically to all five affected components; `IncomeSpendBars`
+and the donut charts (`CategoryDonut`/`Donut`, which already use
+literal matching `width`/`height` — always square, never fluid) needed
+no change.
+
+**Verification:** no local build (no Node) — reviewed each edited
+file's JSX by hand to confirm the wrapper/svg tag changes didn't
+disturb surrounding structure (`ForecastLine.tsx` in particular has
+unusual pre-existing indentation); re-swept all five for the two
+recurring bug classes (none found); grepped the whole `components/`
+tree for `preserveAspectRatio` to confirm every `"none"` user was
+caught and `IncomeSpendBars`'s `"meet"` (a different, non-distorting
+mode) was correctly left alone.

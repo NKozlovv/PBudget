@@ -68,11 +68,15 @@ export function AccountMiniChart({
   const gradId = `acct-spk-${Math.random().toString(36).slice(2, 8)}`;
 
   return (
-    <div ref={containerRef} className="relative">
+    // aspect-ratio locks the rendered box to the viewBox's own ratio —
+    // see TrendLineChart's doc comment for why a fixed pixel `height` with
+    // a fluid `width` (the old approach here) silently stretched the
+    // X-axis by however far the real card width drifted from `width`.
+    <div ref={containerRef} className="relative" style={{ aspectRatio: `${width} / ${height}` }}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
-        height={height}
+        height="100%"
         preserveAspectRatio="none"
         role="img"
         aria-label={`Balance trend, ${data.length} months. Min ${fmtEUR(rawMin, { decimals: 0 })}, max ${fmtEUR(rawMax, { decimals: 0 })}.`}

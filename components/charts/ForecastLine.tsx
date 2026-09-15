@@ -87,11 +87,16 @@ export function ForecastLine({
   const hitWidth = innerW / (points.length - 1);
 
   return (
-    <div ref={containerRef} className="relative">
+    // aspect-ratio locks the rendered box to the viewBox's own ratio, so
+    // preserveAspectRatio="none" below never has a mismatched box to
+    // stretch to — a fixed pixel `height` with a fluid `width` let the
+    // X-axis silently stretch by however far the real card width drifted
+    // from `width`, which read as a crooked/distorted chart.
+    <div ref={containerRef} className="relative" style={{ aspectRatio: `${width} / ${height}` }}>
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width="100%"
-      height={height}
+      height="100%"
       preserveAspectRatio="none"
       role="img"
       aria-label={`Balance projection. ${fmtEUR(rawMin, { decimals: 0 })} to ${fmtEUR(rawMax, { decimals: 0 })}.`}
