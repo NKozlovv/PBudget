@@ -2,17 +2,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 import { getOrCreateUserBudget, listBudgets } from '@/lib/data/budgets';
-import { listAccounts } from '@/lib/data/accounts';
-import { listCategories, listSubcategoriesForBudget } from '@/lib/data/categories';
-import { listCategorySubcategoryPairs } from '@/lib/data/transactions';
-import {
-  mostUsedSubcategoryByCategory,
-  subcategoriesByCategoryName,
-} from '@/lib/categories/formOptions';
 import { Sidebar } from '@/components/nav/Sidebar';
 import { Topbar } from '@/components/nav/Topbar';
 import { GlobalAddTransactionModal } from '@/components/transactions/GlobalAddTransactionModal';
-import type { Subcategory } from '@/lib/supabase/types';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isSupabaseConfigured()) {
@@ -26,25 +18,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/login');
   }
 
+  // This layout re-runs on *every* navigation (it's fully dynamic — reads
+  // cookies via createClient()), so keep it to exactly what every page
+  // needs. Data specific to one feature (e.g. the add-transaction form)
+  // belongs in that feature, fetched on demand — see
+  // GlobalAddTransactionModal / app/actions/transactionFormData.ts, which
+  // used to be fetched here and made every single page navigation pay for
+  // 5 extra queries.
   const [budget, budgets] = await Promise.all([getOrCreateUserBudget(), listBudgets()]);
-  const [accounts, expenseCats, incomeCats, subcategories, subPairs] = await Promise.all([
-    listAccounts(budget.id),
-    listCategories(budget.id, 'expense'),
-    listCategories(budget.id, 'income'),
-    listSubcategoriesForBudget(budget.id),
-    listCategorySubcategoryPairs(budget.id),
-  ]);
-
-  const subcategoriesById: Record<string, Subcategory[]> = {};
-  for (const s of subcategories) {
-    if (!subcategoriesById[s.category_id]) subcategoriesById[s.category_id] = [];
-    subcategoriesById[s.category_id]!.push(s);
-  }
-  const subcategoriesByCategory = subcategoriesByCategoryName(
-    [...expenseCats, ...incomeCats],
-    subcategoriesById,
-  );
-  const mostUsedSubcategory = mostUsedSubcategoryByCategory(subPairs);
 
   return (
     <div className="grid min-h-screen grid-cols-[232px_1fr]">
@@ -57,18 +38,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <div className="flex min-w-0 flex-col">
         <Topbar fxRate={budget.fx_rate} baseCurrency={budget.base_currency} />
-        <main className="flex-1 px-10 py-10">
-          <div className="mx-auto max-w-6xl">{children}</div>
+        <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
+          <div className="mx-auto w-full max-w-[1600px] 2xl:max-w-[1920px]">{children}</div>
         </main>
       </div>
-      <GlobalAddTransactionModal
-        budgetId={budget.id}
-        accounts={accounts}
-        expenseCats={expenseCats}
-        incomeCats={incomeCats}
-        subcategoriesByCategory={subcategoriesByCategory}
-        mostUsedSubcategory={mostUsedSubcategory}
-      />
+      <GlobalAddTransactionModal />
     </div>
   );
 }

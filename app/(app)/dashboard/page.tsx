@@ -21,7 +21,7 @@ import {
   accountBalanceNativeAt,
   accountsCurrentEUR,
 } from '@/lib/balance';
-import { dateToISO } from '@/lib/date';
+import { dateToISO, monthName, monthOfDate, yearOfDate } from '@/lib/date';
 
 export const metadata = { title: 'Dashboard · Theus' };
 
@@ -68,6 +68,7 @@ export default async function DashboardPage({
   });
   const incomeTrend = last12.map((m) => m.income);
   const expenseTrend = last12.map((m) => m.expense);
+  const monthTrendLabels = last12.map((m) => `${monthName(m.month)} ${m.year}`);
 
   // 6-month average expense (excluding the working month) for the insight subline.
   const last7 = lastNMonthsTotals({
@@ -97,6 +98,9 @@ export default async function DashboardPage({
   });
   const balanceSeries = trajectory.map((p) =>
     Object.values(p.balances).reduce((s, n) => s + n, 0),
+  );
+  const balanceTrendLabels = trajectory.map(
+    (p) => `${monthName(monthOfDate(p.date))} ${yearOfDate(p.date)}`,
   );
   const prevBalance =
     balanceSeries.length >= 2 ? (balanceSeries[balanceSeries.length - 2] ?? 0) : balanceEUR;
@@ -141,6 +145,7 @@ export default async function DashboardPage({
           balance={balanceEUR}
           prevBalance={prevBalance}
           trend={balanceSeries}
+          trendLabels={balanceTrendLabels}
           accountCount={accounts.length}
         />
         <MonthKpiTile
@@ -148,6 +153,7 @@ export default async function DashboardPage({
           amount={monthTotals.income}
           prevAmount={prevIncome}
           trend={incomeTrend}
+          trendLabels={monthTrendLabels}
           tone="pos"
           kind="income"
         />
@@ -156,6 +162,7 @@ export default async function DashboardPage({
           amount={monthTotals.expense}
           prevAmount={prevExpense}
           trend={expenseTrend}
+          trendLabels={monthTrendLabels}
           tone="neg"
           kind="spending"
         />

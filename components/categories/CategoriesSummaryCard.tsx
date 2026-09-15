@@ -1,6 +1,10 @@
+'use client';
+
 import { Mono } from '@/components/ui';
 import { categoryColor as hueFor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
+import { ChartTooltip } from '@/components/charts/ChartTooltip';
+import { useChartHover } from '@/components/charts/useChartHover';
 import type { CategorySummary } from '@/lib/categories/summary';
 
 function compactEUR(n: number): string {
@@ -28,6 +32,7 @@ export function CategoriesSummaryCard({
   const remaining = totalAvg - totalThisMonth;
   const pctVsAvg = totalAvg > 0 ? (totalThisMonth / totalAvg - 1) * 100 : 0;
   const overCats = sorted.filter((s) => s.over);
+  const { containerRef, hover, show, hide } = useChartHover<CategorySummary>();
 
   // Donut geometry
   const size = 180;
@@ -40,7 +45,7 @@ export function CategoriesSummaryCard({
     <div className="rounded-2xl border border-rule bg-bg-soft p-6">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-[200px_1fr] md:items-center">
         {/* Donut */}
-        <div className="relative mx-auto" style={{ width: size, height: size }}>
+        <div ref={containerRef} className="relative mx-auto" style={{ width: size, height: size }}>
           <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Spend by category">
             <circle
               cx={size / 2}
@@ -69,11 +74,14 @@ export function CategoriesSummaryCard({
                     strokeDasharray={dash}
                     strokeDashoffset={dashOffset}
                     transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                    onMouseEnter={(e) => show(e, s)}
+                    onMouseMove={(e) => show(e, s)}
+                    onMouseLeave={hide}
                   />
                 );
               })}
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <div
               className="font-sans tabular-nums tracking-tight text-ink"
               style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em' }}
@@ -84,6 +92,15 @@ export function CategoriesSummaryCard({
               of avg
             </Mono>
           </div>
+          {hover ? (
+            <ChartTooltip x={hover.x} y={hover.y}>
+              <span className="font-medium text-ink">{hover.data.category.name}</span>
+              <span className="mx-1 text-ink-mute">·</span>
+              <span style={{ color: hueFor(hover.data.category.name) }}>
+                {fmtEUR(hover.data.thisMonth, { decimals: 0 })}
+              </span>
+            </ChartTooltip>
+          ) : null}
         </div>
 
         {/* KPI strip + progress + insight */}

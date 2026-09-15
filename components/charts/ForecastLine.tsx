@@ -1,4 +1,8 @@
+'use client';
+
 import { fmtEUR } from '@/lib/money';
+import { ChartTooltip } from './ChartTooltip';
+import { useChartHover } from './useChartHover';
 import type { ProjectionPoint } from '@/lib/forecast/projection';
 
 /**
@@ -16,6 +20,7 @@ export function ForecastLine({
   points: ProjectionPoint[];
   height?: number;
 }) {
+  const { containerRef, hover, show, hide } = useChartHover<ProjectionPoint>();
   if (points.length < 2) return null;
 
   const padX = 12;
@@ -77,7 +82,10 @@ export function ForecastLine({
   const markerX = xs[markerIdx]!;
   const markerY = ys[markerIdx]!;
 
+  const hitWidth = innerW / (points.length - 1);
+
   return (
+    <div ref={containerRef} className="relative">
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width="100%"
@@ -172,6 +180,30 @@ export function ForecastLine({
       >
         {fmtEUR(rawMax, { compact: true, decimals: 0 })}
       </text>
+
+      {/* Hover hit-regions, one per point */}
+      {points.map((p, i) => (
+        <rect
+          key={i}
+          x={Math.max(0, xs[i]! - hitWidth / 2)}
+          y={0}
+          width={hitWidth}
+          height={height}
+          fill="transparent"
+          onMouseEnter={(e) => show(e, p)}
+          onMouseMove={(e) => show(e, p)}
+          onMouseLeave={hide}
+        />
+      ))}
     </svg>
+    {hover ? (
+      <ChartTooltip x={hover.x} y={hover.y}>
+        <span className="font-medium text-ink">{hover.data.label}</span>
+        <span className="mx-1 text-ink-mute">·</span>
+        <span className="text-accent">{fmtEUR(hover.data.balance, { decimals: 0 })}</span>
+        {hover.data.projected ? <span className="ml-1 text-ink-mute">(projected)</span> : null}
+      </ChartTooltip>
+    ) : null}
+    </div>
   );
 }

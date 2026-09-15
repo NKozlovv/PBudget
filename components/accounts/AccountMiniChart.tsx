@@ -1,4 +1,8 @@
+'use client';
+
 import { fmtEUR } from '@/lib/money';
+import { ChartTooltip } from '@/components/charts/ChartTooltip';
+import { useChartHover } from '@/components/charts/useChartHover';
 
 interface Point {
   label: string;
@@ -26,6 +30,7 @@ export function AccountMiniChart({
   width?: number;
   height?: number;
 }) {
+  const { containerRef, hover, show, hide } = useChartHover<Point>();
   if (data.length < 2) return null;
 
   const padX = 6;
@@ -58,78 +63,103 @@ export function AccountMiniChart({
 
   // Show x-tick labels for first, midpoint, last to avoid crowding.
   const tickIndices = data.length <= 4 ? data.map((_, i) => i) : [0, Math.floor(data.length / 2), data.length - 1];
+  const hitWidth = innerW / data.length;
 
   const gradId = `acct-spk-${Math.random().toString(36).slice(2, 8)}`;
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      width="100%"
-      height={height}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={`Balance trend, ${data.length} months. Min ${fmtEUR(rawMin, { decimals: 0 })}, max ${fmtEUR(rawMax, { decimals: 0 })}.`}
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.32} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-
-      {/* y baseline + top tick — faint rule lines */}
-      <line x1={padX} x2={width - padX} y1={gridY} y2={gridY} stroke="var(--rule)" strokeWidth="1" />
-      <line
-        x1={padX}
-        x2={width - padX}
-        y1={topY}
-        y2={topY}
-        stroke="var(--rule)"
-        strokeWidth="1"
-        strokeDasharray="2 3"
-      />
-
-      {/* y-axis ticks at min/max — small text on the right edge */}
-      <text
-        x={width - padX}
-        y={topY + 3}
-        fontSize="9"
-        fontFamily="var(--font-inter)"
-        fill="var(--ink-mute)"
-        textAnchor="end"
+    <div ref={containerRef} className="relative">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        height={height}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Balance trend, ${data.length} months. Min ${fmtEUR(rawMin, { decimals: 0 })}, max ${fmtEUR(rawMax, { decimals: 0 })}.`}
       >
-        {fmtEUR(rawMax, { compact: true, decimals: 0 })}
-      </text>
-      <text
-        x={width - padX}
-        y={gridY - 3}
-        fontSize="9"
-        fontFamily="var(--font-inter)"
-        fill="var(--ink-mute)"
-        textAnchor="end"
-      >
-        {fmtEUR(rawMin, { compact: true, decimals: 0 })}
-      </text>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.32} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
 
-      {/* Area + line */}
-      <path d={area} fill={`url(#${gradId})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r={2.5} fill={color} />
+        {/* y baseline + top tick — faint rule lines */}
+        <line x1={padX} x2={width - padX} y1={gridY} y2={gridY} stroke="var(--rule)" strokeWidth="1" />
+        <line
+          x1={padX}
+          x2={width - padX}
+          y1={topY}
+          y2={topY}
+          stroke="var(--rule)"
+          strokeWidth="1"
+          strokeDasharray="2 3"
+        />
 
-      {/* x-axis labels */}
-      {tickIndices.map((i) => (
+        {/* y-axis ticks at min/max — small text on the right edge */}
         <text
-          key={i}
-          x={xs[i]}
-          y={height - 4}
+          x={width - padX}
+          y={topY + 3}
           fontSize="9"
           fontFamily="var(--font-inter)"
           fill="var(--ink-mute)"
-          textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+          textAnchor="end"
         >
-          {data[i]!.label}
+          {fmtEUR(rawMax, { compact: true, decimals: 0 })}
         </text>
-      ))}
-    </svg>
+        <text
+          x={width - padX}
+          y={gridY - 3}
+          fontSize="9"
+          fontFamily="var(--font-inter)"
+          fill="var(--ink-mute)"
+          textAnchor="end"
+        >
+          {fmtEUR(rawMin, { compact: true, decimals: 0 })}
+        </text>
+
+        {/* Area + line */}
+        <path d={area} fill={`url(#${gradId})`} />
+        <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={lastX} cy={lastY} r={2.5} fill={color} />
+
+        {/* x-axis labels */}
+        {tickIndices.map((i) => (
+          <text
+            key={i}
+            x={xs[i]}
+            y={height - 4}
+            fontSize="9"
+            fontFamily="var(--font-inter)"
+            fill="var(--ink-mute)"
+            textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+          >
+            {data[i]!.label}
+          </text>
+        ))}
+
+        {/* Hover hit-regions, one per point */}
+        {data.map((d, i) => (
+          <rect
+            key={i}
+            x={Math.max(0, xs[i]! - hitWidth / 2)}
+            y={0}
+            width={hitWidth}
+            height={height}
+            fill="transparent"
+            onMouseEnter={(e) => show(e, d)}
+            onMouseMove={(e) => show(e, d)}
+            onMouseLeave={hide}
+          />
+        ))}
+      </svg>
+      {hover ? (
+        <ChartTooltip x={hover.x} y={hover.y}>
+          <span className="font-medium text-ink">{hover.data.label}</span>
+          <span className="mx-1 text-ink-mute">·</span>
+          <span style={{ color }}>{fmtEUR(hover.data.eur, { decimals: 0 })}</span>
+        </ChartTooltip>
+      ) : null}
+    </div>
   );
 }

@@ -1441,3 +1441,94 @@ environment) — reviewed every new/changed file by hand for the
 the build earlier the same day. User confirms via the live site since
 `master` deploys straight to production now (see the cutover entry
 above).
+
+---
+
+## Post-cutover fixes, round 2 (2026-09-15, same day)
+
+### Root-caused the real "pages are slow" regression
+
+Round 1 (above) fixed search-per-keystroke and row-count, but the user
+reported filters *and general page navigation* were still slow.
+Root cause: `(app)/layout.tsx` re-runs on **every** navigation (it's
+fully dynamic — `createClient()` reads cookies, so Next can't cache it
+at all), and round 1's `GlobalAddTransactionModal` wiring had it
+eagerly fetching 5 extra queries (accounts, expense + income
+categories, subcategories, category/subcategory pairs) on every single
+page load just to support the "N" add-transaction shortcut — a
+shortcut used occasionally, paid for on every navigation regardless.
+
+Fixed: `GlobalAddTransactionModal` is now prop-less, fetches its own
+data lazily via a new `app/actions/transactionFormData.ts` server
+action the first time it's actually opened, and caches it in component
+state (the component doesn't remount across client-side navigations,
+so this is a true one-time fetch per page session). The layout is back
+to just `budget` + `budgets` — what every page actually needs.
+`getTransactionFormDataAction` inlines its Supabase queries rather than
+importing `lib/data/*` (same caution as `app/actions/import.ts`), and
+explicitly respects the active-budget cookie — `import.ts`'s version
+doesn't (always resolves to the oldest budget), which is fine for a
+one-shot import but would have silently written new transactions to
+the wrong budget here for anyone who's switched budgets.
+
+### Layout was too narrow / too centered on large monitors
+
+`(app)/layout.tsx`'s content column was capped at `max-w-6xl` (1152px)
+regardless of viewport — on anything bigger than a laptop screen this
+left huge empty margins. Now `max-w-[1600px]` scaling to
+`max-w-[1920px]` at the `2xl` breakpoint, with responsive padding
+(`px-6 py-8` below `lg`, `px-10 py-10` at `lg`+).
+
+### Uncategorised transactions filter
+
+`/transactions`' Category filter pill now has an "Uncategorised"
+option (`lib/transactions/constants.ts#UNCATEGORISED`, a sentinel
+string) alongside the real category names. `listTransactions` matches
+it against `category IS NULL OR category = ''` via `.or('category.is.
+null,category.eq.')` rather than `.eq()` (which never matches NULL in
+Postgres). Kept the sentinel in its own tiny module without
+`import 'server-only'` specifically so the client-side `Filters.tsx`
+can import it without pulling in the rest of the data layer (which
+*is* server-only and would break the client bundle).
+
+### Hover tooltips on every chart
+
+New shared primitives: `components/charts/useChartHover.ts` (tracks
+hover state + cursor position in plain CSS pixels relative to a
+wrapping `relative` container — deliberately not SVG viewBox units, so
+it's correct regardless of how the SVG scales) and
+`components/charts/ChartTooltip.tsx` (the themed floating popup).
+Wired into every real time-series/value chart in the app: Dashboard
+(hero balance sparkline, Income/Spending KPI sparklines, cashflow
+bars, spending-mix donut), Accounts (`AccountMiniChart`), Forecast
+(`ForecastLine`), Categories (`CategoriesSummaryCard`'s donut).
+`Sparkline` takes hover tooltips as opt-in via a new `labels` prop
+(one label per data point) — the auth page's decorative preview
+sparkline passes none and stays non-interactive; the dashboard tiles
+now compute real month labels and pass them through.
+
+Deliberately **not** touched: `AccountsDistributionBar` and
+`PerCategoryOutlook` already show their exact values inline (legend /
+bar caption) without needing a hover — a tooltip there would be
+redundant. `components/charts/Donut.tsx` (the generic one) turned out
+to be dead code, unused anywhere in the app — left it alone.
+
+Line/area charts (`Sparkline`, `AccountMiniChart`, `ForecastLine`) needed
+invisible per-point hit-region `<rect>`s added since there's no
+existing per-point hoverable element on a path. Donut charts
+(`CategoryDonut`, `CategoriesSummaryCard`) got hover handlers directly
+on each segment's `<circle>` — safe because `fill="none"` + the
+default SVG `pointer-events: visiblePainted` means an unpainted (dash
+gap) arc doesn't intercept hover, so each segment naturally only
+responds over its own drawn arc. Both donuts needed
+`pointer-events-none` added to their center-label overlay div, which
+was otherwise silently eating hover events over the whole circle
+(its `inset-0` box, not just where the centered text actually sits).
+
+**Caught again, swept for again:** the same `noUncheckedIndexedAccess`
+compound-assignment and `useRef<T>(null)`-without-`| null` bug classes
+from earlier today. Grepped every changed file for both before
+pushing; none found this round.
+
+**Verification:** no local build (no Node). User confirms on the live
+site — `master` is production now.

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Modal } from '@/components/ui';
+import { Modal, Mono } from '@/components/ui';
 import { TransactionForm } from './TransactionForm';
 import { createTransactionAction } from '@/app/actions/transactions';
-import type { Account, Category } from '@/lib/supabase/types';
+import { getTransactionFormDataAction, type TransactionFormData } from '@/app/actions/transactionFormData';
 
 /**
  * Fired by the Topbar's "+ New" button and by the global "N" keyboard
@@ -22,27 +22,28 @@ function isTypingTarget(el: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
-export function GlobalAddTransactionModal({
-  budgetId,
-  accounts,
-  expenseCats,
-  incomeCats,
-  subcategoriesByCategory,
-  mostUsedSubcategory,
-}: {
-  budgetId: string;
-  accounts: Account[];
-  expenseCats: Category[];
-  incomeCats: Category[];
-  subcategoriesByCategory: Record<string, string[]>;
-  mostUsedSubcategory: Record<string, string>;
-}) {
+/**
+ * Mounted once in (app)/layout.tsx, prop-less on purpose: its form data
+ * (accounts/categories/subcategories) is fetched on demand via a server
+ * action the first time it's opened, not eagerly by the layout on every
+ * navigation. Cached in state afterwards, so it only ever fetches once per
+ * page session (this component doesn't remount on client-side navigation).
+ */
+export function GlobalAddTransactionModal() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [data, setData] = useState<TransactionFormData | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    function onOpenEvent() {
+    function openModal() {
       setOpen(true);
+      if (!data && !loading) {
+        setLoading(true);
+        getTransactionFormDataAction()
+          .then((res) => setData(res))
+          .finally(() => setLoading(false));
+      }
     }
     function onKeydown(e: KeyboardEvent) {
       if (e.key.toLowerCase() !== 'n') return;
@@ -51,15 +52,16 @@ export function GlobalAddTransactionModal({
       // Don't stack on top of another open dialog.
       if (document.querySelector('[role="dialog"]')) return;
       e.preventDefault();
-      setOpen(true);
+      openModal();
     }
-    window.addEventListener(GLOBAL_ADD_TRANSACTION_EVENT, onOpenEvent);
+    window.addEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openModal);
     window.addEventListener('keydown', onKeydown);
     return () => {
-      window.removeEventListener(GLOBAL_ADD_TRANSACTION_EVENT, onOpenEvent);
+      window.removeEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openModal);
       window.removeEventListener('keydown', onKeydown);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, loading]);
 
   return (
     <Modal
@@ -68,24 +70,30 @@ export function GlobalAddTransactionModal({
       title="Add transaction"
       description="A new entry on this budget. Press N anywhere to open this."
     >
-      <TransactionForm
-        budgetId={budgetId}
-        accounts={accounts}
-        expenseCats={expenseCats}
-        incomeCats={incomeCats}
-        subcategoriesByCategory={subcategoriesByCategory}
-        mostUsedSubcategory={mostUsedSubcategory}
-        submitLabel="Add transaction"
-        onSubmit={async (input) => {
-          const res = await createTransactionAction(input);
-          if (res.ok) {
-            setOpen(false);
-            router.refresh();
-          }
-          return res;
-        }}
-        onCancel={() => setOpen(false)}
-      />
+      {data ? (
+        <TransactionForm
+          budgetId={data.budgetId}
+          accounts={data.accounts}
+          expenseCats={data.expenseCats}
+          incomeCats={data.incomeCats}
+          subcategoriesByCategory={data.subcategoriesByCategory}
+          mostUsedSubcategory={data.mostUsedSubcategory}
+          submitLabel="Add transaction"
+          onSubmit={async (input) => {
+            const res = await createTransactionAction(input);
+            if (res.ok) {
+              setOpen(false);
+              router.refresh();
+            }
+            return res;
+          }}
+          onCancel={() => setOpen(false)}
+        />
+      ) : (
+        <div className="py-8 text-center">
+          <Mono size="xs">{loading ? 'Loading…' : 'Could not load form data.'}</Mono>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import { UNCATEGORISED } from '@/lib/transactions/constants';
 import type { Transaction, TxType } from '@/lib/supabase/types';
 
 export interface ListTxFilters {
@@ -31,7 +32,8 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
   let query = supabase.from('transactions').select('*').eq('budget_id', filters.budgetId);
 
   if (filters.type) query = query.eq('type', filters.type);
-  if (filters.category) query = query.eq('category', filters.category);
+  if (filters.category === UNCATEGORISED) query = query.or('category.is.null,category.eq.');
+  else if (filters.category) query = query.eq('category', filters.category);
   if (filters.subcategory) query = query.eq('subcategory', filters.subcategory);
   if (filters.accountId) query = query.eq('account_id', filters.accountId);
   if (filters.fromDate) query = query.gte('date', filters.fromDate);

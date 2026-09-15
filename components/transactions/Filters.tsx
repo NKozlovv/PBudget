@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { FilterPill, Icon, OptionsList, useDismissable, type DropdownOption } from '@/components/ui';
+import { UNCATEGORISED } from '@/lib/transactions/constants';
 import type { Account, Category, Subcategory } from '@/lib/supabase/types';
 
 const MONTH_LABELS = [
@@ -124,7 +125,8 @@ export function Filters({
 
   const accountLabel =
     accounts.find((a) => a.id === currentAccount)?.name ?? 'Account';
-  const categoryLabel = currentCategory || 'Category';
+  const categoryLabel =
+    currentCategory === UNCATEGORISED ? 'Uncategorised' : currentCategory || 'Category';
   const monthPillLabel = currentMonth ? monthLabel(currentMonth) : 'Month';
   const sortLabel = findSortLabel(currentSort, currentDir);
 
@@ -174,12 +176,13 @@ export function Filters({
         onChange={(v) => update({ category: v, subcategory: '' })}
         options={[
           { value: '', label: 'All categories' },
+          { value: UNCATEGORISED, label: 'Uncategorised' },
           ...allCats.map((c) => ({ value: c.name, label: c.name })),
         ]}
       />
 
-      {/* Subcategory — cascades from category */}
-      {currentCategory ? (
+      {/* Subcategory — cascades from category (meaningless for Uncategorised) */}
+      {currentCategory && currentCategory !== UNCATEGORISED ? (
         <PillSelect
           icon="filter"
           label={currentSub || 'Subcategory'}

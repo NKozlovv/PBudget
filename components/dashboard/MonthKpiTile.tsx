@@ -12,6 +12,7 @@ export function MonthKpiTile({
   amount,
   prevAmount,
   trend,
+  trendLabels,
   tone,
   /** When `tone === 'spending'`, "down" is good — show ↓ in pos color. */
   kind,
@@ -20,6 +21,7 @@ export function MonthKpiTile({
   amount: number;
   prevAmount: number;
   trend: number[];
+  trendLabels?: string[];
   tone: 'pos' | 'neg';
   kind: 'income' | 'spending';
 }) {
@@ -75,7 +77,7 @@ export function MonthKpiTile({
 
       {trend.length > 1 ? (
         <div className="mt-5">
-          <Sparkline data={trend} width={300} height={48} color={sparkColor} />
+          <Sparkline data={trend} labels={trendLabels} width={300} height={48} color={sparkColor} />
         </div>
       ) : null}
     </Card>

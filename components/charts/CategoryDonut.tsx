@@ -1,6 +1,10 @@
+'use client';
+
 import type { CategorySlice } from '@/lib/balance';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
+import { ChartTooltip } from './ChartTooltip';
+import { useChartHover } from './useChartHover';
 
 /**
  * Stroke-dashed donut + side legend.
@@ -20,6 +24,7 @@ export function CategoryDonut({
   centerLabel?: string;
   centerSublabel?: string;
 }) {
+  const { containerRef, hover, show, hide } = useChartHover<CategorySlice>();
   const total = data.reduce((s, d) => s + d.value, 0);
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
@@ -27,7 +32,7 @@ export function CategoryDonut({
   let off = 0;
   return (
     <div className="flex items-center gap-5">
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <div ref={containerRef} className="relative shrink-0" style={{ width: size, height: size }}>
         <svg
           viewBox={`0 0 ${size} ${size}`}
           width={size}
@@ -60,12 +65,15 @@ export function CategoryDonut({
                 strokeDasharray={dash}
                 strokeDashoffset={dashOffset}
                 transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                onMouseEnter={(e) => show(e, d)}
+                onMouseMove={(e) => show(e, d)}
+                onMouseLeave={hide}
               />
             );
           })}
         </svg>
         {centerLabel ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <div className="font-sans text-[18px] font-semibold tabular-nums tracking-tight text-ink">
               {centerLabel}
             </div>
@@ -75,6 +83,15 @@ export function CategoryDonut({
               </div>
             ) : null}
           </div>
+        ) : null}
+        {hover ? (
+          <ChartTooltip x={hover.x} y={hover.y}>
+            <span className="font-medium text-ink">{hover.data.name}</span>
+            <span className="mx-1 text-ink-mute">·</span>
+            <span style={{ color: categoryColor(hover.data.name) }}>
+              {fmtEUR(hover.data.value, { decimals: 0 })}
+            </span>
+          </ChartTooltip>
         ) : null}
       </div>
 

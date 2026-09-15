@@ -12,11 +12,13 @@ export function HeroBalanceTile({
   balance,
   prevBalance,
   trend,
+  trendLabels,
   accountCount,
 }: {
   balance: number;
   prevBalance: number;
   trend: number[];
+  trendLabels?: string[];
   accountCount: number;
 }) {
   const [whole, cents] = splitMoney(balance);
@@ -81,7 +83,13 @@ export function HeroBalanceTile({
 
         {trend.length > 1 ? (
           <div className="mt-5">
-            <Sparkline data={trend} width={500} height={64} color="var(--accent)" />
+            <Sparkline
+              data={trend}
+              labels={trendLabels}
+              width={500}
+              height={64}
+              color="var(--accent)"
+            />
           </div>
         ) : null}
       </div>
