@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import { UNCATEGORISED } from '@/lib/transactions/constants';
+import { UNCATEGORISED, isUncategorised } from '@/lib/transactions/constants';
 import type { Transaction, TxType } from '@/lib/supabase/types';
 
 export interface ListTxFilters {
@@ -47,6 +47,7 @@ const PAGE_SIZE = 1000;
 
 export async function listTransactions(filters: ListTxFilters): Promise<Transaction[]> {
   const supabase = await createClient();
+  const matchUncategorised = filters.category === UNCATEGORISED;
 
   function baseQuery(withCount: boolean) {
     let query = supabase
@@ -54,11 +55,15 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
       .select('*', withCount ? { count: 'exact' } : undefined)
       .eq('budget_id', filters.budgetId);
     if (filters.type) query = query.eq('type', filters.type);
-    // Both import and manual entry normalize a blank category to NULL
-    // (never ''), so a plain IS NULL check is all that's needed here —
-    // simpler and safer than a hand-built .or() filter string.
-    if (filters.category === UNCATEGORISED) query = query.is('category', null);
-    else if (filters.category) query = query.eq('category', filters.category);
+    // "Uncategorised" isn't just NULL here — some of this budget's data has
+    // literal text like "Uncategorized" stored as a real category value
+    // (carried over from the original spreadsheet). Matching that reliably
+    // needs an OR across is-null and a couple of case variants, which isn't
+    // something worth hand-building as a raw PostgREST filter string with
+    // no live Postgres to test it against — instead this case skips the
+    // SQL-level category filter entirely and is matched in JS below, after
+    // fetching everything that matches the other filters.
+    if (!matchUncategorised && filters.category) query = query.eq('category', filters.category);
     if (filters.subcategory) query = query.eq('subcategory', filters.subcategory);
     if (filters.accountId) query = query.eq('account_id', filters.accountId);
     if (filters.fromDate) query = query.gte('date', filters.fromDate);
@@ -86,6 +91,29 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
     return query;
   }
 
+  async function fetchAll(): Promise<Transaction[]> {
+    const all: Transaction[] = [];
+    let total: number | null = null;
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data, error, count } = await baseQuery(offset === 0).range(offset, offset + PAGE_SIZE - 1);
+      if (error) throw error;
+      const page = (data ?? []) as Transaction[];
+      all.push(...page);
+      if (offset === 0) total = count ?? null;
+      if (total != null ? all.length >= total : page.length < PAGE_SIZE) break;
+    }
+    return all;
+  }
+
+  if (matchUncategorised) {
+    const filtered = (await fetchAll()).filter((t) => isUncategorised(t.category));
+    if (filters.limit != null) {
+      const offset = filters.offset ?? 0;
+      return filtered.slice(offset, offset + filters.limit);
+    }
+    return filtered;
+  }
+
   // Caller wants a specific page — respect it as-is (already bounded).
   if (filters.limit != null) {
     const offset = filters.offset ?? 0;
@@ -94,18 +122,7 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
     return (data ?? []) as Transaction[];
   }
 
-  // Caller wants everything — page through explicitly.
-  const all: Transaction[] = [];
-  let total: number | null = null;
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error, count } = await baseQuery(offset === 0).range(offset, offset + PAGE_SIZE - 1);
-    if (error) throw error;
-    const page = (data ?? []) as Transaction[];
-    all.push(...page);
-    if (offset === 0) total = count ?? null;
-    if (total != null ? all.length >= total : page.length < PAGE_SIZE) break;
-  }
-  return all;
+  return fetchAll();
 }
 
 /**

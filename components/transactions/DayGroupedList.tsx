@@ -5,6 +5,7 @@ import { categoryColor } from '@/lib/categoryColor';
 import { categoryIcon } from '@/lib/dashboard/categoryIcon';
 import { fmtCurrency, fmtEUR, signedAmount, txToEUR } from '@/lib/money';
 import { groupTransactionsByDate } from '@/lib/transactions/grouping';
+import { isUncategorised } from '@/lib/transactions/constants';
 import { cn } from '@/lib/utils';
 import type { Account, Transaction } from '@/lib/supabase/types';
 
@@ -68,7 +69,10 @@ export function DayGroupedList({
           {/* Rows */}
           {group.items.map((tx, ri) => {
             const acc = tx.account_id ? accById.get(tx.account_id) : undefined;
-            const catName = (tx.category ?? '').trim();
+            // Treat literal placeholder text like "Uncategorized" (real
+            // stored value on some rows, carried over from the original
+            // spreadsheet) the same as no category at all.
+            const catName = isUncategorised(tx.category) ? '' : (tx.category ?? '').trim();
             const color = categoryColor(catName || '—');
             const icon = categoryIcon(catName);
             const isSelected = selectedIds.has(tx.id);

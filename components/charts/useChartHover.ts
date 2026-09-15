@@ -6,6 +6,10 @@ export interface ChartHover<T> {
   data: T;
   x: number;
   y: number;
+  /** Container width in px, so ChartTooltip can avoid overflowing past
+   * whichever edge the cursor is near (charts commonly sit inside an
+   * `overflow-hidden` card, which would otherwise silently clip it). */
+  containerWidth: number;
 }
 
 /**
@@ -22,7 +26,7 @@ export function useChartHover<T>() {
   function show(e: ReactMouseEvent, data: T) {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setHover({ data, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHover({ data, x: e.clientX - rect.left, y: e.clientY - rect.top, containerWidth: rect.width });
   }
 
   function hide() {

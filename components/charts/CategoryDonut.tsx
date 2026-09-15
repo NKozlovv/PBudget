@@ -85,7 +85,7 @@ export function CategoryDonut({
           </div>
         ) : null}
         {hover ? (
-          <ChartTooltip x={hover.x} y={hover.y}>
+          <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>
             <span className="font-medium text-ink">{hover.data.name}</span>
             <span className="mx-1 text-ink-mute">·</span>
             <span style={{ color: categoryColor(hover.data.name) }}>

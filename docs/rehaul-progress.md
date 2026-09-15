@@ -1626,3 +1626,80 @@ environment) — asked the user to check the Accounts page again post-deploy.
   label under the category chip whenever the row has one — previously
   it only appeared in the description column's secondary line, and
   only when the row had no comment.
+
+---
+
+## Dashboard round: real uncategorised bug, chart tooltips, year forecast (2026-09-15, same day)
+
+User feedback with a dashboard screenshot: the Uncategorised filter
+still returned nothing, a chart tooltip was visibly cut off, the
+monthly cash-flow chart needed a visual rework, the non-functional
+period toggle should just go, and the chart should show the full year
+with a forecast rather than a rolling 12-month window.
+
+### The real uncategorised bug
+
+The screenshot's "Spending mix" donut had a slice literally labeled
+**"Uncategorized"** (American spelling, no parens) sitting as its own
+peer category with a real €298 — not the synthetic `(Uncategorised)`
+bucket the code produces for true NULLs (different spelling, has
+parens). That was the tell: some of this budget's transactions have
+the literal text `"Uncategorized"` stored as their `category` value —
+carried over from the original spreadsheet, where the user evidently
+used it as their own label — not NULL. The `IS NULL` filter from
+earlier today was checking for the wrong thing entirely.
+
+Added `lib/transactions/constants.ts#isUncategorised()` (matches NULL/
+blank OR the literal text, either spelling, case-insensitively) and
+`categoryDisplayName()` (canonical "Uncategorised" label for display/
+grouping). `listTransactions`'s Uncategorised filter now fetches
+everything matching the other filters and filters in JS with
+`isUncategorised()` — deliberately not a SQL-level OR-with-text-match,
+same reasoning as this morning's fix (no live Postgres here to
+validate raw PostgREST filter syntax against). Applied
+`categoryDisplayName()` in `lib/balance.ts`'s three category-bucketing
+functions too (dashboard mix, burn rates, category totals) so the app
+never shows two different "no category" buckets side by side, and in
+`DayGroupedList` so the ledger's category chip goes properly blank for
+these rows instead of showing "Uncategorized" as if it were a real,
+selectable category.
+
+### Tooltip clipping
+
+`HeroBalanceTile`'s Card has `overflow-hidden` (for its rounded
+corners); the sparkline tooltip near "today" (the rightmost, most
+commonly-hovered point) was centered on the cursor and got its content
+silently clipped by the card edge. `useChartHover` now also reports
+`containerWidth`; `ChartTooltip` uses it to pin itself to the left or
+right edge instead of centering, whenever the cursor is within ~72px
+of either side. Threaded through all six chart components.
+
+### Cash flow chart: full year + forecast, period toggle removed
+
+- Deleted `components/dashboard/PeriodToggleClient.tsx` and
+  `components/ui/PeriodToggle.tsx` (and `PERIODS`/`Period`/
+  `parsePeriod` from `lib/dashboard/period.ts`) — it never actually
+  rescoped anything (a known, documented limitation since Chunk 13),
+  and the user said directly they don't need it.
+- `IncomeSpendBars` rewritten to take `ForecastBucket[]` (from
+  `lib/balance.ts#forecastYear` — already existed, written for the
+  original Forecast page's now-replaced bar chart, unused since Chunk
+  17 swapped it for `ForecastLine`; revived here rather than writing
+  new aggregation logic) instead of a rolling 12-month window. Past
+  months render solid; months from today onward render at reduced
+  opacity with a dashed outline, matching the Forecast page's visual
+  language for "projected". Added a vertical "TODAY" marker at the
+  actual/projected boundary, a third legend entry for "Projected", and
+  widened the y-axis tick set (was 2 gridlines, now 4).
+- Dashboard page anchors this chart to **today** (not `workingMonth`)
+  deliberately — the in-progress month has real partial data worth
+  showing as "actual so far" rather than being replaced by a flat
+  average, and it's explicitly framed as a forecast. The KPI tile
+  sparklines (Income/Spending trend) are unchanged, still rolling
+  12-month ending at the working month — this only touched the Cash
+  flow card.
+
+**Verification:** no local build (no Node) — reviewed every changed
+file by hand, swept again for the `noUncheckedIndexedAccess`/`useRef`
+bug classes and for dangling references to the deleted PeriodToggle
+files (none found).

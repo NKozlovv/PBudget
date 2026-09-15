@@ -1,6 +1,7 @@
 import type { Account, Transaction } from '@/lib/supabase/types';
 import { txToEUR, signedAmount } from '@/lib/money';
 import { dateToISO } from '@/lib/date';
+import { categoryDisplayName } from '@/lib/transactions/constants';
 
 /**
  * Total EUR balance across all accounts for a budget.
@@ -107,7 +108,7 @@ export function categorySpendEUR(args: {
     if (!m) continue;
     if (Number(m[1]) !== year) continue;
     if (Number(m[2]) - 1 !== month) continue;
-    const key = (t.category ?? '').trim() || '(Uncategorised)';
+    const key = categoryDisplayName(t.category);
     totals.set(key, (totals.get(key) ?? 0) + txToEUR(t, fxRate));
   }
   return [...totals.entries()]
@@ -367,7 +368,7 @@ export function burnRatesEUR(args: {
     const mo = Number(m[2]) - 1;
     if (y !== year) continue;
     if (mo > endMonth) continue;
-    const cat = (t.category ?? '').trim() || '(Uncategorised)';
+    const cat = categoryDisplayName(t.category);
     const eur = txToEUR(t, fxRate);
     totalsByCat.set(cat, (totalsByCat.get(cat) ?? 0) + eur);
     if (!monthlyByCat.has(cat)) monthlyByCat.set(cat, new Set());
@@ -421,7 +422,7 @@ export function categoryTotalsByKindEUR(args: {
     if (t.type !== kind) continue;
     if (range?.fromDate && t.date < range.fromDate) continue;
     if (range?.toDate && t.date > range.toDate) continue;
-    const cat = (t.category ?? '').trim() || '(Uncategorised)';
+    const cat = categoryDisplayName(t.category);
     const eur = txToEUR(t, fxRate);
     perCategory.set(cat, (perCategory.get(cat) ?? 0) + eur);
     if (t.subcategory && t.subcategory.trim()) {

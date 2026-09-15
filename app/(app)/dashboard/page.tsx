@@ -6,12 +6,11 @@ import { createClient } from '@/lib/supabase/server';
 import { IncomeSpendBars } from '@/components/charts/IncomeSpendBars';
 import { CategoryDonut } from '@/components/charts/CategoryDonut';
 import { Greeting } from '@/components/dashboard/Greeting';
-import { PeriodToggleClient } from '@/components/dashboard/PeriodToggleClient';
 import { HeroBalanceTile } from '@/components/dashboard/HeroBalanceTile';
 import { MonthKpiTile } from '@/components/dashboard/MonthKpiTile';
 import { AccountsList, type AccountRow } from '@/components/dashboard/AccountsList';
 import { RecentActivityList } from '@/components/dashboard/RecentActivityList';
-import { parsePeriod, monthLong, workingMonth } from '@/lib/dashboard/period';
+import { monthLong, workingMonth } from '@/lib/dashboard/period';
 import {
   totalBalanceEUR,
   monthTotalsEUR,
@@ -20,19 +19,13 @@ import {
   accountsTrajectoryEUR,
   accountBalanceNativeAt,
   accountsCurrentEUR,
+  forecastYear,
 } from '@/lib/balance';
 import { dateToISO, monthName, monthOfDate, yearOfDate } from '@/lib/date';
 
 export const metadata = { title: 'Dashboard · Theus' };
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const sp = await searchParams;
-  const period = parsePeriod(sp.period);
-
+export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -109,6 +102,19 @@ export default async function DashboardPage({
   const catSlices = categorySpendEUR({ transactions: allTx, year, month, fxRate });
   const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
 
+  // Cash flow chart: full Jan–Dec of the current calendar year — months up
+  // to and including today are real, the rest projected at the YTD average
+  // pace (same logic the Forecast page uses). Anchored to today rather
+  // than the working month: the in-progress month already has partial
+  // real data worth showing as "actual so far", and this chart is framed
+  // as a forecast, not a "completed months only" summary.
+  const yearBuckets = forecastYear({
+    transactions: allTx,
+    year: now.getFullYear(),
+    endMonth: now.getMonth(),
+    fxRate,
+  });
+
   // Per-account balances (native + EUR).
   const eurMap = accountsCurrentEUR({ accounts, transactions: allTx, fxRate });
   const today = dateToISO(now);
@@ -127,17 +133,14 @@ export default async function DashboardPage({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Greeting + insight + period toggle */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <Greeting
-          now={now}
-          userName={userName}
-          monthSpend={monthTotals.expense}
-          avgMonthSpend={avgMonthSpend}
-          monthLabel={monthLabel}
-        />
-        <PeriodToggleClient value={period} />
-      </div>
+      {/* Greeting + insight */}
+      <Greeting
+        now={now}
+        userName={userName}
+        monthSpend={monthTotals.expense}
+        avgMonthSpend={avgMonthSpend}
+        monthLabel={monthLabel}
+      />
 
       {/* Hero KPIs */}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
@@ -174,17 +177,26 @@ export default async function DashboardPage({
           <CardHeader
             title="Cash flow"
             subtitle={
-              <span className="text-[11px] text-ink-mute">Income vs spending · monthly</span>
+              <span className="text-[11px] text-ink-mute">
+                Income vs spending · {now.getFullYear()}, with a forecast for the months ahead
+              </span>
             }
             right={
               <div className="flex items-center gap-3.5 text-[11px] text-ink-soft">
                 <LegendDot color="var(--pos)">Income</LegendDot>
                 <LegendDot color="var(--accent)">Spending</LegendDot>
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-soft">
+                  <span
+                    className="h-2 w-2 rounded-sm border border-ink-mute"
+                    style={{ borderStyle: 'dashed' }}
+                  />
+                  Projected
+                </span>
               </div>
             }
           />
           <div className="mt-4">
-            <IncomeSpendBars months={last12} />
+            <IncomeSpendBars months={yearBuckets} />
           </div>
         </Card>
 

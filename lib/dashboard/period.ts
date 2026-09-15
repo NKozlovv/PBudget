@@ -1,11 +1,3 @@
-export const PERIODS = ['Week', 'Month', 'Quarter', 'YTD', 'All'] as const;
-export type Period = (typeof PERIODS)[number];
-
-export function parsePeriod(raw: string | string[] | undefined): Period {
-  const v = Array.isArray(raw) ? raw[0] : raw;
-  return (PERIODS as readonly string[]).includes(v ?? '') ? (v as Period) : 'Month';
-}
-
 /** ISO 8601 week number for a Date (1..53). */
 export function isoWeek(d: Date): number {
   const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
