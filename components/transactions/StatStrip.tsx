@@ -4,8 +4,14 @@ import type { IconName } from '@/components/ui';
 import type { Transaction } from '@/lib/supabase/types';
 
 /**
- * 4-column In/Out/Net/Avg-per-day stat strip. Sterling 1px-grid pattern:
- * tiles share a `bg-rule` track via `gap-px` so divider lines come for free.
+ * 3-column In/Out/Net stat strip. Sterling 1px-grid pattern: tiles share a
+ * `bg-rule` track via `gap-px` so divider lines come for free.
+ *
+ * Used to also show a 4th "Avg / day" tile — dropped because it divided by
+ * the count of *distinct days that had a transaction* rather than the
+ * number of days actually spanned by the filtered set, which quietly
+ * inflated the average (a month with 10 transaction-days out of 30 showed
+ * the same "avg/day" as if every day had activity).
  */
 export function StatStrip({
   transactions,
@@ -16,16 +22,12 @@ export function StatStrip({
 }) {
   let inEUR = 0;
   let outEUR = 0;
-  const days = new Set<string>();
   for (const t of transactions) {
-    days.add(t.date);
     const eur = txToEUR(t, budgetFxRate);
     if (t.type === 'income') inEUR += eur;
     else if (t.type === 'expense') outEUR += eur;
   }
   const net = inEUR - outEUR;
-  const dayCount = Math.max(1, days.size);
-  const avg = (inEUR + outEUR) / dayCount;
 
   const tiles: { label: string; value: string; tone: 'pos' | 'neg' | 'default'; icon: IconName }[] = [
     { label: 'In', value: fmtEUR(inEUR), tone: 'pos', icon: 'arrow-up' },
@@ -36,11 +38,10 @@ export function StatStrip({
       tone: net >= 0 ? 'pos' : 'neg',
       icon: 'pulse',
     },
-    { label: 'Avg / day', value: fmtEUR(avg), tone: 'default', icon: 'chart' },
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-px overflow-hidden rounded-2xl border border-rule bg-rule">
+    <div className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-rule bg-rule">
       {tiles.map((tile) => (
         <div key={tile.label} className="bg-bg-soft px-5 py-4">
           <div

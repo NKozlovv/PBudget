@@ -1,24 +1,36 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FilterPill, Icon, OptionsList, useDismissable, type DropdownOption } from '@/components/ui';
 import { UNCATEGORISED } from '@/lib/transactions/constants';
-import type { Account, Category, Subcategory } from '@/lib/supabase/types';
+import type { Account, Category, Subcategory, TxType } from '@/lib/supabase/types';
+
+export interface TxFilterValue {
+  types: Set<TxType>;
+  accounts: Set<string>;
+  categories: Set<string>;
+  subcategories: Set<string>;
+  months: Set<string>;
+  search: string;
+  sort: 'date' | 'amount';
+  dir: 'asc' | 'desc';
+}
+
+export function emptyTxFilters(): TxFilterValue {
+  return {
+    types: new Set(),
+    accounts: new Set(),
+    categories: new Set(),
+    subcategories: new Set(),
+    months: new Set(),
+    search: '',
+    sort: 'date',
+    dir: 'desc',
+  };
+}
 
 const MONTH_LABELS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
 function monthLabel(yyyymm: string): string {
@@ -28,186 +40,135 @@ function monthLabel(yyyymm: string): string {
   return `${MONTH_LABELS[idx]} ${y}`;
 }
 
-const TYPE_PILLS: Array<{ value: string; label: string }> = [
-  { value: '', label: 'All' },
+const TYPE_PILLS: Array<{ value: TxType; label: string }> = [
   { value: 'expense', label: 'Expenses' },
   { value: 'income', label: 'Income' },
   { value: 'adjustment', label: 'Adjustments' },
 ];
 
-const SORT_OPTIONS: Array<{ key: string; sort: string; dir: string; label: string }> = [
+// Sort is date/amount only — a ledger reads top-to-bottom by when or by how
+// much, not alphabetically by category (that's what the Filters category
+// picker + Categories page are for).
+const SORT_OPTIONS: Array<{ key: string; sort: 'date' | 'amount'; dir: 'asc' | 'desc'; label: string }> = [
   { key: 'date-desc', sort: 'date', dir: 'desc', label: 'Date · newest' },
   { key: 'date-asc', sort: 'date', dir: 'asc', label: 'Date · oldest' },
   { key: 'amount-desc', sort: 'amount', dir: 'desc', label: 'Amount · high → low' },
   { key: 'amount-asc', sort: 'amount', dir: 'asc', label: 'Amount · low → high' },
-  { key: 'category-asc', sort: 'category', dir: 'asc', label: 'Category · A → Z' },
 ];
 
-function findSortLabel(sort: string | null, dir: string | null): string {
-  if (!sort) return 'Date · newest';
-  return SORT_OPTIONS.find((o) => o.sort === sort && o.dir === (dir ?? 'asc'))?.label ?? 'Date · newest';
-}
-
-/** Debounce so typing a search term doesn't fire a full server round-trip per keystroke. */
-const SEARCH_DEBOUNCE_MS = 350;
-
+/**
+ * Every filter here is multi-select and purely client-side state — no URL
+ * params, no server round trip. The whole transaction list is already in
+ * the browser (see TransactionsClient), so re-filtering on every click is
+ * a synchronous, sub-millisecond array pass instead of a fresh page load.
+ */
 export function Filters({
   accounts,
   expenseCats,
   incomeCats,
   subcategories,
   months,
+  value,
+  onChange,
 }: {
   accounts: Account[];
   expenseCats: Category[];
   incomeCats: Category[];
   subcategories: Subcategory[];
   months: string[];
+  value: TxFilterValue;
+  onChange: (next: TxFilterValue) => void;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+  const [searchOpen, setSearchOpen] = useState(value.search.length > 0);
 
-  const currentType = params.get('type') ?? '';
-  const currentCategory = params.get('category') ?? '';
-  const currentSub = params.get('subcategory') ?? '';
-  const currentAccount = params.get('account') ?? '';
-  const currentMonth = params.get('month') ?? '';
-  const currentSearch = params.get('q') ?? '';
-  const currentSort = params.get('sort');
-  const currentDir = params.get('dir');
-
-  const [searchOpen, setSearchOpen] = useState<boolean>(currentSearch.length > 0);
-  const [searchValue, setSearchValue] = useState<string>(currentSearch);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Keep local search in sync if URL changes externally (e.g. Clear).
-  useEffect(() => {
-    setSearchValue(currentSearch);
-    if (currentSearch) setSearchOpen(true);
-  }, [currentSearch]);
-
-  useEffect(() => {
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, []);
-
-  function update(updates: Record<string, string>) {
-    const next = new URLSearchParams(params.toString());
-    for (const [k, v] of Object.entries(updates)) {
-      if (v) next.set(k, v);
-      else next.delete(k);
-    }
-    router.push(`${pathname}?${next.toString()}`);
+  function patch(updates: Partial<TxFilterValue>) {
+    onChange({ ...value, ...updates });
   }
 
-  function onSearchChange(next: string) {
-    setSearchValue(next);
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => update({ q: next }), SEARCH_DEBOUNCE_MS);
-  }
-
-  function clearSearch() {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    setSearchValue('');
-    update({ q: '' });
+  function toggleType(t: TxType) {
+    const next = new Set(value.types);
+    if (next.has(t)) next.delete(t);
+    else next.add(t);
+    // All 3 selected reads the same as none selected ("All") — collapse it
+    // so the "All" pill lights back up instead of showing three checks.
+    if (next.size === TYPE_PILLS.length) next.clear();
+    patch({ types: next });
   }
 
   const allCats = [...expenseCats, ...incomeCats];
 
-  const subcatScope = (() => {
-    if (!currentCategory) return [] as Subcategory[];
-    const cat = allCats.find((c) => c.name === currentCategory);
-    if (!cat) return [];
-    return subcategories.filter((s) => s.category_id === cat.id);
-  })();
-
-  const accountLabel =
-    accounts.find((a) => a.id === currentAccount)?.name ?? 'Account';
-  const categoryLabel =
-    currentCategory === UNCATEGORISED ? 'Uncategorised' : currentCategory || 'Category';
-  const monthPillLabel = currentMonth ? monthLabel(currentMonth) : 'Month';
-  const sortLabel = findSortLabel(currentSort, currentDir);
+  // Subcategory options only make sense scoped to the selected categories —
+  // when categories are mixed or empty, show every subcategory rather than
+  // guessing.
+  const subcatScope =
+    value.categories.size === 1 && !value.categories.has(UNCATEGORISED)
+      ? (() => {
+          const name = [...value.categories][0];
+          const cat = allCats.find((c) => c.name === name);
+          return cat ? subcategories.filter((s) => s.category_id === cat.id) : [];
+        })()
+      : subcategories;
 
   const hasAnyFilter =
-    currentType ||
-    currentCategory ||
-    currentSub ||
-    currentAccount ||
-    currentMonth ||
-    currentSearch ||
-    currentSort;
+    value.types.size > 0 ||
+    value.accounts.size > 0 ||
+    value.categories.size > 0 ||
+    value.subcategories.size > 0 ||
+    value.months.size > 0 ||
+    value.search.length > 0 ||
+    !(value.sort === 'date' && value.dir === 'desc');
+
+  const sortKey = `${value.sort}-${value.dir}`;
+  const sortLabel = SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? 'Date · newest';
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Type pills */}
+      {/* Type pills — multi-select; all 3 (or 0) reads as "All" */}
+      <FilterPill active={value.types.size === 0} onClick={() => patch({ types: new Set() })}>
+        All
+      </FilterPill>
       {TYPE_PILLS.map((p) => (
-        <FilterPill
-          key={p.value || 'all'}
-          active={currentType === p.value}
-          onClick={() => update({ type: p.value })}
-        >
+        <FilterPill key={p.value} active={value.types.has(p.value)} onClick={() => toggleType(p.value)}>
           {p.label}
         </FilterPill>
       ))}
 
       <span className="mx-1 h-5 w-px self-center bg-rule" aria-hidden />
 
-      {/* Account */}
-      <PillSelect
+      <MultiPillSelect
         icon="filter"
-        label={accountLabel}
-        active={!!currentAccount}
-        value={currentAccount}
-        onChange={(v) => update({ account: v })}
-        options={[
-          { value: '', label: 'All accounts' },
-          ...accounts.map((a) => ({ value: a.id, label: a.name })),
-        ]}
+        noun="account"
+        selected={value.accounts}
+        onChange={(next) => patch({ accounts: next })}
+        options={accounts.map((a) => ({ value: a.id, label: a.name }))}
       />
 
-      {/* Category */}
-      <PillSelect
+      <MultiPillSelect
         icon="filter"
-        label={categoryLabel}
-        active={!!currentCategory}
-        value={currentCategory}
-        onChange={(v) => update({ category: v, subcategory: '' })}
+        noun="category"
+        selected={value.categories}
+        onChange={(next) => patch({ categories: next, subcategories: new Set() })}
         options={[
-          { value: '', label: 'All categories' },
           { value: UNCATEGORISED, label: 'Uncategorised' },
           ...allCats.map((c) => ({ value: c.name, label: c.name })),
         ]}
       />
 
-      {/* Subcategory — cascades from category (meaningless for Uncategorised) */}
-      {currentCategory && currentCategory !== UNCATEGORISED ? (
-        <PillSelect
-          icon="filter"
-          label={currentSub || 'Subcategory'}
-          active={!!currentSub}
-          value={currentSub}
-          onChange={(v) => update({ subcategory: v })}
-          disabled={subcatScope.length === 0}
-          options={[
-            { value: '', label: 'All subcategories' },
-            ...subcatScope.map((s) => ({ value: s.name, label: s.name })),
-          ]}
-        />
-      ) : null}
-
-      {/* Month */}
-      <PillSelect
+      <MultiPillSelect
         icon="filter"
-        label={monthPillLabel}
-        active={!!currentMonth}
-        value={currentMonth}
-        onChange={(v) => update({ month: v })}
-        options={[
-          { value: '', label: 'All months' },
-          ...months.map((m) => ({ value: m, label: monthLabel(m) })),
-        ]}
+        noun="subcategory"
+        selected={value.subcategories}
+        onChange={(next) => patch({ subcategories: next })}
+        disabled={subcatScope.length === 0}
+        options={subcatScope.map((s) => ({ value: s.name, label: s.name }))}
+      />
+
+      <MultiPillSelect
+        icon="filter"
+        noun="month"
+        selected={value.months}
+        onChange={(next) => patch({ months: next })}
+        options={months.map((m) => ({ value: m, label: monthLabel(m) }))}
       />
 
       {/* Search — collapses to icon-only when empty */}
@@ -219,18 +180,18 @@ export function Filters({
               type="search"
               autoFocus
               placeholder="Search description…"
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
+              value={value.search}
+              onChange={(e) => patch({ search: e.target.value })}
               onBlur={() => {
-                if (!searchValue) setSearchOpen(false);
+                if (!value.search) setSearchOpen(false);
               }}
               className="w-[180px] bg-transparent text-[12px] text-ink placeholder:text-ink-mute focus:outline-none"
             />
-            {searchValue ? (
+            {value.search ? (
               <button
                 type="button"
                 aria-label="Clear search"
-                onClick={clearSearch}
+                onClick={() => patch({ search: '' })}
                 className="text-ink-mute hover:text-ink"
               >
                 ×
@@ -243,21 +204,15 @@ export function Filters({
           </FilterPill>
         )}
 
-        {/* Sort */}
+        {/* Sort — single-select, date/amount only */}
         <PillSelect
           icon="sort"
           label={sortLabel}
-          active={!!currentSort}
-          value={currentSort && currentDir ? `${currentSort}-${currentDir}` : 'date-desc'}
+          active={sortKey !== 'date-desc'}
+          value={sortKey}
           onChange={(v) => {
             const opt = SORT_OPTIONS.find((o) => o.key === v);
-            if (!opt) return;
-            // Default sort is date-desc; clear params when matched so the URL stays clean.
-            if (opt.key === 'date-desc') {
-              update({ sort: '', dir: '' });
-            } else {
-              update({ sort: opt.sort, dir: opt.dir });
-            }
+            if (opt) patch({ sort: opt.sort, dir: opt.dir });
           }}
           options={SORT_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
         />
@@ -265,7 +220,7 @@ export function Filters({
         {hasAnyFilter ? (
           <button
             type="button"
-            onClick={() => router.push(pathname)}
+            onClick={() => onChange(emptyTxFilters())}
             className="text-[11px] text-ink-mute hover:text-ink hover:underline"
           >
             Clear
@@ -277,9 +232,8 @@ export function Filters({
 }
 
 /**
- * Themed filter pill + popup — replaces the old transparent-native-<select>
- * overlay (whose popup rendered with unthemeable OS chrome) with the same
- * OptionsList used by the form Select.
+ * Single-select dropdown pill — used only for Sort now that every filter
+ * field is multi-select (see MultiPillSelect below).
  */
 function PillSelect({
   label,
@@ -323,6 +277,68 @@ function PillSelect({
             setOpen(false);
           }}
         />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Multi-select dropdown pill. Stays open across multiple picks (closes only
+ * on outside click / Escape, via useDismissable) so selecting several
+ * accounts or categories at once doesn't mean reopening the popup each
+ * time.
+ */
+function MultiPillSelect({
+  noun,
+  icon,
+  selected,
+  onChange,
+  disabled,
+  options,
+}: {
+  /** Singular noun used to build the placeholder ("Account") and the
+   * multi-selected label ("3 accounts"). */
+  noun: string;
+  icon?: 'filter' | 'sort';
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  disabled?: boolean;
+  options: DropdownOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismissable<HTMLDivElement>(open, () => setOpen(false));
+
+  const placeholder = `${noun.charAt(0).toUpperCase()}${noun.slice(1)}`;
+  let label: string;
+  if (selected.size === 0) label = placeholder;
+  else if (selected.size === 1) {
+    label = options.find((o) => o.value === [...selected][0])?.label as string ?? placeholder;
+  } else {
+    label = `${selected.size} ${noun}s`;
+  }
+
+  function toggle(v: string) {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    onChange(next);
+  }
+
+  return (
+    <div ref={ref} className="relative inline-flex">
+      <FilterPill
+        active={selected.size > 0}
+        icon={icon}
+        trailingIcon="chevron-down"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {label}
+      </FilterPill>
+      {open ? (
+        <OptionsList options={options} selected={selected} onSelect={toggle} />
       ) : null}
     </div>
   );

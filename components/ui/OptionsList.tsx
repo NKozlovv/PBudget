@@ -10,28 +10,39 @@ export interface DropdownOption {
 /**
  * The themed popup panel shared by Select and Filters' PillSelect —
  * replaces the browser's native, unthemeable <select> popup.
+ *
+ * Single-select (default): pass `value`; `onSelect` fires once and the
+ * caller typically closes the popup itself. Multi-select: pass `selected`
+ * (a Set) instead of `value` — each row's checked state comes from set
+ * membership rather than equality, so more than one row can be highlighted
+ * at once. Whether the popup stays open after a click is entirely up to
+ * the caller's `onSelect` handler; this component doesn't manage that.
  */
 export function OptionsList({
   options,
   value,
+  selected,
   onSelect,
   className,
 }: {
   options: DropdownOption[];
-  value: string;
+  value?: string;
+  /** Multi-select mode: row `isSelected` comes from `selected.has(value)` instead of `value` equality. */
+  selected?: Set<string>;
   onSelect: (value: string) => void;
   className?: string;
 }) {
   return (
     <div
       role="listbox"
+      aria-multiselectable={selected ? true : undefined}
       className={cn(
         'absolute z-50 mt-1.5 max-h-64 min-w-full overflow-auto rounded-[10px] border border-rule bg-bg-soft p-1 shadow-2xl',
         className,
       )}
     >
       {options.map((o, i) => {
-        const isSelected = o.value === value;
+        const isSelected = selected ? selected.has(o.value) : o.value === value;
         return (
           <button
             key={o.value || i}

@@ -158,7 +158,14 @@ export default async function DashboardPage() {
   const projectedEOY = balanceYearSeries[11]!.value;
 
   // "Saved this year" — real YTD income minus expenses, no projection.
+  // totalIncome/totalExpense are exposed alongside it so the tile can show
+  // the actual subtraction ("€X in − €Y out") rather than just the net
+  // figure, which on its own can read as "just a surplus" even though it
+  // already nets out every loss month.
   const savingsThisYear = ytd.totalNet;
+  const savingsIncome = ytd.totalIncome;
+  const savingsExpense = ytd.totalExpense;
+  const monthsInRed = yearBuckets.filter((b) => !b.projected && b.net < 0).length;
 
   // Savings rate (avg): the simple average of each real month's own
   // (income − expense) / income — same figure the Savings rate card below
@@ -207,6 +214,9 @@ export default async function DashboardPage() {
           monthPct={monthPct}
           monthDeltaLabel={monthDeltaLabel}
           savingsThisYear={savingsThisYear}
+          savingsIncome={savingsIncome}
+          savingsExpense={savingsExpense}
+          monthsInRed={monthsInRed}
           savingsRateAvg={savingsRateAvg}
           projectedEOY={projectedEOY}
           series={balanceYearSeries}

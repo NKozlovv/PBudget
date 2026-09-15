@@ -158,64 +158,6 @@ export async function listTransactions(filters: ListTxFilters): Promise<Transact
 }
 
 /**
- * Distinct YYYY-MM strings present in a budget's transactions, newest first.
- * Used to populate the month filter dropdown.
- */
-export async function listMonthsWithTransactions(budgetId: string): Promise<string[]> {
-  const supabase = await createClient();
-  const seen = new Set<string>();
-
-  function page(offset: number, withCount: boolean) {
-    return supabase
-      .from('transactions')
-      .select('date', withCount ? { count: 'exact' } : undefined)
-      .eq('budget_id', budgetId)
-      .order('date', { ascending: false })
-      .range(offset, offset + PAGE_SIZE - 1);
-  }
-  function absorb(rows: Array<{ date: string }>) {
-    for (const row of rows) {
-      if (typeof row.date === 'string' && row.date.length >= 7) seen.add(row.date.slice(0, 7));
-    }
-  }
-
-  const first = await page(0, true);
-  if (first.error) throw first.error;
-  const firstRows = (first.data ?? []) as Array<{ date: string }>;
-  absorb(firstRows);
-  const total = first.count;
-
-  if (total == null) {
-    // See listTransactions()'s fetchAll() for why an unexpectedly-missing
-    // count falls back to a sequential, short-page-terminated loop instead
-    // of guessing how many more pages to fetch in parallel.
-    if (firstRows.length === PAGE_SIZE) {
-      for (let offset = PAGE_SIZE; ; offset += PAGE_SIZE) {
-        const { data, error } = await page(offset, false);
-        if (error) throw error;
-        const rows = (data ?? []) as Array<{ date: string }>;
-        absorb(rows);
-        if (rows.length < PAGE_SIZE) break;
-      }
-    }
-    return [...seen];
-  }
-
-  if (firstRows.length < total) {
-    const remainingOffsets: number[] = [];
-    for (let offset = PAGE_SIZE; offset < total; offset += PAGE_SIZE) remainingOffsets.push(offset);
-    await Promise.all(
-      remainingOffsets.map(async (offset) => {
-        const { data, error } = await page(offset, false);
-        if (error) throw error;
-        absorb((data ?? []) as Array<{ date: string }>);
-      }),
-    );
-  }
-  return [...seen];
-}
-
-/**
  * Lightweight (category, subcategory) projection over every transaction in
  * the budget — used to compute "most-used subcategory per category" for the
  * Add-transaction form without pulling full transaction rows.

@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.6.0-α';
+export const BUILD_VERSION = 'v2.7.0-α';
 export const BUILD_DATE = '2026-09-15';
-export const BUILD_NOTE = 'YTD-first hero tiles, real month-over-month delta, faster navigation';
+export const BUILD_NOTE = 'Client-side transaction filtering, multi-select, savings breakdown';

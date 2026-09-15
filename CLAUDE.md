@@ -318,14 +318,20 @@ was wrong, with no error, no warning, nothing to indicate the array
 was incomplete.
 
 **Fix applied:** `lib/data/transactions.ts`'s `listTransactions()` (and
-`listMonthsWithTransactions()`, `listCategorySubcategoryPairs()`) now
-page through explicitly when no `limit` is requested, using an exact
-row count fetched via `{ count: 'exact' }` on the first page so the
-loop terminates on "collected that many rows," not on "a page came
-back shorter than asked for" (the latter would itself be silently
-wrong if this project's real per-request cap is below the 1000-row
-page size used here — a short page would look identical to "no more
-data"). See the function's own doc comment for the full reasoning.
+`listCategorySubcategoryPairs()`) now page through explicitly when no
+`limit` is requested, using an exact row count fetched via
+`{ count: 'exact' }` on the first page so the loop terminates on
+"collected that many rows," not on "a page came back shorter than
+asked for" (the latter would itself be silently wrong if this
+project's real per-request cap is below the 1000-row page size used
+here — a short page would look identical to "no more data"). Pages
+beyond the first fetch in parallel once the total is known — see the
+functions' own doc comments for the full reasoning. (A third function,
+`listMonthsWithTransactions()`, used to page the same way but was
+removed in the Transactions-page rewrite that made filtering
+client-side — see §5b's Transactions entry — since the full
+transaction list is already in the browser at that point and months
+are just derived from it.)
 
 **If you add a new place that needs every transaction in a budget:**
 use `listTransactions({ budgetId })` (no `limit`) — don't write a fresh

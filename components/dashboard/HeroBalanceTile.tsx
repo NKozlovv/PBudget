@@ -16,6 +16,9 @@ export function HeroBalanceTile({
   monthPct,
   monthDeltaLabel,
   savingsThisYear,
+  savingsIncome,
+  savingsExpense,
+  monthsInRed,
   savingsRateAvg,
   projectedEOY,
   series,
@@ -31,6 +34,12 @@ export function HeroBalanceTile({
   monthDeltaLabel: string;
   /** YTD real income − expenses (not projected). */
   savingsThisYear: number;
+  /** YTD real income, for the "€X in − €Y out" breakdown. */
+  savingsIncome: number;
+  /** YTD real expenses, for the same breakdown. */
+  savingsExpense: number;
+  /** Count of real months so far this year that were net-negative. */
+  monthsInRed: number;
   /** Average of each real month's (income − expense) / income, 0..1. */
   savingsRateAvg: number;
   /** Balance projected forward to Dec 31 at the YTD average net pace. */
@@ -64,14 +73,23 @@ export function HeroBalanceTile({
           </span>
         </div>
 
-        <div
-          className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${savedToneClass}`}
-          style={{
-            background: savingsThisYear >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)',
-          }}
-        >
-          {savingsThisYear >= 0 ? '+' : '−'}
-          {fmtEUR(Math.abs(savingsThisYear), { decimals: 0 })} saved this year
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${savedToneClass}`}
+            style={{
+              background: savingsThisYear >= 0 ? 'var(--pos-soft)' : 'var(--neg-soft)',
+            }}
+          >
+            {savingsThisYear >= 0 ? '+' : '−'}
+            {fmtEUR(Math.abs(savingsThisYear), { decimals: 0 })} saved this year
+          </span>
+          <span className="text-[11px] text-ink-mute">
+            {fmtEUR(savingsIncome, { decimals: 0 })} in − {fmtEUR(savingsExpense, { decimals: 0 })}{' '}
+            out
+            {monthsInRed > 0
+              ? ` · ${monthsInRed} month${monthsInRed === 1 ? '' : 's'} in the red`
+              : ''}
+          </span>
         </div>
 
         <div className="mt-4 flex items-baseline gap-2">

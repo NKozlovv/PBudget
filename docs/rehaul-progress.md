@@ -1983,3 +1983,89 @@ fallback path preserves the original safety net; grepped the whole
 tree for `HeroBalanceTile`/`MonthKpiTile` usages (dashboard page only)
 and for other direct `auth.getUser()` call sites (layout, dashboard,
 members — all now on `getAuthUser()`) to confirm nothing was missed.
+
+## Dashboard/Transactions round 6: savings breakdown, transactions goes client-side (2026-09-15, same day)
+
+Immediate follow-up to round 5. Two threads: the Dashboard's new "saved
+this year" figure read as untrustworthy, and — the bigger one —
+Transactions filtering was still "REALLY slow" despite round 5's
+navigation fixes, plus explicit asks for multi-select filters, a
+trimmed sort menu, and multi-select transaction types.
+
+**Dashboard — "saved this year" transparency:** the figure itself
+(`ytdAverages(...).totalNet = totalIncome − totalExpense`) was already
+correct — it inherently nets out loss months, since a bad month's
+expense total drags the whole-year subtraction down the same way
+regardless of which month it happened in. But shown as a single bare
+"+€7,797 saved this year" pill, with no visible connection to the
+Savings-rate chart's red months right below it, it read as if it might
+be ignoring them. Fixed by making the arithmetic visible rather than
+changing it: `HeroBalanceTile` now shows "€54,571 in − €46,774 out"
+next to the badge, plus "N months in the red" when applicable — new
+`savingsIncome`/`savingsExpense`/`monthsInRed` props from
+`ytd.totalIncome`/`ytd.totalExpense` and a
+`yearBuckets.filter(b => !b.projected && b.net < 0).length` count,
+computed in `app/(app)/dashboard/page.tsx`.
+
+**Also fixed `StatStrip`'s "Avg / day" tile** (Transactions page) —
+it divided by `Set<date>.size` (distinct days *with* a transaction),
+not the number of days actually spanned by the filtered set, which
+quietly inflated the average for any period with gaps. Dropped
+entirely per the user's request rather than patched — went from a
+4-tile to a 3-tile (In/Out/Net) strip.
+
+**Transactions page — moved to client-side filtering.** The real cause
+of "still slow": every filter pill click called `router.push()` with
+new URL search params, which is a full server round trip in the App
+Router — re-running the page's entire `Promise.all` (accounts, both
+category kinds, subcategories, the month-distinct query, the filtered
+transaction fetch, the subcategory-pairs query — 6+ Supabase queries)
+on *every single click*, even though only the transaction filter
+itself actually needed to change. With this budget's history
+(~1,000 rows) comfortably fitting in memory, the fix was to stop
+doing that:
+
+- `app/(app)/transactions/page.tsx` is now a thin server shell — fetch
+  everything once (unfiltered `listTransactions({ budgetId })` plus
+  reference data), no `searchParams` parsing at all — and hand it all
+  to a new `TransactionsClient.tsx`.
+- `TransactionsClient.tsx` (new) owns filter/sort state and "load
+  more" pagination as plain `useState`, derives the filtered+sorted
+  list with `useMemo`. Every interaction is now a synchronous in-
+  memory array pass — no network round trip, no page reload. Also
+  derives the month-filter's option list directly from the loaded
+  transactions, so `listMonthsWithTransactions()` (a full paginated
+  table scan) is no longer needed anywhere — removed from
+  `lib/data/transactions.ts` entirely (and its mention in CLAUDE.md
+  §8g updated to match).
+- `Filters.tsx` rewritten from URL-param-driven to
+  `value`/`onChange`-controlled, and every filter is now multi-select
+  (Account/Category/Subcategory/Month) — picking "Groceries" and
+  "Restaurants" together now works, where before each filter field
+  only ever held one value. `components/ui/OptionsList.tsx` grew an
+  optional `selected?: Set<string>` prop for this (row highlighting
+  comes from set membership instead of `value` equality when passed;
+  single-select callers — `Select.tsx`, the Sort dropdown here — are
+  untouched since they still pass `value` and own their own "close on
+  pick" behavior, which `OptionsList` never controlled to begin with).
+- Transaction **type** filter is a multi-select pill row with the
+  explicit behavior asked for: selecting all 3 (Expenses/Income/
+  Adjustments) auto-collapses back to the "All" pill rather than
+  showing three checks that mean the same thing.
+- **Sort trimmed to Date and Amount only** (dropped Type/Category/
+  Comment sort, which didn't fit a ledger read top-to-bottom by when
+  or how much).
+- `TransactionsTable.tsx` needed no changes — it already just renders
+  whatever `transactions` array it's given and calls `router.refresh()`
+  after a mutation, which re-runs the (now much cheaper) server page
+  and flows fresh data back down through `TransactionsClient`'s props;
+  its local filter/sort state survives that refresh untouched since
+  it's the same component instance.
+
+**Verification:** no local build (no Node) — reviewed every changed
+file by hand; re-swept every touched file for the two recurring bug
+classes (none found); grepped for the removed `listMonthsWithTransactions`
+and the old URL-param helpers (`parseLimit`/`parseType`/`parseSort`/
+`parseDir`/`loadMoreHref`) to confirm nothing still referenced them;
+confirmed `OptionsList`'s only other caller (`Select.tsx`) still passes
+`value` (not `selected`) and is unaffected by the new optional prop.
