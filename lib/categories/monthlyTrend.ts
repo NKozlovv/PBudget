@@ -23,6 +23,11 @@ export interface CategoryTrendRow {
   subs: SubcategoryTrendRow[];
 }
 
+/** Add `delta` to `arr[idx]`, safe under `noUncheckedIndexedAccess`. */
+function bump(arr: number[], idx: number, delta: number): void {
+  arr[idx] = (arr[idx] ?? 0) + delta;
+}
+
 /** `count` consecutive months ending at (endYear, endMonth) inclusive, oldest first. */
 export function buildTrendMonths(endYear: number, endMonth: number, count: number): TrendMonth[] {
   const out: TrendMonth[] = [];
@@ -67,13 +72,13 @@ export function categoryMonthlyTrend(args: {
     const eur = txToEUR(t, fxRate);
 
     if (!catValues.has(cat)) catValues.set(cat, new Array(months.length).fill(0));
-    catValues.get(cat)![idx] += eur;
+    bump(catValues.get(cat)!, idx, eur);
 
     const sub = (t.subcategory ?? '').trim();
     if (sub) {
       const key = `${cat}::${sub}`;
       if (!subValues.has(key)) subValues.set(key, new Array(months.length).fill(0));
-      subValues.get(key)![idx] += eur;
+      bump(subValues.get(key)!, idx, eur);
     }
   }
 
