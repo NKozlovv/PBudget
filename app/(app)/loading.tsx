@@ -12,27 +12,27 @@
  */
 export default function AppLoading() {
   return (
-    <div className="flex flex-col gap-6" aria-hidden="true">
+    <div className="flex flex-col gap-5" aria-hidden="true">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <div className="h-3 w-24 animate-pulse rounded-full bg-line" />
-          <div className="h-6 w-48 animate-pulse rounded-full bg-line" />
+          <div className="h-3 w-24 animate-pulse rounded-full bg-white/70" />
+          <div className="h-6 w-48 animate-pulse rounded-full bg-white/70" />
         </div>
-        <div className="h-9 w-28 animate-pulse rounded-[10px] bg-line" />
+        <div className="h-9 w-28 animate-pulse rounded-full bg-white/70" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-[180px] animate-pulse rounded-2xl border border-line bg-surface" />
+          <div key={i} className="h-[180px] animate-pulse rounded-[26px] bg-white/[0.75]" />
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <div className="h-[320px] animate-pulse rounded-2xl border border-line bg-surface" />
-        <div className="h-[320px] animate-pulse rounded-2xl border border-line bg-surface" />
+        <div className="h-[320px] animate-pulse rounded-[28px] bg-white/[0.75]" />
+        <div className="h-[320px] animate-pulse rounded-[28px] bg-white/[0.75]" />
       </div>
 
-      <div className="h-[220px] animate-pulse rounded-2xl border border-line bg-surface" />
+      <div className="h-[220px] animate-pulse rounded-[26px] bg-white/[0.75]" />
     </div>
   );
 }

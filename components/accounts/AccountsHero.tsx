@@ -26,7 +26,7 @@ export function AccountsHero({
   const cents = (abs % 1).toFixed(2).slice(1); // ".42"
 
   return (
-    <header className="flex items-end justify-between gap-6 border-b border-rule pb-6">
+    <header className="flex items-end justify-between gap-6">
       <div className="min-w-0">
         <Mono>Net worth</Mono>
         <div

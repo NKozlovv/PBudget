@@ -26,16 +26,16 @@ export function HorizonToggle({ current }: { current: Horizon }) {
   }
 
   return (
-    <div className="inline-flex items-center gap-1 rounded-[10px] border border-rule bg-surface p-1">
+    <div className="glass-tile inline-flex items-center gap-1 !rounded-full p-1">
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => set(opt.value)}
           className={cn(
-            'rounded-[7px] px-3.5 py-1.5 text-[12px] font-medium transition-colors',
+            'rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors duration-200',
             current === opt.value
-              ? 'bg-bg text-ink'
+              ? 'bg-indigo text-white'
               : 'bg-transparent text-ink-mute hover:text-ink',
           )}
         >

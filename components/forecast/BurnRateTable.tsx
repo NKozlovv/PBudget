@@ -3,10 +3,7 @@ import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
 import type { BurnRateRow } from '@/lib/balance';
 
-/**
- * Detailed per-category burn-rate table. Sterling chrome:
- * `bg-bg-soft` rounded card with mono kicker labels.
- */
+/** Detailed per-category burn-rate table, glass card with mono kicker labels. */
 export function BurnRateTable({
   title,
   subtitle,
@@ -25,8 +22,8 @@ export function BurnRateTable({
   const total = rows.reduce((s, r) => s + r.projectedYearTotal, 0);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-rule bg-bg-soft">
-      <div className="flex items-baseline justify-between border-b border-rule px-5 py-4">
+    <section className="glass overflow-hidden !rounded-[26px]">
+      <div className="flex items-baseline justify-between border-b border-white/60 px-5 py-4">
         <div>
           <h3 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h3>
           {subtitle ? (
@@ -50,7 +47,7 @@ export function BurnRateTable({
       ) : (
         <table className="w-full">
           <thead>
-            <tr className="border-b border-rule bg-bg/50">
+            <tr className="border-b border-white/60 bg-white/30">
               <Th>Category</Th>
               <Th align="right" className="w-[120px]">
                 Avg / mo
@@ -70,7 +67,7 @@ export function BurnRateTable({
             {rows.map((r) => (
               <tr
                 key={r.name}
-                className="border-b border-rule/60 last:border-0 transition-colors hover:bg-bg-panel/40"
+                className="border-b border-white/50 last:border-0 transition-colors hover:bg-white/60"
               >
                 <td className="px-5 py-3 align-middle">
                   <span className="inline-flex items-center gap-2.5">

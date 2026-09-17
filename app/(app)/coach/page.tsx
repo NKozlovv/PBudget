@@ -11,10 +11,10 @@ export default function CoachPage() {
   return (
     <div className="flex flex-col gap-[18px]">
       <div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-[5px] text-[11px] font-semibold uppercase tracking-[0.08em] text-accent mb-3">
+        <div className="inline-flex items-center gap-2 rounded-full bg-indigo/[0.12] px-3 py-[5px] text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-dark mb-3">
           <Icon name="sparkle" size={12} /> Beta
         </div>
-        <h1 className="max-w-[620px] text-[36px] font-semibold leading-[1.15] tracking-tight">
+        <h1 className="max-w-[620px] text-[34px] font-extrabold leading-[1.15] -tracking-[0.03em] text-ink">
           Your money has patterns.{' '}
           <span className="text-ink-mute">
             Theus reads them, and tells you what to do next.
@@ -22,7 +22,7 @@ export default function CoachPage() {
         </h1>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 rounded-[14px] border border-rule bg-bg-soft p-[22px]">
+      <div className="glass grid grid-cols-1 gap-6 !rounded-[26px] p-[22px] sm:grid-cols-2 lg:grid-cols-4">
         {STREAK_TILES.map((tile) => (
           <div key={tile.label}>
             <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-[0.12em] text-ink-mute">
@@ -39,9 +39,9 @@ export default function CoachPage() {
         <Mono size="sm" className="tracking-[0.14em]">
           This week&rsquo;s insights
         </Mono>
-        <div className="mt-3 flex items-start gap-3.5 rounded-[14px] border border-rule bg-bg-soft p-5">
-          <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] bg-accent-soft">
-            <Icon name="sparkle" size={18} className="text-accent" />
+        <div className="glass mt-3 flex items-start gap-3.5 !rounded-[20px] p-5">
+          <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] bg-indigo/[0.12]">
+            <Icon name="sparkle" size={18} className="text-indigo" />
           </div>
           <div className="flex-1">
             <div className="text-[15px] font-semibold text-ink mb-1">

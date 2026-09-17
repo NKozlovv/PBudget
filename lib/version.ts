@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v3.0.0-α';
+export const BUILD_VERSION = 'v3.1.0-α';
 export const BUILD_DATE = '2026-09-17';
-export const BUILD_NOTE = 'Liquid-glass rehaul in progress — foundations + top nav';
+export const BUILD_NOTE = 'Liquid-glass rehaul complete — all screens on the v4 glass system';

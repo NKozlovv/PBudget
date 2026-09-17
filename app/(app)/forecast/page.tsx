@@ -90,17 +90,15 @@ export default async function ForecastPage({
         actions={<HorizonToggle current={horizon} />}
       />
 
-      <div className="mt-6">
-        <ForecastHero
-          todayBalance={balanceNow}
-          forwardBalance={forwardBalance}
-          forwardMonths={horizon}
-          eoyBalance={eoyBalance}
-          points={points}
-        />
-      </div>
+      <ForecastHero
+        todayBalance={balanceNow}
+        forwardBalance={forwardBalance}
+        forwardMonths={horizon}
+        eoyBalance={eoyBalance}
+        points={points}
+      />
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <PerCategoryOutlook rows={expenseBurn} limit={5} />
         <CoachInsightCard
           balanceNow={balanceNow}
@@ -110,8 +108,8 @@ export default async function ForecastPage({
         />
       </div>
 
-      <section className="mt-10">
-        <Mono className="mb-3 block">Burn rate · expense</Mono>
+      <section className="flex flex-col gap-3">
+        <Mono className="block">Burn rate · expense</Mono>
         <BurnRateTable
           title="Expense categories"
           subtitle={`${ytd.monthsElapsed} months of data · projection extends YTD pace`}
@@ -123,8 +121,8 @@ export default async function ForecastPage({
       </section>
 
       {incomeBurn.length > 0 ? (
-        <section className="mt-8">
-          <Mono className="mb-3 block">Income streams</Mono>
+        <section className="flex flex-col gap-3">
+          <Mono className="block">Income streams</Mono>
           <BurnRateTable
             title="Income categories"
             subtitle={`${ytd.monthsElapsed} months of data`}

@@ -12,7 +12,7 @@ export default function ImportPage() {
         meta="One-shot bulk import from the legacy Google Sheets export. Existing accounts and categories are reused, not duplicated."
       />
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="p-7">
           <ImportDropzone />
         </Card>
@@ -50,7 +50,7 @@ export default function ImportPage() {
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
-      <span className="shrink-0 mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-soft text-[10px] font-semibold text-accent">
+      <span className="shrink-0 mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo/[0.12] text-[10px] font-semibold text-indigo-dark">
         {n}
       </span>
       <span>{children}</span>

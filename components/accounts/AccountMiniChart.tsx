@@ -89,13 +89,13 @@ export function AccountMiniChart({
         </defs>
 
         {/* y baseline + top tick — faint rule lines */}
-        <line x1={padX} x2={width - padX} y1={gridY} y2={gridY} stroke="var(--rule)" strokeWidth="1" />
+        <line x1={padX} x2={width - padX} y1={gridY} y2={gridY} stroke="rgba(31,39,66,.12)" strokeWidth="1" />
         <line
           x1={padX}
           x2={width - padX}
           y1={topY}
           y2={topY}
-          stroke="var(--rule)"
+          stroke="rgba(31,39,66,.12)"
           strokeWidth="1"
           strokeDasharray="2 3"
         />
@@ -105,7 +105,7 @@ export function AccountMiniChart({
           x={width - padX}
           y={topY + 3}
           fontSize="9"
-          fontFamily="var(--font-inter)"
+          fontFamily="var(--font-sans)"
           fill="var(--ink-mute)"
           textAnchor="end"
         >
@@ -115,7 +115,7 @@ export function AccountMiniChart({
           x={width - padX}
           y={gridY - 3}
           fontSize="9"
-          fontFamily="var(--font-inter)"
+          fontFamily="var(--font-sans)"
           fill="var(--ink-mute)"
           textAnchor="end"
         >
@@ -134,7 +134,7 @@ export function AccountMiniChart({
             x={xs[i]}
             y={height - 4}
             fontSize="9"
-            fontFamily="var(--font-inter)"
+            fontFamily="var(--font-sans)"
             fill="var(--ink-mute)"
             textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
           >

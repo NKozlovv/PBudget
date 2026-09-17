@@ -35,7 +35,7 @@ export function ChartTooltip({
   return (
     <div
       className={cn(
-        'pointer-events-none absolute z-30 -translate-y-full whitespace-nowrap rounded-[8px] border border-rule bg-bg-panel px-2.5 py-1.5 text-[11px] leading-tight text-ink shadow-xl',
+        'glass glass-nohover pointer-events-none absolute z-30 -translate-y-full whitespace-nowrap !rounded-[10px] px-2.5 py-1.5 text-[11px] leading-tight text-ink',
         align === 'left' && 'translate-x-0',
         align === 'center' && '-translate-x-1/2',
         align === 'right' && '-translate-x-full',

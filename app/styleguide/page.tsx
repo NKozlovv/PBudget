@@ -8,7 +8,7 @@ export default function StyleguidePage() {
   return (
     <main className="min-h-screen px-10 py-12">
       <div className="mx-auto max-w-6xl">
-        <header className="border-b border-rule pb-6">
+        <header className="border-b border-white/60 pb-6">
           <Mono>02 · system</Mono>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight">Theus styleguide</h1>
           <p className="mt-2 font-display italic text-xl text-ink-mute">money understood.</p>
@@ -40,7 +40,7 @@ export default function StyleguidePage() {
                   ['Caption 11', 11, 500, '0.04em'],
                 ] as const
               ).map(([label, size, weight, ls]) => (
-                <div key={label} className="flex items-baseline gap-6 border-b border-rule pb-3 last:border-0 last:pb-0">
+                <div key={label} className="flex items-baseline gap-6 border-b border-white/60 pb-3 last:border-0 last:pb-0">
                   <Mono size="xs" className="w-24 shrink-0">
                     {label}
                   </Mono>
@@ -142,13 +142,13 @@ export default function StyleguidePage() {
 
         <Section label="Time range pill (Sterling pattern)">
           <Card>
-            <div className="inline-flex gap-1.5 rounded-[10px] border border-rule bg-bg p-1">
+            <div className="inline-flex gap-1.5 rounded-[10px] border border-white/60 bg-white/60 p-1">
               {['1M', '3M', 'YTD', 'ALL'].map((p, i) => (
                 <button
                   key={p}
                   className={
                     'rounded-[7px] px-4 py-2 text-xs font-medium ' +
-                    (i === 1 ? 'bg-bg-soft text-ink' : 'text-ink-mute hover:text-ink')
+                    (i === 1 ? 'bg-white/70 text-ink' : 'text-ink-mute hover:text-ink')
                   }
                 >
                   {p}
@@ -175,16 +175,16 @@ export default function StyleguidePage() {
                   </div>
                 }
               />
-              <div className="mt-6 h-32 rounded-lg border border-dashed border-rule" aria-hidden />
+              <div className="mt-6 h-32 rounded-lg border border-dashed border-white/60" aria-hidden />
             </Card>
             <Card>
               <CardHeader title="Cashflow" right={<Mono size="xs" tone="pos">↗ +21.4% ytd</Mono>} />
-              <div className="mt-6 h-32 rounded-lg border border-dashed border-rule" aria-hidden />
+              <div className="mt-6 h-32 rounded-lg border border-dashed border-white/60" aria-hidden />
             </Card>
           </div>
         </Section>
 
-        <footer className="mt-16 border-t border-rule pt-6">
+        <footer className="mt-16 border-t border-white/60 pt-6">
           <Mono size="xs">end · styleguide v1</Mono>
         </footer>
       </div>
@@ -207,7 +207,7 @@ function Swatch({ name, value, cssVar }: { name: string; value: string; cssVar: 
   return (
     <div className="flex flex-col gap-2">
       <div
-        className="h-20 rounded-lg border border-rule"
+        className="h-20 rounded-lg border border-white/60"
         style={{ background: `var(${cssVar})` }}
         aria-label={`${name} swatch`}
       />

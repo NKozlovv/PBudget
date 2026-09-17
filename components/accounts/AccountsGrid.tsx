@@ -122,7 +122,7 @@ export function AccountsGrid({
               onSubmit={(input) => handleUpdate(mode.account.id, input)}
               onCancel={() => setMode({ kind: 'idle' })}
             />
-            <div className="flex justify-between border-t border-rule pt-4">
+            <div className="flex justify-between border-t border-white/60 pt-4">
               <button
                 type="button"
                 onClick={() => setMode({ kind: 'delete', account: mode.account })}

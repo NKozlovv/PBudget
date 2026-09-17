@@ -16,9 +16,9 @@ export function AccountsDistributionBar({
   const total = positives.reduce((s, x) => s + x.eur, 0);
 
   return (
-    <div className="rounded-2xl border border-rule bg-bg-soft p-5">
+    <div className="glass !rounded-[26px] p-5">
       <Mono size="xs">Distribution</Mono>
-      <div className="mt-3 flex h-2.5 gap-[2px] overflow-hidden rounded-md">
+      <div className="mt-3 flex h-2.5 gap-[2px] overflow-hidden rounded-full">
         {total > 0 ? (
           positives.map((s) => (
             <span
@@ -29,7 +29,7 @@ export function AccountsDistributionBar({
             />
           ))
         ) : (
-          <span className="h-full flex-1 bg-rule" />
+          <span className="h-full flex-1 bg-white/70" />
         )}
       </div>
       <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2">

@@ -41,7 +41,7 @@ export function PerCategoryOutlook({
   const max = Math.max(1, ...sorted.map((r) => r.projected));
 
   return (
-    <div className="rounded-2xl border border-rule bg-bg-soft p-6">
+    <div className="glass !rounded-[26px] p-6">
       <div className="mb-4">
         <h3 className="text-[15px] font-semibold tracking-tight text-ink">
           Per-category outlook
@@ -75,7 +75,7 @@ export function PerCategoryOutlook({
                     </span>
                   </span>
                 </div>
-                <div className="relative h-[18px] overflow-hidden rounded-md bg-bg">
+                <div className="relative h-[18px] overflow-hidden rounded-full bg-white/70">
                   {/* avg slice with dashed right edge */}
                   <span
                     aria-hidden
@@ -89,7 +89,7 @@ export function PerCategoryOutlook({
                   {/* projected slice */}
                   <span
                     aria-hidden
-                    className="absolute inset-y-0 left-0 rounded-md"
+                    className="absolute inset-y-0 left-0 rounded-full"
                     style={{
                       width: `${wProj}%`,
                       background: color,

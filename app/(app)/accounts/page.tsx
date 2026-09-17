@@ -46,14 +46,8 @@ export default async function AccountsPage() {
   return (
     <>
       <AccountsHero totalEUR={totalEUR} deltaEUR={deltaEUR} />
-
-      <div className="mt-6">
-        <AccountsDistributionBar segments={segments} />
-      </div>
-
-      <div className="mt-4">
-        <AccountsGrid budgetId={budget.id} summaries={summaries} colors={colors} />
-      </div>
+      <AccountsDistributionBar segments={segments} />
+      <AccountsGrid budgetId={budget.id} summaries={summaries} colors={colors} />
     </>
   );
 }

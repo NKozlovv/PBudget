@@ -42,10 +42,7 @@ export function AccountCard({
     <button
       type="button"
       onClick={onEdit}
-      className={cn(
-        'group/account relative w-full overflow-hidden rounded-2xl border border-rule bg-bg-soft p-5 text-left transition-colors',
-        'hover:bg-bg-panel/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
-      )}
+      className="glass group/account relative w-full overflow-hidden !rounded-[26px] p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo"
     >
       {/* Top color bar */}
       <span
@@ -126,7 +123,7 @@ export function AddAccountCard({ onAdd }: { onAdd: () => void }) {
     <button
       type="button"
       onClick={onAdd}
-      className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-rule bg-transparent p-5 text-ink-mute transition-colors hover:border-line-strong hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+      className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-[26px] border-[1.5px] border-dashed border-white/90 bg-transparent p-5 text-ink-mute transition-colors hover:border-indigo hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo"
     >
       <Icon name="plus" size={20} />
       <div className="text-[13px] font-medium">Add account</div>

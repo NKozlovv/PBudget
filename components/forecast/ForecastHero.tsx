@@ -28,7 +28,7 @@ export function ForecastHero({
   const eoyDelta = eoyBalance - todayBalance;
 
   return (
-    <div className="rounded-2xl border border-rule bg-bg-soft p-7">
+    <div className="glass !rounded-[28px] p-7">
       <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
         <Kpi label="Today" value={fmtEUR(todayBalance, { decimals: 0 })} valueClass="text-ink" />
         <Kpi
@@ -55,7 +55,7 @@ export function ForecastHero({
 
       <div className="mt-3 flex flex-wrap items-center gap-5 text-[11px] text-ink-mute">
         <span className="inline-flex items-center gap-2">
-          <span className="inline-block h-[2px] w-4 bg-accent" /> Actual
+          <span className="inline-block h-[2px] w-4 bg-indigo" /> Actual
         </span>
         <span className="inline-flex items-center gap-2">
           <svg width="20" height="4" aria-hidden>
@@ -64,7 +64,7 @@ export function ForecastHero({
               y1="2"
               x2="20"
               y2="2"
-              stroke="var(--accent)"
+              stroke="var(--indigo)"
               strokeOpacity={0.65}
               strokeWidth={2}
               strokeDasharray="4 3"
@@ -93,7 +93,7 @@ function Kpi({
   divided?: boolean;
 }) {
   return (
-    <div className={divided ? 'sm:border-l sm:border-rule sm:pl-8' : ''}>
+    <div className={divided ? 'sm:border-l sm:border-white/60 sm:pl-8' : ''}>
       <Mono size="xs">{label}</Mono>
       <div
         className={`mt-2 font-sans tabular-nums ${valueClass}`}

@@ -19,9 +19,7 @@ export function BrandPanel() {
     <aside
       className="hidden md:block relative h-full overflow-hidden"
       style={{
-        backgroundColor: 'var(--bg-panel)',
-        backgroundImage:
-          'radial-gradient(circle 900px at 22% 28%, var(--accent-soft) 0%, transparent 55%)',
+        background: 'var(--ground), radial-gradient(circle 900px at 22% 28%, rgba(74,92,224,.18) 0%, transparent 55%)',
       }}
     >
       {/* Top-left lockup */}
@@ -50,10 +48,7 @@ export function BrandPanel() {
             what your spending is actually telling you.
           </p>
 
-          <div
-            className="mt-12 max-w-[400px] rounded-2xl border border-rule bg-bg-soft p-6"
-            style={{ boxShadow: '0 24px 60px rgba(0, 0, 0, 0.5)' }}
-          >
+          <div className="glass !rounded-[24px] mt-12 max-w-[400px] p-6">
             <div className="flex items-center justify-between">
               <Mono>Total balance</Mono>
               <Mono tone="pos" size="xs">

@@ -103,8 +103,8 @@ export function ForecastLine({
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.28} />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+          <stop offset="0%" stopColor="var(--indigo)" stopOpacity={0.28} />
+          <stop offset="100%" stopColor="var(--indigo)" stopOpacity={0} />
         </linearGradient>
       </defs>
 
@@ -118,7 +118,7 @@ export function ForecastLine({
               x2={width - padX}
               y1={y}
               y2={y}
-              stroke="var(--rule)"
+              stroke="rgba(31,39,66,.12)"
               strokeWidth={i === 0 ? 1 : 0.5}
               strokeDasharray={i === 0 ? undefined : '2 3'}
             />
@@ -126,7 +126,7 @@ export function ForecastLine({
               x={width - padX}
               y={y - 4}
               fontSize="10"
-              fontFamily="var(--font-inter)"
+              fontFamily="var(--font-sans)"
               fill="var(--ink-mute)"
               textAnchor="end"
             >
@@ -143,7 +143,7 @@ export function ForecastLine({
           x2={markerX}
           y1={padTop}
           y2={padTop + ySpace}
-          stroke="var(--rule)"
+          stroke="rgba(31,39,66,.12)"
           strokeWidth={1}
           strokeDasharray="3 4"
         />
@@ -156,7 +156,7 @@ export function ForecastLine({
       <path
         d={actualPath}
         fill="none"
-        stroke="var(--accent)"
+        stroke="var(--indigo)"
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -167,7 +167,7 @@ export function ForecastLine({
         <path
           d={projectedPath}
           fill="none"
-          stroke="var(--accent)"
+          stroke="var(--indigo)"
           strokeOpacity={0.65}
           strokeWidth={2}
           strokeLinecap="round"
@@ -177,7 +177,7 @@ export function ForecastLine({
       ) : null}
 
       {/* today dot */}
-      <circle cx={markerX} cy={markerY} r={3.5} fill="var(--accent)" />
+      <circle cx={markerX} cy={markerY} r={3.5} fill="var(--indigo)" />
 
       {/* x-axis labels */}
       {tickIndices.map((i) => (
@@ -186,7 +186,7 @@ export function ForecastLine({
           x={xs[i]}
           y={height - 8}
           fontSize="10"
-          fontFamily="var(--font-inter)"
+          fontFamily="var(--font-sans)"
           fill="var(--ink-mute)"
           textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
         >

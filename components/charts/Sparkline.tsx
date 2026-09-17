@@ -18,7 +18,7 @@ export function Sparkline({
   labels,
   width = 336,
   height = 60,
-  color = 'var(--accent)',
+  color = 'var(--indigo)',
   fillFrom,
   className,
   valueFormat = (v: number) => fmtEUR(v, { decimals: 0 }),

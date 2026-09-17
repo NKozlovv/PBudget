@@ -25,7 +25,7 @@ export function TheusMark({
       <rect x="11" y="30" width="42" height="11" rx="2.5" fill="var(--ink)" />
       {/* top slab — tilted, brass accent */}
       <g transform="rotate(-12 32 18)">
-        <rect x="17" y="13" width="30" height="11" rx="2.5" fill="var(--accent)" />
+        <rect x="17" y="13" width="30" height="11" rx="2.5" fill="var(--indigo)" />
       </g>
     </svg>
   );

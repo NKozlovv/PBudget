@@ -29,14 +29,13 @@ export function CoachInsightCard({
 
   return (
     <div
-      className="rounded-2xl border border-line-strong p-6"
+      className="glass !rounded-[28px] p-6"
       style={{
-        background:
-          'linear-gradient(135deg, var(--accent-soft) 0%, transparent 70%)',
+        backgroundImage: 'linear-gradient(135deg, rgba(74,92,224,.14) 0%, transparent 70%), var(--glass-sheen)',
       }}
     >
       <div className="mb-3 flex items-center gap-2">
-        <Icon name="sparkle" size={14} className="text-accent" />
+        <Icon name="sparkle" size={14} className="text-indigo" />
         <Mono tone="accent">Coach insight</Mono>
       </div>
 

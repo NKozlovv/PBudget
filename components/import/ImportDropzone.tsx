@@ -77,10 +77,10 @@ export function ImportDropzone() {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         className={
-          'relative rounded-2xl border-2 border-dashed transition-colors ' +
+          'relative rounded-[20px] border-2 border-dashed transition-colors ' +
           (dragOver
-            ? 'border-accent bg-accent-soft'
-            : 'border-rule bg-bg-soft hover:bg-bg-panel/40')
+            ? 'border-indigo bg-indigo/[0.08]'
+            : 'border-white/90 bg-white/50 hover:bg-white/70')
         }
       >
         <label className="flex cursor-pointer flex-col items-center justify-center gap-3 px-6 py-12 text-center">
@@ -116,7 +116,7 @@ export function ImportDropzone() {
           max={2100}
           value={importYear}
           onChange={(e) => setImportYear(Number(e.target.value))}
-          className="w-[100px] rounded-[10px] border border-rule bg-bg px-3 py-2 text-[13px] text-ink focus:outline-none focus:border-accent"
+          className="w-[100px] rounded-full border border-white/90 bg-white/[0.72] px-3 py-2 text-[13px] text-ink backdrop-blur-xl focus:outline-none focus:border-indigo"
           disabled={pending}
         />
         <span className="text-[12px] text-ink-mute">
@@ -130,7 +130,7 @@ export function ImportDropzone() {
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-neg/40 bg-neg-soft px-5 py-4 text-[13px] text-neg" role="alert">
+        <div className="rounded-[20px] border border-out/40 bg-out/[0.12] px-5 py-4 text-[13px] text-out" role="alert">
           {error}
         </div>
       ) : null}
@@ -142,7 +142,7 @@ export function ImportDropzone() {
 
 function SummaryCard({ summary }: { summary: ImportSummary }) {
   return (
-    <div className="rounded-2xl border border-pos/40 bg-pos-soft px-6 py-5">
+    <div className="rounded-[20px] border border-in/40 bg-in/[0.12] px-6 py-5">
       <Mono tone="pos">Import complete</Mono>
       <div className="mt-4 grid grid-cols-2 gap-y-3 gap-x-6 sm:grid-cols-3">
         <Stat
@@ -162,7 +162,7 @@ function SummaryCard({ summary }: { summary: ImportSummary }) {
         <Stat label="Skipped rows" value={summary.dropped} tone={summary.dropped > 0 ? 'neg' : 'mute'} />
       </div>
       {summary.warnings.length > 0 ? (
-        <ul className="mt-4 flex flex-col gap-1 border-t border-rule/60 pt-3 text-[12px] text-ink-soft">
+        <ul className="mt-4 flex flex-col gap-1 border-t border-white/60 pt-3 text-[12px] text-ink-soft">
           {summary.warnings.map((w, i) => (
             <li key={i}>· {w}</li>
           ))}

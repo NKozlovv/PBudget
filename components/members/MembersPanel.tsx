@@ -98,7 +98,7 @@ export function MembersPanel({
       ) : null}
 
       <Card padded={false}>
-        <div className="flex items-baseline justify-between border-b border-rule px-5 py-4">
+        <div className="flex items-baseline justify-between border-b border-white/60 px-5 py-4">
           <h3 className="text-[15px] font-semibold tracking-tight">Members</h3>
           <Mono size="xs">
             {members.length} active
@@ -107,18 +107,15 @@ export function MembersPanel({
         {members.length === 0 ? (
           <p className="px-5 py-6 text-sm text-ink-mute">No members yet.</p>
         ) : (
-          <ul className="divide-y divide-rule/60">
+          <ul className="divide-y divide-white/60">
             {members.map((m) => {
               const isYou = m.user_id === currentUserId;
               const isOwnerRow = m.user_id === ownerId;
               return (
                 <li key={m.user_id} className="flex items-center gap-4 px-5 py-3">
                   <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-bg"
-                    style={{
-                      background:
-                        'linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 70%, var(--ink)))',
-                    }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white"
+                    style={{ background: 'linear-gradient(135deg, #4a5ce0, #1fb9a4)' }}
                     aria-hidden
                   >
                     {(isYou ? 'Y' : '?').toUpperCase()}
@@ -150,14 +147,14 @@ export function MembersPanel({
       </Card>
 
       <Card padded={false}>
-        <div className="flex items-baseline justify-between border-b border-rule px-5 py-4">
+        <div className="flex items-baseline justify-between border-b border-white/60 px-5 py-4">
           <h3 className="text-[15px] font-semibold tracking-tight">Pending invites</h3>
           <Mono size="xs">{invites.length}</Mono>
         </div>
         {invites.length === 0 ? (
           <p className="px-5 py-6 text-sm text-ink-mute">No pending invites.</p>
         ) : (
-          <ul className="divide-y divide-rule/60">
+          <ul className="divide-y divide-white/60">
             {invites.map((i) => {
               const sentAt = new Date(i.created_at).toLocaleDateString('en-GB', {
                 day: '2-digit',
@@ -196,7 +193,7 @@ export function MembersPanel({
           description="This member will lose access to the budget immediately."
         >
           <div className="flex flex-col gap-4">
-            <div className="rounded-lg border border-rule bg-bg p-3 text-[13px]">
+            <div className="glass-tile !rounded-[14px] p-3 text-[13px]">
               <Mono size="xs" className="block">
                 user
               </Mono>

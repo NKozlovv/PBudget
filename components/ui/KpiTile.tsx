@@ -4,10 +4,9 @@ import { Num } from './Num';
 import { Icon, type IconName } from './Icon';
 
 /**
- * KpiTile — modeled on Sterling dashboard cards (design-refs/src/dashboard.jsx
- * 152, 166): rounded-2xl, 24-padded surface card, mono uppercase label,
- * 32px tabular numeral, optional radial gradient overlay (hero variant)
- * and optional icon-prefixed delta indicator.
+ * KpiTile — glass-tile card, mono uppercase label, 32px tabular numeral,
+ * optional radial gradient overlay (hero variant) and optional
+ * icon-prefixed delta indicator.
  */
 export function KpiTile({
   label,

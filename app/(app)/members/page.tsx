@@ -31,17 +31,15 @@ export default async function MembersPage() {
         }${invites.length > 0 ? ` · ${invites.length} pending` : ''}`}
       />
 
-      <div className="mt-10">
-        <MembersPanel
-          budgetId={budget.id}
-          budgetName={budget.name}
-          members={members}
-          invites={invites}
-          ownerId={ownerId}
-          currentUserId={user.id}
-          isOwner={isOwner}
-        />
-      </div>
+      <MembersPanel
+        budgetId={budget.id}
+        budgetName={budget.name}
+        members={members}
+        invites={invites}
+        ownerId={ownerId}
+        currentUserId={user.id}
+        isOwner={isOwner}
+      />
     </>
   );
 }
