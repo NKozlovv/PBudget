@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation';
 import { getAuthUser } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 import { getOrCreateUserBudget, listBudgets } from '@/lib/data/budgets';
-import { Sidebar } from '@/components/nav/Sidebar';
-import { Topbar } from '@/components/nav/Topbar';
+import { TopNav } from '@/components/nav/TopNav';
+import { ScreenTransition } from '@/components/nav/ScreenTransition';
 import { GlobalAddTransactionModal } from '@/components/transactions/GlobalAddTransactionModal';
+import { BUILD_VERSION, BUILD_DATE } from '@/lib/version';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isSupabaseConfigured()) {
@@ -38,22 +39,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="ambient-blob ambient-blob-indigo" />
         <div className="ambient-blob ambient-blob-teal" />
       </div>
-      <div className="relative z-[1] grid min-h-screen grid-cols-[232px_1fr]">
-        <Sidebar
-          email={user.email ?? '—'}
-          budgetName={budget.name}
-          baseCurrency={budget.base_currency}
-          budgets={budgets}
-          activeBudgetId={budget.id}
-        />
-        <div className="flex min-w-0 flex-col">
-          <Topbar fxRate={budget.fx_rate} baseCurrency={budget.base_currency} />
-          <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
-            <div className="mx-auto w-full max-w-[1600px] 2xl:max-w-[1920px]">{children}</div>
-          </main>
+      <div className="relative z-[1] mx-auto max-w-[1520px] px-[26px] pb-20 pt-5">
+        <TopNav email={user.email ?? '—'} budgets={budgets} activeBudgetId={budget.id} />
+        <ScreenTransition>{children}</ScreenTransition>
+        <div className="mt-10 flex items-center justify-end gap-2 text-[10.5px] font-medium text-ink-mute">
+          <span>{BUILD_VERSION}</span>
+          <span aria-hidden>·</span>
+          <span>{BUILD_DATE}</span>
         </div>
-        <GlobalAddTransactionModal />
       </div>
+      <GlobalAddTransactionModal />
     </div>
   );
 }

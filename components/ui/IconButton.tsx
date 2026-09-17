@@ -11,6 +11,8 @@ type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   strokeWidth?: number;
   /** Rotates the icon 180° over 200ms — used by the Categories disclosure caret. */
   rotated?: boolean;
+  /** Coral notification dot, top-right — the top-nav bell. */
+  dot?: boolean;
 };
 
 /**
@@ -19,7 +21,7 @@ type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
  * like other pills/buttons; never the level-1 panel hover.
  */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { icon, size = 38, iconSize = 18, strokeWidth = 1.7, rotated, className, type = 'button', ...rest },
+  { icon, size = 38, iconSize = 18, strokeWidth = 1.7, rotated, dot, className, type = 'button', ...rest },
   ref,
 ) {
   return (
@@ -42,6 +44,12 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         strokeWidth={strokeWidth}
         className={cn('transition-transform duration-200 ease-theus', rotated && 'rotate-180')}
       />
+      {dot ? (
+        <span
+          aria-hidden
+          className="absolute right-[9px] top-[8px] h-2 w-2 rounded-full bg-coral ring-2 ring-white"
+        />
+      ) : null}
     </button>
   );
 });

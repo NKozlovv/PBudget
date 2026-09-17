@@ -7,6 +7,6 @@
  * reflects what's deployed.
  */
 
-export const BUILD_VERSION = 'v2.7.2-α';
-export const BUILD_DATE = '2026-09-15';
-export const BUILD_NOTE = 'Balance chart shows start-of-year, decluttered hero tile';
+export const BUILD_VERSION = 'v3.0.0-α';
+export const BUILD_DATE = '2026-09-17';
+export const BUILD_NOTE = 'Liquid-glass rehaul in progress — foundations + top nav';

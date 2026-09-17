@@ -72,13 +72,13 @@ export function BudgetSwitcher({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={pending}
-        className="group flex w-full items-center gap-2 rounded-lg border border-rule bg-bg px-3 py-2 text-left transition-colors hover:bg-bg-panel/40 focus:outline-none focus:border-accent"
+        className="group flex w-full items-center gap-2 rounded-[14px] border border-white/70 bg-white/60 px-3 py-2 text-left transition-colors hover:bg-white focus:outline-none focus:border-indigo"
       >
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-ink-mute">
+          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-mute">
             Budget
           </div>
-          <div className="mt-0.5 truncate text-[13px] font-medium text-ink">{active.name}</div>
+          <div className="mt-0.5 truncate text-[13px] font-semibold text-ink">{active.name}</div>
         </div>
         <span className="text-[10px] text-ink-mute group-hover:text-ink">
           {open ? '▴' : '▾'}
@@ -86,8 +86,8 @@ export function BudgetSwitcher({
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 right-0 mb-1.5 rounded-lg border border-rule bg-bg-panel shadow-2xl z-30 overflow-hidden">
-          <ul role="listbox" className="flex flex-col">
+        <div className="glass glass-nohover absolute left-0 right-0 top-full z-30 mt-1.5 !rounded-[16px] overflow-hidden">
+          <ul role="listbox" className="flex flex-col p-1">
             {budgets.map((b) => {
               const isActive = b.id === activeId;
               return (
@@ -98,10 +98,10 @@ export function BudgetSwitcher({
                     aria-selected={isActive}
                     onClick={() => switchTo(b.id)}
                     className={
-                      'flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-[13px] transition-colors ' +
+                      'flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] transition-colors ' +
                       (isActive
-                        ? 'bg-accent-soft text-accent'
-                        : 'text-ink-soft hover:bg-bg-soft hover:text-ink')
+                        ? 'bg-indigo/[0.12] text-indigo-dark'
+                        : 'text-ink-soft hover:bg-white/70 hover:text-ink')
                     }
                   >
                     <span className="truncate">{b.name}</span>
@@ -113,14 +113,14 @@ export function BudgetSwitcher({
               );
             })}
           </ul>
-          <div className="border-t border-rule px-1 py-1 flex flex-col">
+          <div className="flex flex-col border-t border-white/60 p-1">
             <button
               type="button"
               onClick={() => {
                 setOpen(false);
                 setMode({ kind: 'create' });
               }}
-              className="rounded-md px-3 py-2 text-left text-[12px] font-medium text-accent hover:bg-bg-soft"
+              className="rounded-[10px] px-3 py-2 text-left text-[12px] font-semibold text-indigo-dark hover:bg-white/70"
             >
               + New budget
             </button>
@@ -130,7 +130,7 @@ export function BudgetSwitcher({
                 setOpen(false);
                 setMode({ kind: 'manage' });
               }}
-              className="rounded-md px-3 py-2 text-left text-[12px] text-ink-soft hover:bg-bg-soft hover:text-ink"
+              className="rounded-[10px] px-3 py-2 text-left text-[12px] text-ink-soft hover:bg-white/70 hover:text-ink"
             >
               Manage budgets…
             </button>
@@ -165,7 +165,7 @@ export function BudgetSwitcher({
           {budgets.map((b) => (
             <div
               key={b.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-rule px-3 py-2.5"
+              className="flex items-center justify-between gap-3 rounded-[14px] border border-white/70 bg-white/50 px-3 py-2.5"
             >
               <div className="min-w-0">
                 <div className="truncate text-[13px] font-medium text-ink">{b.name}</div>
