@@ -78,7 +78,7 @@ export function CategoryDetailModal({
     >
       <div className="flex flex-col gap-5">
         {/* Header strip */}
-        <div className="flex items-center gap-4 rounded-2xl border border-rule bg-bg p-4">
+        <div className="glass-tile flex items-center gap-4 !rounded-[16px] p-4">
           <span
             className="flex h-12 w-12 items-center justify-center rounded-[12px]"
             style={{ background: `${color}1F` }}
@@ -91,7 +91,7 @@ export function CategoryDetailModal({
               {fmtEUR(summary.thisMonth, { decimals: 0 })}
             </div>
           </div>
-          <div className="border-l border-rule pl-4">
+          <div className="border-l border-white/60 pl-4">
             <Mono size="xs">YTD avg / mo</Mono>
             <div className="font-mono text-[14px] font-medium tabular-nums text-ink-soft">
               {fmtEUR(summary.avgMonthly, { decimals: 0 })}
@@ -100,8 +100,8 @@ export function CategoryDetailModal({
         </div>
 
         {/* Subcategories */}
-        <div className="rounded-2xl border border-rule bg-bg-soft">
-          <div className="flex items-center justify-between border-b border-rule px-4 py-3">
+        <div className="glass-tile !rounded-[16px]">
+          <div className="flex items-center justify-between border-b border-white/60 px-4 py-3">
             <Mono size="xs">Subcategories</Mono>
             <button
               type="button"
@@ -117,7 +117,7 @@ export function CategoryDetailModal({
               No subcategories yet.
             </div>
           ) : (
-            <ul className="divide-y divide-rule/60">
+            <ul className="divide-y divide-white/60">
               {localSubs.map((s) => (
                 <li
                   key={s.subcategory.id}
@@ -161,7 +161,7 @@ export function CategoryDetailModal({
         </div>
 
         {/* Category-level actions */}
-        <div className="flex items-center justify-between border-t border-rule pt-4">
+        <div className="flex items-center justify-between border-t border-white/60 pt-4">
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
@@ -267,6 +267,7 @@ export function CategoryDetailModal({
                     subcategory: { id: res.data.id, category_id: cat.id, name: name.trim() },
                     thisMonth: 0,
                     ytd: 0,
+                    avgMonthly: 0,
                     txCountThisMonth: 0,
                   },
                 ]);

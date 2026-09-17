@@ -1,78 +1,59 @@
-import { Icon, Mono } from '@/components/ui';
 import { categoryColor } from '@/lib/categoryColor';
-import { categoryIcon } from '@/lib/dashboard/categoryIcon';
 import { fmtEUR } from '@/lib/money';
 import type { CategorySummary } from '@/lib/categories/summary';
 
 /**
- * Compact income recap below the main expense table. The ref doesn't show
- * income at all (Option B), but our schema tracks it — surface it in a
- * stripped row list (no progress bars, since "over budget" doesn't apply
- * to income; tone flips pos for above-average months).
+ * Compact income recap below the expense table. The design doesn't show
+ * income at all — this app's schema tracks it, so it stays as a simple
+ * restyled list (no accordion/progress-bar semantics, since "over pace"
+ * doesn't apply to income).
  */
-export function IncomeRecap({ summaries }: { summaries: CategorySummary[] }) {
+export function IncomeRecap({
+  summaries,
+  onEdit,
+}: {
+  summaries: CategorySummary[];
+  onEdit: (categoryId: string) => void;
+}) {
   const total = summaries.reduce((s, x) => s + x.thisMonth, 0);
   const totalAvg = summaries.reduce((s, x) => s + x.avgMonthly, 0);
-  const pctVsAvg = totalAvg > 0 ? (total / totalAvg - 1) * 100 : 0;
 
   if (summaries.length === 0) return null;
 
   return (
-    <section className="mt-8">
-      <div className="mb-3 flex items-end justify-between">
-        <div>
-          <Mono>Income</Mono>
-          <div className="mt-1 font-mono text-[20px] font-semibold tabular-nums tracking-tight text-pos">
-            {fmtEUR(total, { decimals: 0 })}
-          </div>
-        </div>
-        {totalAvg > 0 ? (
-          <div className="text-[12px] text-ink-soft">
-            {pctVsAvg >= 0 ? '+' : ''}
-            <span
-              className={pctVsAvg > 0 ? 'font-semibold text-pos' : pctVsAvg < 0 ? 'font-semibold text-neg' : 'text-ink-mute'}
-            >
-              {pctVsAvg.toFixed(1)}%
-            </span>{' '}
-            vs YTD avg of {fmtEUR(totalAvg, { decimals: 0 })}
-          </div>
-        ) : null}
+    <section className="flex flex-col gap-3">
+      <div className="flex items-end justify-between">
+        <span className="text-[15px] font-bold text-ink">Income</span>
+        <span className="text-[12.5px] font-semibold text-ink-mute">
+          {fmtEUR(total, { decimals: 0 })}
+          {totalAvg > 0 ? ` · YTD avg ${fmtEUR(totalAvg, { decimals: 0 })}` : ''}
+        </span>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-rule bg-bg-soft">
-        {summaries.map((s, i) => {
+      <div className="glass !rounded-[26px] p-[10px]">
+        {summaries.map((s) => {
           const color = categoryColor(s.category.name);
-          const icon = categoryIcon(s.category.name);
           return (
             <div
               key={s.category.id}
-              className={
-                'flex items-center gap-4 px-5 py-3 ' +
-                (i < summaries.length - 1 ? 'border-b border-rule/60' : '')
-              }
+              className="grid grid-cols-[34px_minmax(0,1.6fr)_110px_100px] items-center gap-4 rounded-[18px] px-[18px] py-[14px]"
             >
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-[10px]"
-                style={{ background: `${color}1F` }}
+              <button
+                type="button"
+                onClick={() => onEdit(s.category.id)}
+                aria-label={`Edit ${s.category.name}`}
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[12px] text-[13px] font-extrabold text-white transition-transform hover:scale-105"
+                style={{ background: color }}
               >
-                <Icon name={icon} size={16} color={color} />
+                {s.category.name.charAt(0).toUpperCase()}
+              </button>
+              <span className="truncate text-[14.5px] font-semibold text-ink">{s.category.name}</span>
+              <span className="text-[15.5px] font-extrabold tabular-nums text-in">
+                {fmtEUR(s.thisMonth, { decimals: 0 })}
               </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium text-ink">
-                  {s.category.name}
-                </div>
-                <div className="text-[11px] text-ink-mute">
-                  {s.txCountThisMonth} {s.txCountThisMonth === 1 ? 'entry' : 'entries'} this month
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-[13px] font-semibold tabular-nums text-ink">
-                  {fmtEUR(s.thisMonth, { decimals: 0 })}
-                </div>
-                <div className="font-mono text-[10px] tabular-nums text-ink-mute">
-                  YTD avg {fmtEUR(s.avgMonthly, { decimals: 0 })}
-                </div>
-              </div>
+              <span className="text-[13.5px] font-semibold text-ink-mute">
+                {fmtEUR(s.avgMonthly, { decimals: 0 })}
+              </span>
             </div>
           );
         })}

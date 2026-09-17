@@ -83,25 +83,25 @@ export default async function CategoriesPage() {
   }
 
   const totalCount = expenseCats.length + incomeCats.length;
+  const monthLabel = monthName(month);
 
   return (
     <>
       <PageHeader
         title="Categories"
-        meta={`${monthName(month)} ${year} · ${totalCount} ${
+        meta={`${monthLabel} ${year} · ${totalCount} ${
           totalCount === 1 ? 'category' : 'categories'
         } tracked`}
         actions={<AddCategoryButton />}
       />
 
-      <div className="mt-6">
-        <CategoriesClient
-          budgetId={budget.id}
-          expense={expense}
-          income={income}
-          subSummariesByCatId={subSummariesByCatId}
-        />
-      </div>
+      <CategoriesClient
+        budgetId={budget.id}
+        expense={expense}
+        income={income}
+        subSummariesByCatId={subSummariesByCatId}
+        monthLabel={monthLabel}
+      />
     </>
   );
 }

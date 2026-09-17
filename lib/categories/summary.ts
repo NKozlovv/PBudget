@@ -23,6 +23,8 @@ export interface SubcategorySummary {
   subcategory: Subcategory;
   thisMonth: number;
   ytd: number;
+  /** YTD monthly average — same "budget" proxy as CategorySummary.avgMonthly. */
+  avgMonthly: number;
   txCountThisMonth: number;
 }
 
@@ -97,6 +99,7 @@ export function subcategoriesSummary(args: {
   month: number;
 }): SubcategorySummary[] {
   const { category, subcategories, transactions, fxRate, kind, year, month } = args;
+  const monthsElapsed = month + 1;
   const ytdBySub = new Map<string, number>();
   const monthBySub = new Map<string, number>();
   const txCountBySub = new Map<string, number>();
@@ -120,10 +123,14 @@ export function subcategoriesSummary(args: {
     }
   }
 
-  return subcategories.map((s) => ({
-    subcategory: s,
-    thisMonth: monthBySub.get(s.name) ?? 0,
-    ytd: ytdBySub.get(s.name) ?? 0,
-    txCountThisMonth: txCountBySub.get(s.name) ?? 0,
-  }));
+  return subcategories.map((s) => {
+    const ytd = ytdBySub.get(s.name) ?? 0;
+    return {
+      subcategory: s,
+      thisMonth: monthBySub.get(s.name) ?? 0,
+      ytd,
+      avgMonthly: monthsElapsed > 0 ? ytd / monthsElapsed : 0,
+      txCountThisMonth: txCountBySub.get(s.name) ?? 0,
+    };
+  });
 }
