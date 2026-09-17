@@ -8,7 +8,6 @@ export default function ImportPage() {
   return (
     <>
       <PageHeader
-        kicker="bulk"
         title="Import XLSX"
         meta="One-shot bulk import from the legacy Google Sheets export. Existing accounts and categories are reused, not duplicated."
       />

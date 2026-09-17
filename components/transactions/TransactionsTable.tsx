@@ -122,7 +122,7 @@ export function TransactionsTable({
   return (
     <>
       {transactions.length === 0 ? (
-        <div className="rounded-2xl border border-rule bg-bg-soft px-6 py-16 text-center text-sm text-ink-mute">
+        <div className="glass !rounded-[26px] px-6 py-16 text-center text-sm text-ink-mute">
           No transactions match the current filters.
         </div>
       ) : (
@@ -185,7 +185,7 @@ export function TransactionsTable({
               onSubmit={(input) => handleUpdate(mode.tx.id, input)}
               onCancel={() => setMode({ kind: 'idle' })}
             />
-            <div className="flex justify-between border-t border-rule pt-4">
+            <div className="flex justify-between border-t border-white/60 pt-4">
               <button
                 type="button"
                 onClick={() => setMode({ kind: 'delete', tx: mode.tx })}
@@ -206,7 +206,7 @@ export function TransactionsTable({
           description="This can't be undone."
         >
           <div className="flex flex-col gap-4">
-            <div className="rounded-lg border border-rule bg-bg p-3 text-[13px]">
+            <div className="glass-tile !rounded-[14px] p-3 text-[13px]">
               <Mono size="xs" className="block">
                 {dateDisplay(mode.tx.date).toUpperCase()}
               </Mono>

@@ -25,7 +25,6 @@ export default async function MembersPage() {
   return (
     <>
       <PageHeader
-        kicker="sharing"
         title="Members"
         meta={`${budget.name} · ${members.length} ${
           members.length === 1 ? 'member' : 'members'

@@ -87,7 +87,6 @@ export default async function CategoriesPage() {
   return (
     <>
       <PageHeader
-        kicker="Where it goes"
         title="Categories"
         meta={`${monthName(month)} ${year} · ${totalCount} ${
           totalCount === 1 ? 'category' : 'categories'

@@ -7,6 +7,7 @@ import {
   mostUsedSubcategoryByCategory,
   subcategoriesByCategoryName,
 } from '@/lib/categories/formOptions';
+import { workingMonth, monthLong } from '@/lib/dashboard/period';
 import type { Subcategory } from '@/lib/supabase/types';
 
 export const metadata = { title: 'Transactions · Theus' };
@@ -40,6 +41,8 @@ export default async function TransactionsPage() {
     subcategoriesById,
   );
   const mostUsedSubcategory = mostUsedSubcategoryByCategory(subPairs);
+  const { month, year } = workingMonth(new Date());
+  const periodLabel = `${monthLong(month)} ${year}`;
 
   return (
     <TransactionsClient
@@ -52,6 +55,7 @@ export default async function TransactionsPage() {
       mostUsedSubcategory={mostUsedSubcategory}
       budgetId={budget.id}
       budgetFxRate={budget.fx_rate}
+      periodLabel={periodLabel}
     />
   );
 }

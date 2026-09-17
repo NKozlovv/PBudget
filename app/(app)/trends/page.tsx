@@ -73,7 +73,6 @@ export default async function TrendsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        kicker="Month by month"
         title="Trends"
         meta={
           first && last

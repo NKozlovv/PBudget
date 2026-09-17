@@ -1,41 +1,22 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { PageHeader } from '@/components/nav/PageHeader';
-import { Icon } from '@/components/ui';
 import { Filters, emptyTxFilters, type TxFilterValue } from './Filters';
 import { StatStrip } from './StatStrip';
 import { TransactionsTable } from './TransactionsTable';
 import { AddTransactionButton } from './AddTransactionButton';
-import { isUncategorised, UNCATEGORISED } from '@/lib/transactions/constants';
-import { monthName } from '@/lib/date';
+import { UNCATEGORISED, isUncategorised } from '@/lib/transactions/constants';
 import type { Account, Category, Subcategory, Transaction } from '@/lib/supabase/types';
 
 const PAGE_SIZE = 150;
 const LOAD_MORE_STEP = 150;
 
-function metaLine(months: Set<string>, count: number): string {
-  const noun = count === 1 ? 'entry' : 'entries';
-  if (months.size === 1) {
-    const [ym] = [...months];
-    const [yStr, mStr] = ym!.split('-');
-    return `${count} ${noun} · ${monthName(Number(mStr) - 1)} ${yStr}`;
-  }
-  if (months.size > 1) return `${count} ${noun} · ${months.size} months`;
-  return `${count} ${noun} · all time`;
-}
-
 /**
  * Owns filtering, sorting, and "load more" pagination entirely client-side
  * — the full transaction list for the budget is fetched once (server-side,
- * in the page component) and handed down here, so every filter/sort change
- * is a synchronous in-memory pass instead of a fresh server round trip.
- * With a budget's history running to a few thousand rows at most, filtering
- * that array is imperceptibly fast; the old URL-param-driven version paid
- * for a full Supabase re-fetch (accounts, categories, subcategories, the
- * whole transaction set again) on every single filter click, which is what
- * made filtering feel slow.
+ * in the page component) and handed down here, so every filter change is a
+ * synchronous in-memory pass instead of a fresh server round trip.
  */
 export function TransactionsClient({
   allTransactions,
@@ -47,6 +28,7 @@ export function TransactionsClient({
   mostUsedSubcategory,
   budgetId,
   budgetFxRate,
+  periodLabel,
 }: {
   allTransactions: Transaction[];
   accounts: Account[];
@@ -57,6 +39,8 @@ export function TransactionsClient({
   mostUsedSubcategory: Record<string, string>;
   budgetId: string;
   budgetFxRate: number;
+  /** e.g. "August 2026" — the last completed month, for the header subtitle. */
+  periodLabel: string;
 }) {
   const [filters, setFilters] = useState<TxFilterValue>(emptyTxFilters());
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -66,44 +50,24 @@ export function TransactionsClient({
     setVisibleCount(PAGE_SIZE);
   }
 
-  const months = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of allTransactions) {
-      if (typeof t.date === 'string' && t.date.length >= 7) set.add(t.date.slice(0, 7));
-    }
-    return [...set].sort().reverse();
-  }, [allTransactions]);
-
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     const rows = allTransactions.filter((t) => {
-      if (filters.types.size > 0 && !filters.types.has(t.type)) return false;
-      if (filters.accounts.size > 0 && (!t.account_id || !filters.accounts.has(t.account_id))) {
-        return false;
-      }
-      if (filters.categories.size > 0) {
-        const matchesUncategorised = filters.categories.has(UNCATEGORISED) && isUncategorised(t.category);
-        const matchesNamed = t.category != null && filters.categories.has(t.category);
+      if (filters.type !== 'All' && t.type !== filters.type) return false;
+      if (filters.account !== 'All' && t.account_id !== filters.account) return false;
+      if (filters.category !== 'All') {
+        const matchesUncategorised = filters.category === UNCATEGORISED && isUncategorised(t.category);
+        const matchesNamed = t.category === filters.category;
         if (!matchesUncategorised && !matchesNamed) return false;
       }
-      if (filters.subcategories.size > 0 && (!t.subcategory || !filters.subcategories.has(t.subcategory))) {
-        return false;
-      }
-      if (filters.months.size > 0 && !filters.months.has(t.date.slice(0, 7))) return false;
+      if (filters.subcategory !== 'All' && t.subcategory !== filters.subcategory) return false;
       if (q && !(t.comment ?? '').toLowerCase().includes(q)) return false;
       return true;
     });
 
-    const sign = filters.dir === 'asc' ? 1 : -1;
     return [...rows].sort((a, b) => {
-      let cmp: number;
-      if (filters.sort === 'amount') {
-        cmp = a.amount - b.amount;
-      } else {
-        cmp = a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
-        if (cmp === 0) cmp = a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
-      }
-      return cmp * sign;
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return a.created_at < b.created_at ? 1 : -1;
     });
   }, [allTransactions, filters]);
 
@@ -113,61 +77,41 @@ export function TransactionsClient({
   return (
     <>
       <PageHeader
-        kicker="Ledger"
         title="Transactions"
-        meta={metaLine(filters.months, filtered.length)}
-        actions={
-          <>
-            <Link
-              href="/import"
-              className="inline-flex items-center gap-1.5 rounded-[10px] border border-rule bg-surface px-3.5 py-2 text-[13px] font-medium text-ink hover:bg-surface-hi transition-colors"
-            >
-              <Icon name="upload" size={13} className="text-ink-mute" />
-              Import
-            </Link>
-            <AddTransactionButton />
-          </>
-        }
+        meta={`${filtered.length} record${filtered.length === 1 ? '' : 's'} · ${periodLabel}`}
+        actions={<AddTransactionButton />}
       />
 
-      <div className="mt-6">
-        <StatStrip transactions={filtered} budgetFxRate={budgetFxRate} />
-      </div>
+      <StatStrip transactions={filtered} budgetFxRate={budgetFxRate} />
 
-      <div className="mt-5">
-        <Filters
-          accounts={accounts}
-          expenseCats={expenseCats}
-          incomeCats={incomeCats}
-          subcategories={subcategories}
-          months={months}
-          value={filters}
-          onChange={updateFilters}
-        />
-      </div>
+      <Filters
+        accounts={accounts}
+        expenseCats={expenseCats}
+        incomeCats={incomeCats}
+        subcategories={subcategories}
+        value={filters}
+        onChange={updateFilters}
+        shown={filtered.length}
+        total={allTransactions.length}
+      />
 
-      <div className="mt-4">
-        <TransactionsTable
-          transactions={visible}
-          accounts={accounts}
-          expenseCats={expenseCats}
-          incomeCats={incomeCats}
-          subcategoriesByCategory={subcategoriesByCategory}
-          mostUsedSubcategory={mostUsedSubcategory}
-          budgetId={budgetId}
-          budgetFxRate={budgetFxRate}
-        />
-      </div>
+      <TransactionsTable
+        transactions={visible}
+        accounts={accounts}
+        expenseCats={expenseCats}
+        incomeCats={incomeCats}
+        subcategoriesByCategory={subcategoriesByCategory}
+        mostUsedSubcategory={mostUsedSubcategory}
+        budgetId={budgetId}
+        budgetFxRate={budgetFxRate}
+      />
 
       {hasMore ? (
-        <div className="mt-4 flex items-center justify-center gap-3 text-[12px] text-ink-mute">
-          <span>
-            Showing {visible.length} of {filtered.length}
-          </span>
+        <div className="flex items-center justify-center">
           <button
             type="button"
             onClick={() => setVisibleCount((c) => c + LOAD_MORE_STEP)}
-            className="rounded-[10px] border border-rule bg-surface px-3.5 py-2 text-[13px] font-medium text-ink hover:bg-surface-hi transition-colors"
+            className="rounded-full border border-white/90 bg-white/[0.72] px-[18px] py-[10px] text-[13px] font-semibold text-ink backdrop-blur-xl transition-colors duration-200 hover:bg-white"
           >
             Load {Math.min(LOAD_MORE_STEP, filtered.length - visible.length)} more
           </button>

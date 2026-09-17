@@ -83,7 +83,6 @@ export default async function ForecastPage({
   return (
     <>
       <PageHeader
-        kicker="Looking ahead"
         title="Forecast"
         meta={`Projection based on ${ytd.monthsElapsed} ${
           ytd.monthsElapsed === 1 ? 'month' : 'months'
