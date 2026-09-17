@@ -156,6 +156,40 @@ export function accountsCurrentEUR(args: {
   return out;
 }
 
+export interface AccountMonthFlows {
+  /** Native-currency income into this account for the month. */
+  received: number;
+  /** Native-currency expense out of this account for the month. */
+  spent: number;
+}
+
+/**
+ * Native-currency received (income) / spent (expense) for one account in a
+ * given (year, month). Adjustments excluded — they're transfers/refunds,
+ * not real income or spend (CLAUDE.md §8a). Used by the Overview account
+ * cards' Received/Spent meters, which are anchored to the true current
+ * month (§8f: a balance-adjacent, real-time figure), not `workingMonth`.
+ */
+export function accountMonthFlowsNative(args: {
+  accountId: string;
+  year: number;
+  month: number;
+  transactions: Transaction[];
+}): AccountMonthFlows {
+  const { accountId, year, month, transactions } = args;
+  let received = 0;
+  let spent = 0;
+  for (const t of transactions) {
+    if (t.account_id !== accountId) continue;
+    const m = /^(\d{4})-(\d{2})-/.exec(t.date);
+    if (!m) continue;
+    if (Number(m[1]) !== year || Number(m[2]) - 1 !== month) continue;
+    if (t.type === 'income') received += t.amount;
+    else if (t.type === 'expense') spent += t.amount;
+  }
+  return { received, spent };
+}
+
 export interface TrajectoryPoint {
   label: string;
   date: string;

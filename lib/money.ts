@@ -14,34 +14,43 @@ interface FormatOptions {
   noSymbol?: boolean;
 }
 
-function formatAmount(n: number, opts: FormatOptions = {}): string {
-  if (!Number.isFinite(n)) return '—';
-  const abs = Math.abs(n);
-  const sign = n < 0 ? '−' : '';
+/**
+ * Splits sign from magnitude so callers can place the typographic minus
+ * *before* the currency symbol ("−€1,654", not "€−1,654") — the v4 design
+ * system's rule for every negative figure in the app (design_handoff_
+ * theus_rehaul README "Savings rate" panel spec).
+ */
+function formatAbs(abs: number, opts: FormatOptions = {}): string {
   const decimals = opts.decimals ?? 2;
   if (opts.compact && abs >= 1000) {
-    const v =
-      abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : `${(abs / 1000).toFixed(1)}k`;
-    return `${sign}${v}`;
+    return abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : `${(abs / 1000).toFixed(1)}k`;
   }
-  return `${sign}${abs.toLocaleString('en-US', {
+  return abs.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  })}`;
+  });
 }
 
 export function fmtEUR(n: number, opts: FormatOptions = {}): string {
-  return `${opts.noSymbol ? '' : '€'}${formatAmount(n, opts)}`;
+  const symbol = opts.noSymbol ? '' : '€';
+  if (!Number.isFinite(n)) return `${symbol}—`;
+  const sign = n < 0 ? '−' : '';
+  return `${sign}${symbol}${formatAbs(Math.abs(n), opts)}`;
 }
 
 export function fmtUSD(n: number, opts: FormatOptions = {}): string {
-  return `${opts.noSymbol ? '' : '$'}${formatAmount(n, opts)}`;
+  const symbol = opts.noSymbol ? '' : '$';
+  if (!Number.isFinite(n)) return `${symbol}—`;
+  const sign = n < 0 ? '−' : '';
+  return `${sign}${symbol}${formatAbs(Math.abs(n), opts)}`;
 }
 
 export function fmtCurrency(n: number, currency: string, opts: FormatOptions = {}): string {
   if (currency === 'EUR') return fmtEUR(n, opts);
   if (currency === 'USD') return fmtUSD(n, opts);
-  return formatAmount(n, opts);
+  if (!Number.isFinite(n)) return '—';
+  const sign = n < 0 ? '−' : '';
+  return `${sign}${formatAbs(Math.abs(n), opts)}`;
 }
 
 /**

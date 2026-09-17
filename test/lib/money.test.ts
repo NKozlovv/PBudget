@@ -24,8 +24,10 @@ function tx(partial: Partial<Transaction> = {}): Transaction {
 
 describe('money — formatting', () => {
   it('fmtEUR formats positive and negative with the right sign char', () => {
+    // v4 design system: the sign goes OUTSIDE the currency symbol —
+    // "−€1,234.50", not "€−1,234.50" (design_handoff_theus_rehaul).
     expect(fmtEUR(1234.5)).toBe('€1,234.50');
-    expect(fmtEUR(-1234.5)).toBe('€−1,234.50');
+    expect(fmtEUR(-1234.5)).toBe('−€1,234.50');
   });
 
   it('fmtEUR honors noSymbol', () => {
