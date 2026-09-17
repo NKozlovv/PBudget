@@ -133,7 +133,7 @@ export default function StyleguidePage() {
             <div className="flex flex-wrap items-center gap-3">
               <Button>Continue</Button>
               <Button variant="ghost">Add account</Button>
-              <Button variant="subtle">Subtle</Button>
+              <Button variant="secondary">Secondary</Button>
               <Button size="sm">Small</Button>
               <Button disabled>Disabled</Button>
             </div>

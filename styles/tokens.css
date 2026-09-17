@@ -2,49 +2,80 @@
  * Theus design tokens — single source of truth.
  *
  * Imported once via app/globals.css. Tailwind theme references these via
- * var() in tailwind.config.ts so utility classes (bg-bg, text-ink, etc.)
- * resolve to the same values.
+ * var() in tailwind.config.ts so utility classes (bg-ink, text-ink-soft,
+ * etc.) resolve to the same values.
  *
- * Light-mode variant intentionally omitted — see docs/rehaul-plan.md §4.
- *
- * Palette: Sterling navy (Chunk 12 — Sterling foundations). Source of
- * truth: design-refs/src/tokens.jsx (dark variant). Earlier WCAG notes
- * in docs/contrast-report.md are stale; --ink-faint is decorative only.
+ * Palette: v4 "liquid glass" (design_handoff_theus_rehaul, approved
+ * 2026-09-17). Light ambient ground, frosted glass panels, capsule
+ * controls, fixed six-hue category map. Supersedes the Sterling navy
+ * dark theme — see docs/rehaul-progress.md for the cutover entry.
  */
 
 :root {
-  --bg: #0A0E1A;
-  --bg-soft: #0d1322;
-  --bg-panel: #141a2e;
-  --bg-elev: #10162a;
-  --surface-hi: #1a2138;
+  /* ambient ground */
+  --ground-1: #ffd6e4;
+  --ground-2: #e9d4fb;
+  --ground-3: #cfe0ff;
+  --ground-4: #c9f0ea;
+  --ground: linear-gradient(150deg, var(--ground-1) 0%, var(--ground-2) 32%, var(--ground-3) 60%, var(--ground-4) 100%);
+  --body-bg: #eadff2; /* behind the app shell, for overscroll */
 
-  --ink: #F5F6FA;
-  --ink-soft: #B6BCD0;
-  --ink-mute: #7480A0;
-  --ink-faint: #4A5476;
+  /* liquid glass — a sheen gradient, not a flat tint */
+  --glass-sheen: linear-gradient(140deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.16) 42%, rgba(255, 255, 255, 0.34));
+  --glass-sheen-hi: linear-gradient(140deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.26) 42%, rgba(255, 255, 255, 0.46));
+  --glass-sheen-in: linear-gradient(140deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.26) 45%, rgba(255, 255, 255, 0.46));
+  --glass-sheen-tile: linear-gradient(140deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.18) 45%, rgba(255, 255, 255, 0.38));
+  --glass-blur: blur(44px) saturate(2); /* panels */
+  --glass-blur-in: blur(26px) saturate(1.8); /* inner cards */
+  --glass-blur-tile: blur(24px) saturate(1.8); /* tiles, rows */
+  --glass-edge: rgba(255, 255, 255, 0.5);
+  --glass-edge-hi: rgba(255, 255, 255, 0.72);
 
-  --rule: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --grid: rgba(255, 255, 255, 0.05);
+  /* ink */
+  --ink: #151a2d;
+  --ink-soft: #5b6278;
+  --ink-mute: #636a7e;
 
-  --accent: #7B8BFF;
-  --accent-soft: rgba(123, 139, 255, 0.15);
-  --accent-hi: #A78BFA;
+  /* hues — action, then the category set */
+  --indigo: #4a5ce0;
+  --indigo-dark: #3a49c4;
+  --teal: #1fb9a4;
+  --coral: #f2708f;
+  --amber: #f4a545;
+  --violet: #8b5cf6;
+  --sky: #3da3ef;
+  --navy: #1f2742;
+  --slate: #8b95b8;
 
-  --pos: #5EE6A8;
-  --pos-soft: rgba(94, 230, 168, 0.12);
+  /* semantic — money direction only */
+  --in: #12a08c;
+  --out: #d94a6f;
+  --warn: #d98b1f;
 
-  --neg: #FF7A8A;
-  --neg-soft: rgba(255, 122, 138, 0.12);
+  /* type */
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
 
-  --warn: #FFC979;
+  /* shape */
+  --r-panel: 34px;
+  --r-card: 26px;
+  --r-inner: 22px;
+  --r-tile: 20px;
+  --r-row: 18px;
+  --r-chip: 14px;
+  --r-pill: 999px;
 
-  --chip: rgba(255, 255, 255, 0.06);
-  --chip-hi: rgba(255, 255, 255, 0.10);
+  /* depth — panel rest/hover live in .glass; these are the rest */
+  --shadow-panel: 0 28px 60px -18px rgba(31, 39, 66, 0.32), 0 2px 10px rgba(31, 39, 66, 0.08);
+  --shadow-panel-hover: 0 36px 72px -20px rgba(31, 39, 66, 0.38), 0 3px 12px rgba(31, 39, 66, 0.1);
+  --shadow-nav: 0 22px 44px -16px rgba(31, 39, 66, 0.3);
+  --shadow-solid: 0 12px 26px rgba(31, 39, 66, 0.2);
+  --shadow-action: 0 10px 24px rgba(74, 92, 224, 0.35);
 
-  /* Sterling vocabulary aliases */
-  --surface: var(--bg-panel);
-  --line: var(--rule);
-  --bg-subtle: var(--bg-soft);
+  /* motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-glass: cubic-bezier(0.22, 0.9, 0.24, 1);
+  --dur-state: 160ms;
+  --dur-move: 200ms;
+  --dur-glass: 260ms;
+  --dur-reveal: 620ms;
 }

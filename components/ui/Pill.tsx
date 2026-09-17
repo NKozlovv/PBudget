@@ -4,17 +4,17 @@ type Variant = 'default' | 'accent' | 'pos' | 'neg' | 'outline';
 type Shape = 'kbd' | 'badge' | 'chip';
 
 const VARIANTS: Record<Variant, string> = {
-  default: 'bg-chip text-ink-soft',
-  accent: 'bg-accent-soft text-accent',
-  pos: 'bg-pos-soft text-pos',
-  neg: 'bg-neg-soft text-neg',
-  outline: 'border border-line text-ink-soft',
+  default: 'bg-white/70 text-ink-soft',
+  accent: 'bg-indigo/[0.12] text-indigo-dark',
+  pos: 'bg-in/[0.12] text-in',
+  neg: 'bg-out/[0.12] text-out',
+  outline: 'border border-white/90 text-ink-soft',
 };
 
 const SHAPES: Record<Shape, string> = {
-  kbd: 'rounded-[4px] px-1.5 py-0.5 text-[10px] font-mono',
-  badge: 'rounded-full px-2.5 py-1 text-[11px] font-medium',
-  chip: 'rounded-lg px-2.5 py-1 text-[11px] font-medium',
+  kbd: 'rounded-[4px] px-1.5 py-0.5 text-[10px] font-sans',
+  badge: 'rounded-full px-2.5 py-1 text-[11px] font-bold',
+  chip: 'rounded-full px-2.5 py-1 text-[11px] font-bold',
 };
 
 export function Pill({

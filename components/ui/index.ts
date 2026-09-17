@@ -10,6 +10,7 @@ export { Select } from './Select';
 export { Modal } from './Modal';
 export { Icon } from './Icon';
 export type { IconName } from './Icon';
+export { IconButton } from './IconButton';
 export { FilterPill } from './FilterPill';
 export { OptionsList } from './OptionsList';
 export type { DropdownOption } from './OptionsList';

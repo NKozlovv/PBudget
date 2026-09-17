@@ -33,19 +33,13 @@ export function KpiTile({
   children?: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-2xl border border-line bg-surface p-6',
-        className,
-      )}
-    >
+    <div className={cn('glass-tile relative overflow-hidden !rounded-[20px] p-6', className)}>
       {hero ? (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage:
-              'radial-gradient(circle at 90% 0%, var(--accent-soft), transparent 55%)',
+            backgroundImage: 'radial-gradient(circle at 90% 0%, rgba(74,92,224,.14), transparent 55%)',
           }}
         />
       ) : null}

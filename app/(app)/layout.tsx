@@ -32,21 +32,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [budget, budgets] = await Promise.all([getOrCreateUserBudget(), listBudgets()]);
 
   return (
-    <div className="grid min-h-screen grid-cols-[232px_1fr]">
-      <Sidebar
-        email={user.email ?? '—'}
-        budgetName={budget.name}
-        baseCurrency={budget.base_currency}
-        budgets={budgets}
-        activeBudgetId={budget.id}
-      />
-      <div className="flex min-w-0 flex-col">
-        <Topbar fxRate={budget.fx_rate} baseCurrency={budget.base_currency} />
-        <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
-          <div className="mx-auto w-full max-w-[1600px] 2xl:max-w-[1920px]">{children}</div>
-        </main>
+    <div className="ambient-ground">
+      <div className="ambient-layer">
+        <div className="ambient-blob ambient-blob-coral" />
+        <div className="ambient-blob ambient-blob-indigo" />
+        <div className="ambient-blob ambient-blob-teal" />
       </div>
-      <GlobalAddTransactionModal />
+      <div className="relative z-[1] grid min-h-screen grid-cols-[232px_1fr]">
+        <Sidebar
+          email={user.email ?? '—'}
+          budgetName={budget.name}
+          baseCurrency={budget.base_currency}
+          budgets={budgets}
+          activeBudgetId={budget.id}
+        />
+        <div className="flex min-w-0 flex-col">
+          <Topbar fxRate={budget.fx_rate} baseCurrency={budget.base_currency} />
+          <main className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
+            <div className="mx-auto w-full max-w-[1600px] 2xl:max-w-[1920px]">{children}</div>
+          </main>
+        </div>
+        <GlobalAddTransactionModal />
+      </div>
     </div>
   );
 }
