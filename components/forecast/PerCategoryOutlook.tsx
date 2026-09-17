@@ -79,7 +79,7 @@ export function PerCategoryOutlook({
                   {/* avg slice with dashed right edge */}
                   <span
                     aria-hidden
-                    className="absolute inset-y-0 left-0"
+                    className="meter absolute inset-y-0 left-0"
                     style={{
                       width: `${wAvg}%`,
                       background: `${color}40`,
@@ -89,7 +89,7 @@ export function PerCategoryOutlook({
                   {/* projected slice */}
                   <span
                     aria-hidden
-                    className="absolute inset-y-0 left-0 rounded-full"
+                    className="meter absolute inset-y-0 left-0 rounded-full"
                     style={{
                       width: `${wProj}%`,
                       background: color,

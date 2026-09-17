@@ -23,7 +23,7 @@ export function AccountsDistributionBar({
           positives.map((s) => (
             <span
               key={s.id}
-              className="h-full"
+              className="meter h-full"
               style={{ flex: s.eur > 0 ? s.eur : 0.0001, background: s.color }}
               aria-label={`${s.name} ${(total > 0 ? (s.eur / total) * 100 : 0).toFixed(0)}%`}
             />
