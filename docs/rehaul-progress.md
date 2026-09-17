@@ -2153,3 +2153,108 @@ assuming; re-swept both changed files for the two recurring bug
 classes (none found); confirmed `monthsInRed` (no longer displayed)
 was fully removed — prop, computation, and JSX — rather than left as
 dead code.
+
+---
+
+## Chunk 20 — v4 "liquid glass" rehaul, superseding Sterling (2026-09-17)
+
+The user commissioned a full visual re-haul in Claude Desktop
+(`design_handoff_theus_rehaul/README.md` + `Theus Rehaul v4.dc.html`,
+approved direction) and asked for it implemented 1:1: light ambient
+ground, frosted-glass panels, one type family (Plus Jakarta Sans),
+capsule controls, a fixed six-hue category map, top nav instead of a
+sidebar. This **replaces the Sterling navy dark theme** (Chunks 12–19)
+— everything below is a from-scratch rebuild of the presentation
+layer on branch `claude/design-handoff-implementation-724101`.
+
+The individual commits are titled "Chunk 1" / "Chunk 4" / "Chunk 5"
+etc. — that numbering is the design spec's own 8-step work order
+(README §Work order), a separate sequence from this file's chunk
+count. Mapping, in order landed:
+
+1. **Foundations** — `styles/tokens.css` rewritten (ambient ground,
+   3-level glass recipe with a shared hover contract, seven brand
+   hues, `--in`/`--out`/`--warn`, motion keyframes); `app/layout.tsx`
+   onto Plus Jakarta Sans (Inter + Instrument Serif dropped);
+   `tailwind.config.ts` repointed, with `accent`/`accent-hi`/`pos`/
+   `neg` kept as transitional aliases onto the new hues so screens not
+   yet touched didn't render unstyled text; capsule primitives
+   (`Button`, `FilterPill`, `Pill`, `Input`, `IconButton`, `Card`→glass
+   panel at panel/inner/tile level); `lib/categoryColor.ts`'s ten-hue
+   hash → fixed seven-hue hash + `tint()` helper.
+2. **Top nav** (`components/nav/TopNav.tsx`) replaces `Sidebar.tsx` +
+   `Topbar.tsx`: floating glass capsule, brand, tabs, account capsule.
+   The mockup only designs tabs for the four core screens; per the
+   user's explicit call, Accounts and Forecast got full tabs too and
+   Coach/Members/Import moved behind a "More" dropdown so the bar
+   stays one row at every width (the spec's own constraint). Budget
+   switching and sign-out — no home in the mockup's account capsule —
+   moved into its dropdown rather than disappearing.
+3. **Overview** (`/dashboard`) — hero balance panel with the spend-
+   of-income ring (+ v4's over-income arc), a new signed-scale
+   savings-rate chart, a 12-month cash-flow chart with a y-axis
+   instead of per-bar labels, a segmented spending-mix bar (donut
+   dropped — not in this screen's design), and four bank-card-styled
+   account tiles. Dropped the Greeting banner and the old Income/
+   Spending KPI tiles — neither is in the approved design.
+4. **Transactions** — single-select sign pills + three real native
+   `<select>` filters (category/subcategory/account, spec is explicit
+   about native selects over a themed popover) replacing the old
+   multi-select Set-based `Filters.tsx`; 7-column day-grouped list
+   (checkbox, hue-letter avatar, name+note, category tag, subcategory
+   dot+text, account, amount). Month filtering and the sort toggle
+   aren't in the design and were dropped; bulk-select/delete and the
+   "≈€" foreign-currency line were kept since the design doesn't
+   preclude them and they're real functionality.
+5. **Categories** — accordion rows (whole row discloses subcategories
+   in place, one open at a time, per the README's own state table)
+   replace the old click-to-open-modal drill-down. `CategoryDetailModal`
+   (rename/delete category, subcategory CRUD) survives as an edit-only
+   modal, now reached by clicking the row's hue tile specifically
+   (`stopPropagation`) since the spec's row has no room for a
+   dedicated edit affordance.
+6. **Trends** — rescoped from an unbounded multi-year scroll to one
+   calendar year at a time via `?year=`, because the spec's own column
+   math requires it ("eleven columns do not fit a ~860px pane"). Real
+   year picker + CSV export added (the mockup's buttons imply both are
+   functional, not decorative). Two-hue heat matrix measured against
+   each row's own average, not month-over-month or category hue.
+7. **Sweep** — Accounts, Forecast, Coach, Members, Import ported onto
+   the new primitives with no bespoke layout changes, per the spec's
+   own instruction that these screens should just inherit the system.
+   This surfaced a real bug: several inline SVG/style props
+   (`ForecastLine`, `Sparkline`, `MembersPanel`'s avatar gradient, the
+   auth `BrandPanel`/`TheusMark`/`SocialButtons`) referenced
+   `var(--accent)` / `var(--rule)` / `var(--font-inter)` directly —
+   Chunk 1's Tailwind aliases only cover generated classes like
+   `text-accent`, not raw `var()` in inline styles, so these were
+   silently resolving to nothing. Fixed everywhere found, including
+   auth screens (a correctness fix, not a redesign, so in scope even
+   though auth isn't one of the swept screens). Deleted
+   `CategoryDonut.tsx`, `Donut.tsx`, `TrendLineChart.tsx` — all three
+   lost their only callers when Overview/Categories were rebuilt.
+8. **Motion consistency** — `AccountsDistributionBar` and
+   `PerCategoryOutlook`'s bars were the last bar-style elements not
+   using the shared `.meter` widen-on-mount animation; added for
+   consistency (no spec for these two, but same element, same motion).
+
+Also fixed `lib/money.ts`: `fmtEUR`/`fmtUSD`/`fmtCurrency` put the
+sign *inside* the currency symbol (`€−1,234.50`) — the v4 spec is
+explicit that it must be outside (`−€1,234.50`) everywhere in the app.
+Regression test updated to match.
+
+**Known, deliberate deviations from the mockup** (all real app
+constraints the static prototype's sample data doesn't hit):
+account cards show currency instead of a fabricated last-4-digit
+number (no such field in the schema); the "≈€" line survives on
+foreign-currency transaction rows; bulk-select/delete and full
+category CRUD survive.
+
+**Verification:** no local build (no Node in this worktree) —
+reviewed every changed file by hand; grepped the whole tree
+repeatedly for stale Sterling token names (`border-rule`, `bg-bg-*`,
+`bg-surface`, etc.) and for raw `var(--token)` references to since-
+deleted CSS custom properties, both down to zero before each commit.
+Pushed incrementally (one commit per numbered step above) so Vercel
+built a preview after each one rather than one giant unreviewable
+diff.

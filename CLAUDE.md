@@ -181,6 +181,19 @@ confirmation a deploy is live.
 
 ## 6. Design direction (current)
 
+> **⚠ Superseded 2026-09-17.** Everything below this note describes the
+> Sterling navy dark theme, which the v4 "liquid glass" rehaul has now
+> replaced app-wide: light ambient ground, frosted-glass panels, one
+> type family (Plus Jakarta Sans), capsule controls, a fixed six-hue
+> category map, a top nav instead of a sidebar. Source of truth:
+> `design_handoff_theus_rehaul/README.md` + `Theus Rehaul v4.dc.html`
+> (the approved prototype) and `docs/rehaul-progress.md`'s **Chunk 20**
+> entry (full landing log, branch `claude/design-handoff-implementation-724101`).
+> This section, §5b, and the component lists in §9 still describe
+> Sterling and haven't been rewritten for v4 yet — treat them as
+> historical context for *why* things are shaped the way they are, not
+> as the current palette/token names.
+
 **Sterling 1:1, palette TBD.** The structural language now matches the
 Sterling references in `design-refs/src/*.jsx` cell-for-cell across
 Dashboard / Transactions / Accounts / Categories / Forecast / Coach /
@@ -410,9 +423,11 @@ docs/                 # rehaul-plan.md, rehaul-progress.md,
 
 ### Version marker
 
-Sidebar bottom shows `BUILD_VERSION · BUILD_DATE` from `lib/version.ts`.
-Bump on every meaningful deploy so the user knows the new build is live.
-Current: `v2.2.0-α — Bug fixes + Trends page + global add-transaction`.
+Shown at the bottom of the content area (moved off the sidebar in the
+v4 rehaul, which has no sidebar — see §6) as `BUILD_VERSION · BUILD_DATE`
+from `lib/version.ts`. Bump on every meaningful deploy so the user
+knows the new build is live. Current: `v3.1.0-α — liquid-glass rehaul
+complete, all screens on the v4 glass system`.
 
 ---
 
@@ -488,8 +503,9 @@ npm run build       # full production build
    landed, what was skipped, and why. Most important file in the project.
 2. Skim `docs/rehaul-plan.md` for the original architecture decisions
    and chunk numbering.
-3. Check the sidebar version marker on the live site (`v2.2.0-α` or
-   newer) so you know which build you're looking at.
+3. Check the version marker at the bottom of the page on the live site
+   (`v3.1.0-α` or newer — no longer in a sidebar, see §6) so you know
+   which build you're looking at.
 4. The legacy app is still at `/legacy` — useful for visual diffs and
    parity checks. Not the source of truth anymore.
 5. `master` **is** production and there's no separate staging branch as
