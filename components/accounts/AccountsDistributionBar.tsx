@@ -1,8 +1,5 @@
-import { Mono } from '@/components/ui';
-
 /**
  * Horizontal stacked-bar distribution + legend, replacing the donut.
- * Matches design-refs/src/transactions.jsx Accounts lines 146-162:
  * 10px stacked bar, 2px gaps so each segment reads as its own swatch,
  * legend below with name + percentage. Negative balances are clamped to
  * zero for the segment width (legend still shows the real value).
@@ -17,7 +14,7 @@ export function AccountsDistributionBar({
 
   return (
     <div className="glass !rounded-[26px] p-5">
-      <Mono size="xs">Distribution</Mono>
+      <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-mute">Distribution</span>
       <div className="mt-3 flex h-2.5 gap-[2px] overflow-hidden rounded-full">
         {total > 0 ? (
           positives.map((s) => (

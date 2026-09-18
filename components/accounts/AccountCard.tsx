@@ -18,10 +18,9 @@ function subline(name: string, currency: string): string {
 
 /**
  * Single account card. Click anywhere on the card → opens the edit
- * modal (handled by parent). Layout matches design-refs/src/transactions.jsx
- * Accounts cards (lines 165-192): top color bar, icon tile + name +
- * sub, big native amount, ≈ EUR mute line for non-EUR, MTD delta with
- * arrow + mini chart on the right.
+ * modal (handled by parent). Top color bar, icon tile + name + sub, big
+ * native amount, ≈ EUR mute line for non-EUR, MTD delta with arrow +
+ * mini chart on the right.
  */
 export function AccountCard({
   summary,
@@ -75,10 +74,7 @@ export function AccountCard({
       </div>
 
       {/* Native current balance */}
-      <div
-        className="font-sans tabular-nums text-ink"
-        style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em' }}
-      >
+      <div className="text-[28px] font-extrabold -tracking-[0.03em] tabular-nums text-ink">
         {symbol}
         {fmtCurrency(native, account.currency, { noSymbol: true })}
       </div>

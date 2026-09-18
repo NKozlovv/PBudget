@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/nav/PageHeader';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
@@ -5,6 +6,7 @@ import { accountsSummary } from '@/lib/accounts/summary';
 import { AccountsHero } from '@/components/accounts/AccountsHero';
 import { AccountsDistributionBar } from '@/components/accounts/AccountsDistributionBar';
 import { AccountsGrid } from '@/components/accounts/AccountsGrid';
+import { AddAccountButton } from '@/components/accounts/AddAccountButton';
 import { categoryColor } from '@/lib/categoryColor';
 
 export const metadata = { title: 'Accounts · Theus' };
@@ -45,7 +47,13 @@ export default async function AccountsPage() {
 
   return (
     <>
-      <AccountsHero totalEUR={totalEUR} deltaEUR={deltaEUR} />
+      <PageHeader
+        title="Accounts"
+        meta={`${accounts.length} account${accounts.length === 1 ? '' : 's'} tracked`}
+        actions={<AddAccountButton />}
+      />
+
+      <AccountsHero totalEUR={totalEUR} deltaEUR={deltaEUR} accountCount={accounts.length} />
       <AccountsDistributionBar segments={segments} />
       <AccountsGrid budgetId={budget.id} summaries={summaries} colors={colors} />
     </>

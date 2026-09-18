@@ -53,20 +53,29 @@ export function CategoriesClient({
         {expense.length === 0 ? (
           <div className="px-5 py-12 text-center text-[13px] text-ink-mute">No expense categories yet.</div>
         ) : (
-          expense.map((s) => (
-            <CategoryRow
-              key={s.category.id}
-              summary={s}
-              open={openCategory === s.category.id}
-              onToggle={() => setOpenCategory((cur) => (cur === s.category.id ? null : s.category.id))}
-              onEdit={() => setEditingCatId(s.category.id)}
-              subcategories={subSummariesByCatId[s.category.id] ?? []}
-            />
-          ))
+          <>
+            <div className="grid grid-cols-[minmax(150px,1.1fr)_minmax(0,1.6fr)_110px_100px_34px] gap-4 px-[18px] pb-1.5 pt-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-mute">
+              <span>Category</span>
+              <span>Pace vs avg</span>
+              <span>This month</span>
+              <span>YTD avg / mo</span>
+              <span />
+            </div>
+            {expense.map((s) => (
+              <CategoryRow
+                key={s.category.id}
+                summary={s}
+                open={openCategory === s.category.id}
+                onToggle={() => setOpenCategory((cur) => (cur === s.category.id ? null : s.category.id))}
+                onEdit={() => setEditingCatId(s.category.id)}
+                subcategories={subSummariesByCatId[s.category.id] ?? []}
+              />
+            ))}
+          </>
         )}
       </div>
 
-      <IncomeRecap summaries={income} onEdit={(id) => setEditingCatId(id)} />
+      <IncomeRecap summaries={income} onEdit={(id) => setEditingCatId(id)} onAdd={() => setAddingIncome(true)} />
 
       {/* Add expense category (from header button) */}
       <Modal
@@ -89,7 +98,7 @@ export function CategoriesClient({
         />
       </Modal>
 
-      {/* Add income category (button below the income recap) */}
+      {/* Add income category (button in the income recap's own header) */}
       <Modal
         open={addingIncome}
         onOpenChange={(o) => !o && setAddingIncome(false)}
@@ -123,18 +132,6 @@ export function CategoriesClient({
           onMutated={() => router.refresh()}
         />
       ) : null}
-
-      {income.length === 0 && expense.length === 0 ? null : (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setAddingIncome(true)}
-            className="text-[12.5px] font-semibold text-ink-mute hover:text-indigo-dark hover:underline"
-          >
-            + New income category
-          </button>
-        </div>
-      )}
     </>
   );
 }

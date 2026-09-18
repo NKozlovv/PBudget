@@ -83,16 +83,22 @@ export function DayGroupedList({
                     e.stopPropagation();
                     onToggleSelect(tx.id);
                   }}
-                  className={cn(
-                    'h-[16px] w-[16px] shrink-0 rounded-[5px] border-[1.5px] transition-colors',
-                    isSelected ? 'border-indigo bg-indigo' : 'border-[#c2c8d8] hover:border-indigo hover:bg-indigo/[0.16]',
-                  )}
+                  className="group/check -m-[9px] flex shrink-0 items-center justify-center p-[9px]"
                 >
-                  {isSelected ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12l5 5L20 7" />
-                    </svg>
-                  ) : null}
+                  <span
+                    className={cn(
+                      'flex h-[16px] w-[16px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors',
+                      isSelected
+                        ? 'border-indigo bg-indigo'
+                        : 'border-[#c2c8d8] group-hover/check:border-indigo group-hover/check:bg-indigo/[0.16]',
+                    )}
+                  >
+                    {isSelected ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    ) : null}
+                  </span>
                 </button>
 
                 <span

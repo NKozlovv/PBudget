@@ -40,6 +40,7 @@ export type IconName =
   | 'pulse'
   | 'lock'
   | 'mail'
+  | 'pencil'
   | 'logo-google'
   | 'logo-apple';
 
@@ -318,6 +319,12 @@ export function Icon({
         <svg {...stroke}>
           <rect x="3" y="5" width="18" height="14" rx="2" />
           <path d="M3 7l9 6 9-6" />
+        </svg>
+      );
+    case 'pencil':
+      return (
+        <svg {...stroke}>
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
         </svg>
       );
     case 'logo-google':

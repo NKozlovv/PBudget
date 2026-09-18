@@ -1,62 +1,56 @@
-import { Icon, Mono } from '@/components/ui';
 import { fmtEUR } from '@/lib/money';
-import { AddAccountButton } from './AddAccountButton';
 
 /**
- * Net-worth hero block at the top of the Accounts page.
- *
- * Mirrors design-refs/src/transactions.jsx const Accounts (lines 132-143):
- * mono kicker · 44/600 tabular balance with mute cents · MTD delta in
- * JBM mono with arrow · brass Add button on the right.
+ * Three stat cards — Net worth / This month / Accounts (same glass-card
+ * construction as the Transactions and Categories stat strips — see
+ * StatStrip.tsx / CategoriesSummaryCard.tsx). Accounts wasn't one of the
+ * four design_handoff_theus_rehaul screens, but every other page in the
+ * app opens on this exact pattern, so it follows suit rather than the
+ * bespoke Sterling-era hero (big mono-kicker balance) it used before.
  */
 export function AccountsHero({
   totalEUR,
   deltaEUR,
+  accountCount,
 }: {
   totalEUR: number;
   deltaEUR: number;
+  accountCount: number;
 }) {
-  const deltaPct = totalEUR - deltaEUR > 0 ? (deltaEUR / (totalEUR - deltaEUR)) * 100 : 0;
-  const deltaIsPos = deltaEUR >= 0;
+  const deltaPos = deltaEUR >= 0;
 
-  // Split the absolute total into integer + cents so we can mute the cents.
-  const abs = Math.abs(totalEUR);
-  const sign = totalEUR < 0 ? '−' : '';
-  const intPart = Math.floor(abs).toLocaleString('en-US');
-  const cents = (abs % 1).toFixed(2).slice(1); // ".42"
+  const tiles = [
+    { hue: 'var(--navy)', label: 'Net worth', value: fmtEUR(totalEUR, { decimals: 0 }), color: '#151a2d' },
+    {
+      hue: deltaPos ? 'var(--teal)' : 'var(--coral)',
+      label: 'This month',
+      value: `${deltaPos ? '+' : ''}${fmtEUR(deltaEUR, { decimals: 0 })}`,
+      color: deltaPos ? '#12a08c' : '#d94a6f',
+    },
+    {
+      hue: 'var(--indigo)',
+      label: 'Accounts',
+      value: String(accountCount),
+      color: '#3a49c4',
+    },
+  ];
 
   return (
-    <header className="flex items-end justify-between gap-6">
-      <div className="min-w-0">
-        <Mono>Net worth</Mono>
-        <div
-          className="mt-3 font-sans tabular-nums text-ink"
-          style={{ fontSize: 44, fontWeight: 600, letterSpacing: '-0.03em' }}
-        >
-          {sign}€{intPart}
-          <span className="text-ink-mute">{cents}</span>
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+      {tiles.map((tile) => (
+        <div key={tile.label} className="glass !rounded-[22px] p-5 px-[22px]">
+          <div className="flex items-center gap-2">
+            <span className="h-[9px] w-[9px] shrink-0 rounded-[2px]" style={{ background: tile.hue }} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-mute">{tile.label}</span>
+          </div>
+          <div
+            className="mt-2 text-[27px] font-extrabold -tracking-[0.03em] tabular-nums"
+            style={{ color: tile.color }}
+          >
+            {tile.value}
+          </div>
         </div>
-        <div
-          className={
-            'mt-1.5 inline-flex items-center gap-1.5 font-mono text-[13px] font-semibold tabular-nums ' +
-            (deltaIsPos ? 'text-pos' : 'text-neg')
-          }
-        >
-          <Icon name={deltaIsPos ? 'arrow-up' : 'arrow-down'} size={12} />
-          {deltaIsPos ? '+' : '−'}
-          {fmtEUR(Math.abs(deltaEUR))}
-          {Number.isFinite(deltaPct) && deltaPct !== 0 ? (
-            <span className="text-ink-mute">
-              ({deltaIsPos ? '+' : '−'}
-              {Math.abs(deltaPct).toFixed(1)}%)
-            </span>
-          ) : null}
-          <span className="text-ink-mute">this month</span>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <AddAccountButton />
-      </div>
-    </header>
+      ))}
+    </div>
   );
 }

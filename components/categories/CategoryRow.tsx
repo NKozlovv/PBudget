@@ -16,9 +16,12 @@ function paceColor(pctOfAvg: number): string {
  * Category row + its accordion panel — design_handoff_theus_rehaul README
  * "Categories". The whole row is the disclosure trigger (opens the
  * subcategory breakdown in place); the hue tile is a separate click
- * target that opens the rename/delete/subcategory-CRUD modal, since the
- * mockup's 5-column row has no room for a dedicated edit affordance and
- * that management flow can't just disappear.
+ * target that opens the rename/delete/subcategory-CRUD modal (a pencil
+ * icon fades in on hover so that's discoverable), since the mockup's
+ * 5-column row has no room for a dedicated edit affordance and that
+ * management flow can't just disappear. The accordion also repeats that
+ * entry point as an explicit "+ Add or remove subcategories" link, since
+ * it's the one place users look for subcategory management.
  */
 export function CategoryRow({
   summary,
@@ -58,10 +61,14 @@ export function CategoryRow({
               onEdit();
             }}
             aria-label={`Edit ${category.name}`}
-            className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[12px] text-[13px] font-extrabold text-white transition-transform hover:scale-105"
+            title={`Edit ${category.name}`}
+            className="group/edit relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[12px] text-[13px] font-extrabold text-white transition-transform hover:scale-105"
             style={{ background: color }}
           >
             {category.name.charAt(0).toUpperCase()}
+            <span className="absolute inset-0 flex items-center justify-center rounded-[12px] bg-black/40 opacity-0 transition-opacity group-hover/edit:opacity-100">
+              <Icon name="pencil" size={14} />
+            </span>
           </button>
           <span className="truncate text-[14.5px] font-semibold text-ink">{category.name}</span>
         </div>
@@ -113,17 +120,53 @@ export function CategoryRow({
           {subcategories.length === 0 ? (
             <div className="py-2 text-[12.5px] text-ink-mute">No subcategories yet.</div>
           ) : (
-            subcategories.map((s) => (
-              <div
-                key={s.subcategory.id}
-                className="grid grid-cols-[minmax(0,1fr)_110px_100px] gap-4 py-[7px] text-[13.5px]"
-              >
-                <span className="truncate font-semibold text-ink-soft">{s.subcategory.name}</span>
-                <span className="font-bold tabular-nums text-ink">{fmtEUR(s.thisMonth, { decimals: 0 })}</span>
-                <span className="font-semibold text-ink-mute">{fmtEUR(s.avgMonthly, { decimals: 0 })}</span>
+            <>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_90px_90px] gap-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-ink-mute">
+                <span />
+                <span>Pace vs avg</span>
+                <span>This month</span>
+                <span>YTD avg / mo</span>
               </div>
-            ))
+              {subcategories.map((s) => {
+                const subPctOfAvg = s.avgMonthly > 0 ? (s.thisMonth / s.avgMonthly) * 100 : 0;
+                const subMeterPct = Math.min(100, (s.avgMonthly > 0 ? s.thisMonth / s.avgMonthly : 0) * 66);
+                const subTone = paceColor(subPctOfAvg);
+                return (
+                  <div
+                    key={s.subcategory.id}
+                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_90px_90px] items-center gap-4 py-[7px] text-[13.5px]"
+                  >
+                    <span className="truncate font-semibold text-ink-soft">{s.subcategory.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="relative h-[6px] flex-1 rounded-full bg-white/80">
+                        <div
+                          className="meter h-full rounded-full"
+                          style={{ width: `${subMeterPct}%`, background: color }}
+                        />
+                      </div>
+                      <span className="w-[36px] shrink-0 text-right text-[11px] font-extrabold tabular-nums" style={{ color: subTone }}>
+                        {Math.round(subPctOfAvg)}%
+                      </span>
+                    </div>
+                    <span className="font-bold tabular-nums text-ink">{fmtEUR(s.thisMonth, { decimals: 0 })}</span>
+                    <span className="font-semibold text-ink-mute">{fmtEUR(s.avgMonthly, { decimals: 0 })}</span>
+                  </div>
+                );
+              })}
+            </>
           )}
+          <div className="mt-1 border-t border-white/60 pt-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="text-[12px] font-semibold text-indigo-dark hover:underline"
+            >
+              + Add or remove subcategories
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
