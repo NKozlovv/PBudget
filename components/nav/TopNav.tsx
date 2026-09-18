@@ -8,6 +8,7 @@ import { Icon, IconButton, type IconName } from '@/components/ui';
 import { useDismissable } from '@/components/ui/useDismissable';
 import { BudgetSwitcher } from './BudgetSwitcher';
 import { SignOutButton } from '@/components/auth/SignOutButton';
+import { TheusMark } from '@/components/auth/TheusMark';
 import type { Budget } from '@/lib/supabase/types';
 
 const TABS: { href: string; label: string }[] = [
@@ -75,8 +76,8 @@ export function TopNav({
   return (
     <nav className="glass glass-nohover sticky top-[14px] z-20 flex items-center gap-5 !rounded-full py-3 pl-5 pr-4">
       <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#f2708f,#4a5ce0)] text-[15px] font-extrabold text-white">
-          T
+        <span className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#f2708f,#4a5ce0)]">
+          <TheusMark size={18} tone="white" />
         </span>
         <span className="text-[17px] font-extrabold -tracking-[0.02em] text-ink">Theus</span>
       </Link>

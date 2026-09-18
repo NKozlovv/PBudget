@@ -1,10 +1,18 @@
-import { fmtEUR } from '@/lib/money';
+import { fmtCurrency, fmtEUR } from '@/lib/money';
 
 export interface CashFlowMonth {
   label: string;
   income: number;
   expense: number;
   projected: boolean;
+}
+
+export interface TopAccount {
+  id: string;
+  name: string;
+  currency: string;
+  native: number;
+  hue: string;
 }
 
 const kFmt = (n: number) => (n === 0 ? '0' : `${(n / 1000).toFixed(1)}k`);
@@ -23,12 +31,15 @@ export function CashFlowPanel({
   ytdExpense,
   ytdNet,
   year,
+  topAccounts,
 }: {
   months: CashFlowMonth[];
   ytdIncome: number;
   ytdExpense: number;
   ytdNet: number;
   year: number;
+  /** Biggest accounts by EUR balance — fills the panel's leftover height below the chart. */
+  topAccounts?: TopAccount[];
 }) {
   const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
   const ticks = [max, (max * 2) / 3, max / 3, 0];
@@ -111,6 +122,26 @@ export function CashFlowPanel({
           })}
         </div>
       </div>
+
+      {topAccounts && topAccounts.length > 0 ? (
+        <div className="mt-4 flex flex-col">
+          <div className="px-3 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-mute">
+            Biggest accounts
+          </div>
+          {topAccounts.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-center gap-2.5 rounded-[14px] px-3 py-[9px] transition-colors duration-[160ms] hover:bg-white/[0.72]"
+            >
+              <span className="h-[10px] w-[10px] shrink-0 rounded-full" style={{ background: a.hue }} />
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{a.name}</span>
+              <span className="shrink-0 text-[14px] font-bold tabular-nums text-ink">
+                {fmtCurrency(a.native, a.currency, { decimals: 0 })}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

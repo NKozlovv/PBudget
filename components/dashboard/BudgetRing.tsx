@@ -37,6 +37,7 @@ export function BudgetRing({
 
   const percentDisplay = Math.round(ratio * 100);
   const left = income - spent;
+  const rowTwoColor = over ? 'var(--out)' : 'var(--in)';
 
   const caption = over
     ? `Over income by ${Math.round((ratio - 1) * 100)}%`
@@ -109,14 +110,14 @@ export function BudgetRing({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: TRACK }} />
-          <span className="flex-1 truncate text-[9.5px] font-bold uppercase tracking-[0.06em] text-ink-mute">
+          <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: rowTwoColor }} />
+          <span
+            className="flex-1 truncate text-[9.5px] font-bold uppercase tracking-[0.06em]"
+            style={{ color: rowTwoColor }}
+          >
             {over ? 'Over' : 'Left'}
           </span>
-          <span
-            className="shrink-0 text-[13px] font-extrabold tabular-nums"
-            style={{ color: over ? 'var(--out)' : 'var(--in)' }}
-          >
+          <span className="shrink-0 text-[13px] font-extrabold tabular-nums" style={{ color: rowTwoColor }}>
             {fmtEUR(Math.abs(left), { decimals: 0 })}
           </span>
         </div>

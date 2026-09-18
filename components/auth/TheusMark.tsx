@@ -6,10 +6,17 @@
 export function TheusMark({
   size = 32,
   className,
+  tone = 'ink',
 }: {
   size?: number;
   className?: string;
+  /** 'ink' — dark base slabs + indigo top slab (default, for light surfaces).
+   *  'white' — all three slabs in white/translucent-white, for use on the
+   *  nav's colored gradient tile. */
+  tone?: 'ink' | 'white';
 }) {
+  const baseFill = tone === 'white' ? 'rgba(255,255,255,.92)' : 'var(--ink)';
+  const topFill = tone === 'white' ? '#ffffff' : 'var(--indigo)';
   return (
     <svg
       viewBox="0 0 64 64"
@@ -20,12 +27,12 @@ export function TheusMark({
       aria-hidden
     >
       {/* base slab — widest */}
-      <rect x="6" y="44" width="52" height="11" rx="2.5" fill="var(--ink)" />
+      <rect x="6" y="44" width="52" height="11" rx="2.5" fill={baseFill} />
       {/* mid slab */}
-      <rect x="11" y="30" width="42" height="11" rx="2.5" fill="var(--ink)" />
+      <rect x="11" y="30" width="42" height="11" rx="2.5" fill={baseFill} />
       {/* top slab — tilted, brass accent */}
       <g transform="rotate(-12 32 18)">
-        <rect x="17" y="13" width="30" height="11" rx="2.5" fill="var(--indigo)" />
+        <rect x="17" y="13" width="30" height="11" rx="2.5" fill={topFill} />
       </g>
     </svg>
   );

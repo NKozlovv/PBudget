@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
 
@@ -6,14 +9,21 @@ export interface SpendingMixSlice {
   value: number;
 }
 
+const VISIBLE_COUNT = 6;
+
 /**
  * Spending mix panel — right cell of the Overview's second row. A
  * segmented capsule bar (not a donut — design_handoff_theus_rehaul
  * README dropped the donut for this screen) plus a legend list, both
- * driven by the fixed six-hue category map.
+ * driven by the fixed six-hue category map. The legend collapses to
+ * the top categories with a "show more" toggle — a budget with a dozen-
+ * plus categories otherwise runs the list on for a long, low-value tail.
  */
 export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]; total: number }) {
+  const [expanded, setExpanded] = useState(false);
   const sorted = [...slices].sort((a, b) => b.value - a.value).filter((s) => s.value > 0);
+  const hiddenCount = sorted.length - VISIBLE_COUNT;
+  const visible = expanded || hiddenCount <= 0 ? sorted : sorted.slice(0, VISIBLE_COUNT);
 
   return (
     <div className="glass !rounded-[28px] p-[24px] px-[26px]">
@@ -40,7 +50,7 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
       </div>
 
       <div className="mt-3 flex flex-col">
-        {sorted.map((s) => {
+        {visible.map((s) => {
           const hue = categoryColor(s.name);
           const share = total > 0 ? Math.round((s.value / total) * 100) : 0;
           return (
@@ -60,6 +70,16 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
           );
         })}
       </div>
+
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 w-full rounded-[14px] px-3 py-[9px] text-left text-[12.5px] font-semibold text-indigo-dark transition-colors duration-[160ms] hover:bg-white/[0.72]"
+        >
+          {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -3,20 +3,19 @@ import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
 import { BalancePanel } from '@/components/dashboard/BalancePanel';
 import { SavingsRatePanel, type SavingsRateMonth } from '@/components/dashboard/SavingsRatePanel';
-import { CashFlowPanel } from '@/components/dashboard/CashFlowPanel';
+import { CashFlowPanel, type TopAccount } from '@/components/dashboard/CashFlowPanel';
 import { SpendingMixPanel } from '@/components/dashboard/SpendingMixPanel';
-import { AccountFaceCards, type AccountFaceData } from '@/components/dashboard/AccountFaceCards';
 import { workingMonth, monthLong } from '@/lib/dashboard/period';
 import {
   totalBalanceEUR,
   monthTotalsEUR,
   accountBalanceEURAt,
   accountBalanceNativeAt,
-  accountMonthFlowsNative,
   forecastYear,
   ytdAverages,
   burnRatesEUR,
 } from '@/lib/balance';
+import { categoryColor } from '@/lib/categoryColor';
 import { dateToISO, monthName } from '@/lib/date';
 
 export const metadata = { title: 'Overview · Theus' };
@@ -102,29 +101,30 @@ export default async function DashboardPage() {
   const catSlices = catBurnRates.map((r) => ({ name: r.name, value: r.avgMonthly }));
   const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
 
-  // Account cards — top 4 by the user's own sort order, real-time (not
-  // workingMonth): a balance and its MTD flows are current-moment figures.
+  // Biggest accounts — ranked by EUR balance (real-time, not workingMonth:
+  // a balance is a current-moment figure) so a fair comparison across
+  // currencies; displayed in each account's own native currency.
   const today = dateToISO(now);
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const accountFaces: AccountFaceData[] = [...accounts]
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .slice(0, 4)
-    .map((a) => {
-      const native = accountBalanceNativeAt({
+  const topAccounts: TopAccount[] = [...accounts]
+    .map((a) => ({
+      account: a,
+      eur: accountBalanceEURAt({ account: a, date: today, transactions: allTx, fxRate }),
+      native: accountBalanceNativeAt({
         accountId: a.id,
         date: today,
         openingBalance: a.opening_balance,
         transactions: allTx,
-      });
-      const flows = accountMonthFlowsNative({
-        accountId: a.id,
-        year: currentYear,
-        month: currentMonth,
-        transactions: allTx,
-      });
-      return { id: a.id, name: a.name, currency: a.currency, native, received: flows.received, spent: flows.spent };
-    });
+      }),
+    }))
+    .sort((a, b) => b.eur - a.eur)
+    .slice(0, 4)
+    .map(({ account, native }) => ({
+      id: account.id,
+      name: account.name,
+      currency: account.currency,
+      native,
+      hue: categoryColor(account.name),
+    }));
 
   return (
     <>
@@ -159,11 +159,10 @@ export default async function DashboardPage() {
           ytdExpense={savingsExpense}
           ytdNet={savingsThisYear}
           year={cashFlowYear}
+          topAccounts={topAccounts}
         />
         <SpendingMixPanel slices={catSlices} total={catTotal} />
       </div>
-
-      <AccountFaceCards accounts={accountFaces} />
     </>
   );
 }
