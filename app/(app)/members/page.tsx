@@ -1,4 +1,3 @@
-import { PageHeader } from '@/components/nav/PageHeader';
 import { getAuthUser } from '@/lib/supabase/server';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import {
@@ -23,23 +22,15 @@ export default async function MembersPage() {
   const isOwner = ownerId === user.id;
 
   return (
-    <>
-      <PageHeader
-        title="Members"
-        meta={`${budget.name} · ${members.length} ${
-          members.length === 1 ? 'member' : 'members'
-        }${invites.length > 0 ? ` · ${invites.length} pending` : ''}`}
-      />
-
-      <MembersPanel
-        budgetId={budget.id}
-        budgetName={budget.name}
-        members={members}
-        invites={invites}
-        ownerId={ownerId}
-        currentUserId={user.id}
-        isOwner={isOwner}
-      />
-    </>
+    <MembersPanel
+      budgetId={budget.id}
+      budgetName={budget.name}
+      members={members}
+      invites={invites}
+      ownerId={ownerId}
+      currentUserId={user.id}
+      currentUserEmail={user.email ?? ''}
+      isOwner={isOwner}
+    />
   );
 }

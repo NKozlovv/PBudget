@@ -1,12 +1,10 @@
-import { PageHeader } from '@/components/nav/PageHeader';
-import { Mono } from '@/components/ui';
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
 import { burnRatesEUR, totalBalanceEUR, ytdAverages } from '@/lib/balance';
 import { projectionSeries } from '@/lib/forecast/projection';
 import { ForecastHero } from '@/components/forecast/ForecastHero';
-import { HorizonToggle, type Horizon } from '@/components/forecast/HorizonToggle';
+import { type Horizon } from '@/components/forecast/HorizonToggle';
 import { PerCategoryOutlook } from '@/components/forecast/PerCategoryOutlook';
 import { CoachInsightCard } from '@/components/forecast/CoachInsightCard';
 import { BurnRateTable } from '@/components/forecast/BurnRateTable';
@@ -82,57 +80,51 @@ export default async function ForecastPage({
 
   return (
     <>
-      <PageHeader
-        title="Forecast"
-        meta={`Projection based on ${ytd.monthsElapsed} ${
-          ytd.monthsElapsed === 1 ? 'month' : 'months'
-        } of history`}
-        actions={<HorizonToggle current={horizon} />}
-      />
-
       <ForecastHero
+        horizon={horizon}
+        avgNet={ytd.avgNet}
+        monthsElapsed={ytd.monthsElapsed}
+        year={year}
         todayBalance={balanceNow}
         forwardBalance={forwardBalance}
-        forwardMonths={horizon}
         eoyBalance={eoyBalance}
         points={points}
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <PerCategoryOutlook rows={expenseBurn} limit={5} />
-        <CoachInsightCard
-          balanceNow={balanceNow}
-          avgNet={ytd.avgNet}
-          savingsRate={ytd.savingsRate}
-          now={today}
-        />
-      </div>
-
-      <section className="flex flex-col gap-3">
-        <Mono className="block">Burn rate · expense</Mono>
-        <BurnRateTable
-          title="Expense categories"
-          subtitle={`${ytd.monthsElapsed} months of data · projection extends YTD pace`}
-          rows={expenseBurn}
-          monthsElapsed={ytd.monthsElapsed}
-          emptyMessage="No expense data this year yet."
-          totalsTone="neg"
-        />
-      </section>
-
-      {incomeBurn.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <Mono className="block">Income streams</Mono>
-          <BurnRateTable
-            title="Income categories"
-            subtitle={`${ytd.monthsElapsed} months of data`}
-            rows={incomeBurn}
-            monthsElapsed={ytd.monthsElapsed}
-            emptyMessage="No income data this year yet."
-            totalsTone="pos"
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr]">
+        <section className="glass flex flex-col gap-5 !rounded-[34px] p-[24px] px-[26px]">
+          <CoachInsightCard
+            balanceNow={balanceNow}
+            avgNet={ytd.avgNet}
+            savingsRate={ytd.savingsRate}
+            now={today}
           />
+          <PerCategoryOutlook rows={expenseBurn} limit={5} />
         </section>
-      ) : null}
+
+        <section className="glass flex flex-col gap-6 !rounded-[34px] p-[24px] px-[26px]">
+          <BurnRateTable
+            title="Expense burn rate"
+            subtitle={`Every expense category, ${year} to date.`}
+            head="Category"
+            rows={expenseBurn}
+            monthsElapsed={ytd.monthsElapsed}
+            emptyMessage="No expense data this year yet."
+            totalsTone="neg"
+          />
+          {incomeBurn.length > 0 ? (
+            <BurnRateTable
+              title="Income sources"
+              subtitle="Hidden entirely when no income rows exist."
+              head="Source"
+              rows={incomeBurn}
+              monthsElapsed={ytd.monthsElapsed}
+              emptyMessage="No income data this year yet."
+              totalsTone="pos"
+            />
+          ) : null}
+        </section>
+      </div>
     </>
   );
 }

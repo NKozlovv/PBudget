@@ -1,25 +1,12 @@
-import { Mono } from '@/components/ui';
-
 /**
- * Header group for an auth form (mono kicker → 36px headline → subtitle).
- * Modeled on design-refs/src/auth.jsx 46–53.
+ * Header for an auth form — Theus Auth design handoff: title (30px
+ * extrabold) directly over a subtitle, no eyebrow kicker.
  */
-export function AuthHeader({
-  kicker,
-  title,
-  subtitle,
-}: {
-  kicker: string;
-  title: string;
-  subtitle: string;
-}) {
+export function AuthHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="mb-8">
-      <Mono size="sm" className="tracking-[0.18em]">
-        {kicker}
-      </Mono>
-      <h2 className="mt-3 text-[36px] font-semibold leading-tight tracking-tight">{title}</h2>
-      <p className="mt-2 text-[14px] text-ink-soft">{subtitle}</p>
+    <div className="mb-5">
+      <h2 className="text-[30px] font-extrabold -tracking-[0.03em] text-ink">{title}</h2>
+      <p className="mt-2 text-[14.5px] font-medium leading-relaxed text-ink-soft">{subtitle}</p>
     </div>
   );
 }

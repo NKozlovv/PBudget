@@ -2,11 +2,18 @@ import { BrandPanel } from '@/components/auth/BrandPanel';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen grid md:grid-cols-[1.1fr_1fr]">
-      <BrandPanel />
-      <section className="flex items-center justify-center p-8 md:p-14 lg:p-16">
-        <div className="w-full max-w-sm">{children}</div>
-      </section>
-    </main>
+    <div className="ambient-ground">
+      <div className="ambient-layer">
+        <div className="ambient-blob ambient-blob-coral" />
+        <div className="ambient-blob ambient-blob-indigo" />
+        <div className="ambient-blob ambient-blob-teal" />
+      </div>
+      <div className="relative z-[1] mx-auto grid max-w-[1520px] items-stretch gap-5 px-[26px] py-5 md:min-h-screen md:grid-cols-[1.15fr_1fr]">
+        <BrandPanel />
+        <section className="glass flex min-h-[600px] items-center justify-center !rounded-[34px] p-[34px]">
+          <div className="w-full max-w-[400px]">{children}</div>
+        </section>
+      </div>
+    </div>
   );
 }

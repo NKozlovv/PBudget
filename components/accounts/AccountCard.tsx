@@ -1,129 +1,119 @@
 'use client';
 
-import { Icon, type IconName } from '@/components/ui';
 import { fmtCurrency, fmtEUR } from '@/lib/money';
-import { cn } from '@/lib/utils';
 import type { AccountSummary } from '@/lib/accounts/summary';
 import { AccountMiniChart } from './AccountMiniChart';
 
-const PAYROLL_RE = /(payroll|deel|salary|wage|payslip)/i;
-
-function iconFor(name: string): IconName {
-  return PAYROLL_RE.test(name) ? 'briefcase' : 'wallet';
-}
-
-function subline(name: string, currency: string): string {
-  return `${currency === 'EUR' ? 'EUR' : currency === 'USD' ? 'USD' : currency} · ${name.split(/[\s,]/, 1)[0] ?? 'Account'}`;
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join('')
+    .toUpperCase();
 }
 
 /**
- * Single account card. Click anywhere on the card → opens the edit
- * modal (handled by parent). Top color bar, icon tile + name + sub, big
- * native amount, ≈ EUR mute line for non-EUR, MTD delta with arrow +
- * mini chart on the right.
+ * Single account row — Theus Accounts design handoff. A horizontal glass
+ * row (icon+name / native+EUR balance / MTD delta / sparkline / actions),
+ * replacing the old vertical "bank card" grid — the handoff renders every
+ * account as one list, not a grid of tiles.
  */
 export function AccountCard({
   summary,
   color,
+  shareLabel,
+  fxRate,
   onEdit,
+  onDelete,
 }: {
   summary: AccountSummary;
   color: string;
+  /** Precomputed "X% of net worth" / "Overdraft · excluded from share" — shares the same denominator as the hero's bar. */
+  shareLabel: string;
+  fxRate: number;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { account, native, eur, deltaNative, deltaEUR, spark } = summary;
   const showEurLine = account.currency !== 'EUR';
-  const symbol = account.currency === 'EUR' ? '€' : account.currency === 'USD' ? '$' : '';
+  const symbol = account.currency === 'USD' ? '$' : '€';
   const isPos = deltaNative >= 0;
-  const icon = iconFor(account.name);
 
   return (
-    <button
-      type="button"
-      onClick={onEdit}
-      className="glass group/account relative w-full overflow-hidden !rounded-[26px] p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo"
-    >
-      {/* Top color bar */}
-      <span
-        aria-hidden
-        className="absolute left-0 right-0 top-0 h-[3px]"
-        style={{ background: color }}
-      />
-
-      {/* Header: icon + name + sub + chevron */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]"
-            style={{ background: `${color}24` }}
-          >
-            <Icon name={icon} size={18} color={color} />
-          </span>
-          <div className="min-w-0">
-            <div className="truncate text-[14px] font-semibold text-ink">{account.name}</div>
-            <div className="truncate text-[11px] text-ink-mute">
-              {subline(account.name, account.currency)}
-            </div>
-          </div>
-        </div>
-        <Icon
-          name="chevron-right"
-          size={16}
-          className="text-ink-mute transition-colors group-hover/account:text-ink"
-        />
-      </div>
-
-      {/* Native current balance */}
-      <div className="text-[28px] font-extrabold -tracking-[0.03em] tabular-nums text-ink">
-        {symbol}
-        {fmtCurrency(native, account.currency, { noSymbol: true })}
-      </div>
-
-      {/* ≈ EUR mute line for non-EUR */}
-      {showEurLine ? (
-        <div className="mt-1 font-mono text-[11px] tabular-nums text-ink-mute">
-          ≈ {fmtEUR(eur)}
-        </div>
-      ) : null}
-
-      {/* Delta + chart */}
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <div
-          className={cn(
-            'inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold tabular-nums',
-            isPos ? 'text-pos' : 'text-neg',
-          )}
+    <div className="glass-inner flex flex-wrap items-center gap-[18px] !rounded-[22px] p-4 px-[18px] transition-transform duration-200 ease-theus hover:-translate-y-0.5">
+      <div className="flex min-w-0 flex-1 basis-[220px] items-center gap-[13px]">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-[14px] font-extrabold text-white"
+          style={{ background: color }}
         >
-          <Icon name={isPos ? 'arrow-up' : 'arrow-down'} size={11} />
+          {initials(account.name)}
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-[16px] font-extrabold -tracking-[0.015em] text-ink">
+              {account.name}
+            </span>
+            <span className="rounded-full bg-[rgba(31,39,66,.07)] px-2 py-0.5 text-[10.5px] font-bold tracking-[0.06em] text-ink-soft">
+              {account.currency}
+            </span>
+          </div>
+          <div className="mt-1 text-[12.5px] font-semibold text-ink-mute">{shareLabel}</div>
+        </div>
+      </div>
+
+      <div className="min-w-[120px] flex-none basis-[170px] text-right">
+        <div
+          className="whitespace-nowrap text-[21px] font-extrabold -tracking-[0.03em] tabular-nums"
+          style={{ color: native < 0 ? 'var(--out)' : 'var(--ink)' }}
+        >
+          {native < 0 ? '−' : ''}
+          {symbol}
+          {fmtCurrency(Math.abs(native), account.currency, { noSymbol: true })}
+        </div>
+        <div className="mt-[3px] whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-ink-mute">
+          {showEurLine ? `≈ ${fmtEUR(eur)} at ${fxRate.toFixed(4)}` : 'Held in euro'}
+        </div>
+      </div>
+
+      <div className="min-w-[110px] flex-none basis-[150px] text-right">
+        <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-mute">Month to date</div>
+        <div
+          className="mt-1 whitespace-nowrap text-[14.5px] font-extrabold tabular-nums"
+          style={{ color: isPos ? 'var(--in)' : 'var(--out)' }}
+        >
           {isPos ? '+' : '−'}
           {symbol}
           {fmtCurrency(Math.abs(deltaNative), account.currency, { noSymbol: true, decimals: 0 })}
-          {showEurLine ? (
-            <span className="text-ink-mute">
-              · ≈ {isPos ? '+' : '−'}
-              {fmtEUR(Math.abs(deltaEUR), { decimals: 0 })}
-            </span>
-          ) : null}
         </div>
-        <div className="w-[220px] shrink-0">
-          <AccountMiniChart data={spark} color={color} width={220} height={70} />
-        </div>
+        {showEurLine ? (
+          <div className="mt-0.5 whitespace-nowrap text-[11.5px] font-semibold tabular-nums text-ink-mute">
+            ≈ {isPos ? '+' : '−'}
+            {fmtEUR(Math.abs(deltaEUR), { decimals: 0 })}
+          </div>
+        ) : null}
       </div>
-    </button>
-  );
-}
 
-/** Dashed-border placeholder card matching design-refs lines 195-199. */
-export function AddAccountCard({ onAdd }: { onAdd: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onAdd}
-      className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-[26px] border-[1.5px] border-dashed border-white/90 bg-transparent p-5 text-ink-mute transition-colors hover:border-indigo hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo"
-    >
-      <Icon name="plus" size={20} />
-      <div className="text-[13px] font-medium">Add account</div>
-      <div className="text-[11px]">Bank, brokerage, cash, USD payroll</div>
-    </button>
+      <div className="min-w-[96px] flex-none basis-[128px]">
+        <AccountMiniChart data={spark} color={color} width={128} height={44} />
+      </div>
+
+      <div className="flex flex-none items-center gap-[7px]">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-full border border-white/90 bg-white/[0.66] px-[15px] py-[9px] text-[13px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-full border border-out/45 bg-white/50 px-[15px] py-[9px] text-[13px] font-semibold text-out transition-colors duration-200 hover:bg-coral/[0.14]"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/nav/PageHeader';
 import { Filters, emptyTxFilters, type TxFilterValue } from './Filters';
 import { StatStrip } from './StatStrip';
@@ -42,7 +43,13 @@ export function TransactionsClient({
   /** e.g. "August 2026" — the last completed month, for the header subtitle. */
   periodLabel: string;
 }) {
-  const [filters, setFilters] = useState<TxFilterValue>(emptyTxFilters());
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<TxFilterValue>(() => {
+    const initial = emptyTxFilters();
+    const account = searchParams.get('account');
+    if (account) initial.account = account;
+    return initial;
+  });
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   function updateFilters(next: TxFilterValue) {

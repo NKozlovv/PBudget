@@ -56,9 +56,24 @@ export async function updateAccountAction(
 export async function deleteAccountAction(id: string): Promise<ActionResult> {
   try {
     const supabase = await createClient();
+
+    // Count first so a blocked delete can tell the user exactly how many
+    // transactions are in the way, rather than a generic "can't delete."
+    const { count } = await supabase
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', id);
+    if (count && count > 0) {
+      return {
+        ok: false,
+        error: `This account still has ${count} transaction${count === 1 ? '' : 's'}. Reassign or delete them first.`,
+      };
+    }
+
     const { error } = await supabase.from('accounts').delete().eq('id', id);
     if (error) {
-      // FK constraint when txs reference this account → friendlier message
+      // FK constraint safety net (e.g. a transaction was added between the
+      // count above and this delete) → same friendly message, no count.
       if (error.message.toLowerCase().includes('foreign key')) {
         return {
           ok: false,

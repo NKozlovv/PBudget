@@ -69,7 +69,19 @@ export function ForecastLine({
       .join('') +
     `L${xs[splitIdx]!.toFixed(1)},${(padTop + ySpace).toFixed(1)} Z`;
 
+  // Area under the projected portion, same shape as the actual-area logic.
+  const projectedAreaPath =
+    boundary >= 0
+      ? `M${xs[splitIdx]!.toFixed(1)},${(padTop + ySpace).toFixed(1)} ` +
+        points
+          .slice(splitIdx)
+          .map((_, i) => `L${xs[splitIdx + i]!.toFixed(1)},${ys[splitIdx + i]!.toFixed(1)} `)
+          .join('') +
+        `L${xs[points.length - 1]!.toFixed(1)},${(padTop + ySpace).toFixed(1)} Z`
+      : '';
+
   const gradId = `fc-line-${Math.random().toString(36).slice(2, 8)}`;
+  const gradIdProj = `fc-line-proj-${Math.random().toString(36).slice(2, 8)}`;
 
   // Choose 4 evenly-spaced x-axis labels to avoid crowding.
   const tickIndices = [
@@ -105,6 +117,10 @@ export function ForecastLine({
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--indigo)" stopOpacity={0.28} />
           <stop offset="100%" stopColor="var(--indigo)" stopOpacity={0} />
+        </linearGradient>
+        <linearGradient id={gradIdProj} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--teal)" stopOpacity={0.24} />
+          <stop offset="100%" stopColor="var(--teal)" stopOpacity={0} />
         </linearGradient>
       </defs>
 
@@ -151,6 +167,8 @@ export function ForecastLine({
 
       {/* area under actual */}
       <path d={areaPath} fill={`url(#${gradId})`} />
+      {/* area under projected — separate teal fill so the boundary reads at a glance */}
+      {projectedAreaPath ? <path d={projectedAreaPath} fill={`url(#${gradIdProj})`} /> : null}
 
       {/* actual line */}
       <path
@@ -162,13 +180,12 @@ export function ForecastLine({
         strokeLinejoin="round"
       />
 
-      {/* projected line */}
+      {/* projected line — teal + dashed, distinct color from actual rather than just faded */}
       {projectedPath ? (
         <path
           d={projectedPath}
           fill="none"
-          stroke="var(--indigo)"
-          strokeOpacity={0.65}
+          stroke="var(--teal)"
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -176,8 +193,11 @@ export function ForecastLine({
         />
       ) : null}
 
-      {/* today dot */}
-      <circle cx={markerX} cy={markerY} r={3.5} fill="var(--indigo)" />
+      {/* today marker: ring + dot, with a floating pill label */}
+      <circle cx={markerX} cy={markerY} r={6} fill="white" stroke="var(--indigo)" strokeWidth={3} />
+      {points[points.length - 1] ? (
+        <circle cx={xs[points.length - 1]} cy={ys[ys.length - 1]} r={4.5} fill="var(--teal)" />
+      ) : null}
 
       {/* x-axis labels */}
       {tickIndices.map((i) => (
@@ -209,6 +229,14 @@ export function ForecastLine({
         />
       ))}
     </svg>
+    {boundary > 0 ? (
+      <div
+        className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-[rgba(31,39,66,.82)] px-[10px] py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-white"
+        style={{ left: `${(markerX / width) * 100}%` }}
+      >
+        Today
+      </div>
+    ) : null}
     {hover ? (
       <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>
         <span className="font-medium text-ink">{hover.data.label}</span>

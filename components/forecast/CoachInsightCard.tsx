@@ -1,17 +1,13 @@
-import { Icon, Mono } from '@/components/ui';
+import { Icon } from '@/components/ui';
 import { fmtEUR } from '@/lib/money';
 import { milestoneEta, nextMilestone } from '@/lib/forecast/projection';
 import { monthName } from '@/lib/date';
 
 /**
- * Static "coach insight" card. Computes a friendly milestone projection
- * based on YTD savings rate and current pace.
- *
- * The "Set this as a goal" button is intentionally omitted — goals infra
- * doesn't exist yet (per CLAUDE.md §7, Coach view is out of scope).
- *
- * Mirrors design-refs/src/forecast.jsx lines 82-90 visually (gradient
- * brass-tinted card with sparkle kicker).
+ * "Next milestone" card — Theus Forecast design handoff. Computes a
+ * savings-rate-based milestone projection from real transaction data; the
+ * "set your own goal" action is intentionally absent — goal infrastructure
+ * doesn't exist yet.
  */
 export function CoachInsightCard({
   balanceNow,
@@ -28,35 +24,29 @@ export function CoachInsightCard({
   const eta = milestoneEta({ balance: balanceNow, avgNet, milestone, now });
 
   return (
-    <div
-      className="glass !rounded-[28px] p-6"
-      style={{
-        backgroundImage: 'linear-gradient(135deg, rgba(74,92,224,.14) 0%, transparent 70%), var(--glass-sheen)',
-      }}
-    >
-      <div className="mb-3 flex items-center gap-2">
-        <Icon name="sparkle" size={14} className="text-indigo" />
-        <Mono tone="accent">Coach insight</Mono>
+    <div className="flex items-start gap-[14px] rounded-[22px] border border-white/60 bg-[linear-gradient(140deg,rgba(74,92,224,.16),rgba(31,185,164,.14))] p-5 px-[22px] [box-shadow:inset_0_1.5px_0_rgba(255,255,255,.9)]">
+      <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,#4a5ce0,#1fb9a4)]">
+        <Icon name="sparkle" size={19} color="#fff" strokeWidth={1.7} />
+      </span>
+      <div className="min-w-0">
+        <div className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-indigo-dark">Next milestone</div>
+        {avgNet <= 0 || !eta ? (
+          <p className="mt-2 text-[17px] font-bold -tracking-[0.015em] leading-[1.4] text-ink">
+            Your YTD pace is breaking even or trending down. Once you log a few months of
+            net-positive activity, milestones will show up here.
+          </p>
+        ) : (
+          <p className="mt-2 text-[17px] font-bold -tracking-[0.015em] leading-[1.4] text-ink">
+            If you keep your savings rate of {Math.round(savingsRate * 100)}%, you&apos;ll reach{' '}
+            {fmtEUR(milestone, { decimals: 0 })} by {monthName(eta.date.getMonth())} {eta.date.getFullYear()} —
+            about {eta.months} {eta.months === 1 ? 'month' : 'months'} from now.
+          </p>
+        )}
+        <p className="mt-2 text-[12.5px] font-semibold leading-relaxed text-ink-soft">
+          Computed from your own numbers, not a prediction. Setting a target of your own isn&apos;t
+          built yet.
+        </p>
       </div>
-
-      {avgNet <= 0 || !eta ? (
-        <p className="text-[14px] leading-relaxed text-ink">
-          Your YTD pace is breaking even or trending down. Once you log a
-          few months of net-positive activity, I&apos;ll start projecting
-          milestones here.
-        </p>
-      ) : (
-        <p className="text-[14px] leading-relaxed text-ink">
-          If you keep your savings rate of{' '}
-          <strong>{Math.round(savingsRate * 100)}%</strong>, you&apos;ll reach{' '}
-          <strong>{fmtEUR(milestone, { decimals: 0 })}</strong> by{' '}
-          <strong>
-            {monthName(eta.date.getMonth())} {eta.date.getFullYear()}
-          </strong>{' '}
-          — about {eta.months} {eta.months === 1 ? 'month' : 'months'} from
-          now.
-        </p>
-      )}
     </div>
   );
 }
