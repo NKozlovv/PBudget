@@ -102,7 +102,10 @@ export default async function AccountsPage() {
       />
 
       <section className="glass flex flex-col gap-[14px] !rounded-[34px] p-[24px] px-[26px]">
-        <h2 className="text-[22px] font-extrabold -tracking-[0.025em] text-ink">All accounts</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[22px] font-extrabold -tracking-[0.025em] text-ink">All accounts</h2>
+          <AddAccountButton />
+        </div>
         <AccountsGrid
           budgetId={budget.id}
           summaries={summaries}

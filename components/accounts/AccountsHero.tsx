@@ -1,5 +1,5 @@
 import { fmtEUR } from '@/lib/money';
-import { AddAccountButton } from './AddAccountButton';
+import { NetWorthPie } from './NetWorthPie';
 
 export interface AccountShare {
   id: string;
@@ -16,14 +16,15 @@ export interface NegativeAccount {
 
 /**
  * Net-worth hero — Theus Accounts design handoff. One glass card: headline
- * (kicker + MTD-delta pill + huge balance + currency-mix sentence + Add
- * account CTA) over a "share of net worth" bar. No separate page title —
- * "Net worth" already frames the screen, matching the handoff exactly.
+ * (kicker + MTD-delta pill + huge balance + currency-mix sentence) on the
+ * left, a share-of-net-worth pie + legend on the right. No separate page
+ * title — "Net worth" already frames the screen. "Add account" lives in
+ * the accounts list's own header instead of here, now that this panel's
+ * right side is a chart rather than a full-width bar with room to spare.
  *
- * Negative-balance accounts have no honest width in a share-of-total bar,
- * so they're excluded from both the bar and its percentages (denominator
- * is the sum of positive balances only) and named separately underneath
- * instead.
+ * Negative-balance accounts have no honest slice in a share-of-total pie,
+ * so they're excluded from it (denominator is the sum of positive
+ * balances only) and named separately underneath instead.
  */
 export function AccountsHero({
   totalEUR,
@@ -61,7 +62,7 @@ export function AccountsHero({
 
   return (
     <section className="glass flex flex-col gap-5 !rounded-[34px] p-[24px] px-[26px]">
-      <div className="flex flex-wrap items-start justify-between gap-[18px]">
+      <div className="flex flex-wrap items-start gap-[28px]">
         <div className="min-w-0 flex-1 basis-[260px]">
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-mute">
@@ -90,51 +91,34 @@ export function AccountsHero({
             </span>
           </div>
           {mixLabel ? <div className="mt-2 text-[13.5px] font-semibold text-ink-soft">{mixLabel}</div> : null}
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <AddAccountButton />
-        </div>
-      </div>
 
-      {shares.length > 0 || negatives.length > 0 ? (
-        <div className="flex flex-col gap-[11px]">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-mute">
-              Share of net worth
-            </span>
-            {negatives.length > 0 ? (
-              <span className="text-[12.5px] font-semibold text-ink-mute">
-                Overdrafts are listed below the bar, not drawn in it
-              </span>
-            ) : null}
-          </div>
-          <div className="flex h-4 gap-[3px] overflow-hidden rounded-full bg-[#eef0f6]">
-            {shares.map((s) => (
-              <span
-                key={s.id}
-                title={`${s.name} — ${Math.round(s.pct)}% of net worth`}
-                className="meter block h-full origin-left"
-                style={{ flex: `${Math.max(s.pct, 0.05)} 1 0`, background: s.color }}
-              />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-[18px] gap-y-2">
-            {shares.map((s) => (
-              <span key={s.id} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-ink-soft">
-                <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
-                {s.name}
-                <b className="font-bold tabular-nums text-ink">{Math.round(s.pct)}%</b>
-              </span>
-            ))}
-            {negatives.map((n) => (
-              <span key={n.name} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-out">
-                <span className="h-[9px] w-[9px] shrink-0 rounded-[3px] border-[1.5px] border-dashed border-out" />
-                {n.name} {fmtEUR(n.eur)} · negative, excluded
-              </span>
-            ))}
-          </div>
+          {negatives.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-1.5">
+              {negatives.map((n) => (
+                <span key={n.name} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-out">
+                  <span className="h-[9px] w-[9px] shrink-0 rounded-[3px] border-[1.5px] border-dashed border-out" />
+                  {n.name} {fmtEUR(n.eur)} · negative, excluded from the pie
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+
+        {shares.length > 0 ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-[22px]">
+            <NetWorthPie shares={shares} />
+            <div className="grid grid-cols-[repeat(2,minmax(0,auto))] gap-x-4 gap-y-1.5">
+              {shares.map((s) => (
+                <span key={s.id} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-ink-soft">
+                  <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
+                  <span className="truncate">{s.name}</span>
+                  <b className="shrink-0 font-bold tabular-nums text-ink">{Math.round(s.pct)}%</b>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
