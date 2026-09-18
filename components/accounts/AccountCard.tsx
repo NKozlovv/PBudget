@@ -35,10 +35,19 @@ export function AccountCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { account, native, eur, deltaNative, deltaEUR, spark } = summary;
+  const { account, native, deltaNative, spark } = summary;
   const showEurLine = account.currency !== 'EUR';
   const symbol = account.currency === 'USD' ? '$' : '€';
   const isPos = deltaNative >= 0;
+  // A simple native × current-rate conversion, not summary.eur/deltaEUR —
+  // those accumulate each transaction's own historical fx_rate (correct
+  // for the net-worth total, which tracks real realized FX gains/losses
+  // over time), which can leave a non-zero "≈ €" next to a $0.00 balance
+  // once an account has been drawn down across several different
+  // historical rates. This line promises "at {rate}", so it has to
+  // actually be native × that one rate to avoid contradicting itself.
+  const eurNow = native * fxRate;
+  const eurDelta = deltaNative * fxRate;
 
   return (
     <div className="glass-inner flex flex-wrap items-center gap-[18px] !rounded-[22px] p-4 px-[18px] transition-transform duration-200 ease-theus hover:-translate-y-0.5">
@@ -72,7 +81,7 @@ export function AccountCard({
           {fmtCurrency(Math.abs(native), account.currency, { noSymbol: true })}
         </div>
         <div className="mt-[3px] whitespace-nowrap text-[12.5px] font-semibold tabular-nums text-ink-mute">
-          {showEurLine ? `≈ ${fmtEUR(eur)} at ${fxRate.toFixed(4)}` : 'Held in euro'}
+          {showEurLine ? `≈ ${fmtEUR(eurNow)} at ${fxRate.toFixed(4)}` : 'Held in euro'}
         </div>
       </div>
 
@@ -89,7 +98,7 @@ export function AccountCard({
         {showEurLine ? (
           <div className="mt-0.5 whitespace-nowrap text-[11.5px] font-semibold tabular-nums text-ink-mute">
             ≈ {isPos ? '+' : '−'}
-            {fmtEUR(Math.abs(deltaEUR), { decimals: 0 })}
+            {fmtEUR(Math.abs(eurDelta), { decimals: 0 })}
           </div>
         ) : null}
       </div>

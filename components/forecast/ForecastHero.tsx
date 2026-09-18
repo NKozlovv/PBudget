@@ -1,57 +1,39 @@
 import { fmtEUR } from '@/lib/money';
 import { dateDisplay, dateToISO } from '@/lib/date';
 import { ForecastLine } from '@/components/charts/ForecastLine';
-import { HorizonToggle, type Horizon } from './HorizonToggle';
 import type { ProjectionPoint } from '@/lib/forecast/projection';
 
 /**
- * Forecast hero — Theus Forecast design handoff. Title, subtitle (the
- * straight-line-from-average-net methodology, spelled out so the chart
- * never implies more precision than it has), the horizon toggle, four KPI
- * tiles, and the balance chart, all in one glass card.
+ * Forecast hero — title, three KPI tiles, and the balance chart, all in
+ * one glass card. No horizon picker: the projection always runs to
+ * year-end at the average pace through the working month (same anchor as
+ * Overview's own EOY figure — see app/(app)/forecast/page.tsx), so there's
+ * nothing left for a toggle to change.
  */
 export function ForecastHero({
-  horizon,
   avgNet,
   monthsElapsed,
   year,
   todayBalance,
-  forwardBalance,
   eoyBalance,
   points,
 }: {
-  horizon: Horizon;
   avgNet: number;
   monthsElapsed: number;
   year: number;
   todayBalance: number;
-  forwardBalance: number;
   eoyBalance: number;
   points: ProjectionPoint[];
 }) {
   const now = new Date();
-  const fwdDelta = forwardBalance - todayBalance;
-  const fwdPct = todayBalance !== 0 ? (fwdDelta / Math.abs(todayBalance)) * 100 : 0;
   const eoyDelta = eoyBalance - todayBalance;
   const avgIsPos = avgNet >= 0;
+  const forwardMonths = points.filter((p) => p.projected).length;
 
   return (
     <section className="glass flex flex-col gap-5 !rounded-[34px] p-[24px] px-[26px]">
-      <div className="flex flex-wrap items-start justify-between gap-[18px]">
-        <div className="min-w-0 flex-1 basis-[300px]">
-          <h1 className="text-[26px] font-extrabold -tracking-[0.03em] text-ink">Forecast</h1>
-          <p className="mt-[7px] max-w-[62ch] text-[14px] font-medium text-ink-soft">
-            Straight-line from this year&apos;s average monthly net of{' '}
-            <b className="font-bold text-ink">
-              {avgIsPos ? '+' : '−'}
-              {fmtEUR(Math.abs(avgNet))}
-            </b>
-            . No seasonality, no model — if your pace changes, this changes with it.
-          </p>
-        </div>
-        <div className="shrink-0">
-          <HorizonToggle current={horizon} />
-        </div>
+      <div>
+        <h1 className="text-[26px] font-extrabold -tracking-[0.03em] text-ink">Forecast</h1>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-3">
@@ -61,17 +43,10 @@ export function ForecastHero({
           sub={`Real net worth · ${dateDisplay(dateToISO(now))}`}
         />
         <KpiTile
-          label={`Projected · ${horizon} months`}
-          value={fmtEUR(forwardBalance)}
-          valueColor={fwdDelta >= 0 ? 'var(--in)' : 'var(--out)'}
-          sub={`${fwdDelta >= 0 ? '+' : '−'}${fmtEUR(Math.abs(fwdDelta))} · ${fwdPct >= 0 ? '+' : ''}${fwdPct.toFixed(1)}%`}
-          subColor={fwdDelta >= 0 ? 'var(--in)' : 'var(--out)'}
-        />
-        <KpiTile
           label={`Projected 31 Dec ${year}`}
           value={fmtEUR(eoyBalance)}
           valueColor={eoyDelta >= 0 ? 'var(--in)' : 'var(--out)'}
-          sub={`${eoyDelta >= 0 ? '+' : '−'}${fmtEUR(Math.abs(eoyDelta))} · fixed to year-end`}
+          sub={`${eoyDelta >= 0 ? '+' : '−'}${fmtEUR(Math.abs(eoyDelta))} vs today`}
           subColor={eoyDelta >= 0 ? 'var(--in)' : 'var(--out)'}
         />
         <KpiTile
@@ -84,11 +59,11 @@ export function ForecastHero({
       <div className="glass-inner flex flex-col gap-3 !rounded-[22px] p-4 px-[22px]">
         <div className="flex flex-wrap items-baseline justify-between gap-[14px]">
           <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-mute">
-            Balance · 12 months back, {horizon} forward
+            Balance · 12 months back, {forwardMonths} to year-end
           </span>
           <div className="flex flex-wrap gap-4">
             <Legend color="var(--indigo)" dashed={false} label="Recorded" />
-            <Legend color="var(--teal)" dashed label="Projected at today's pace" />
+            <Legend color="var(--teal)" dashed label="Projected at your average pace" />
           </div>
         </div>
         <ForecastLine points={points} height={280} />

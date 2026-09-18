@@ -1,42 +1,30 @@
 import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
-import { burnRatesEUR, totalBalanceEUR, ytdAverages } from '@/lib/balance';
+import { accountBalanceEURAt, burnRatesEUR, totalBalanceEUR, ytdAverages } from '@/lib/balance';
 import { projectionSeries } from '@/lib/forecast/projection';
+import { workingMonth } from '@/lib/dashboard/period';
+import { dateToISO } from '@/lib/date';
 import { ForecastHero } from '@/components/forecast/ForecastHero';
-import { type Horizon } from '@/components/forecast/HorizonToggle';
 import { PerCategoryOutlook } from '@/components/forecast/PerCategoryOutlook';
 import { CoachInsightCard } from '@/components/forecast/CoachInsightCard';
 import { BurnRateTable } from '@/components/forecast/BurnRateTable';
 
 export const metadata = { title: 'Forecast · Theus' };
 
-interface SearchParams {
-  h?: string;
-}
-
-function parseHorizon(value: string | undefined): Horizon {
-  const n = Number(value);
-  return n === 6 || n === 12 || n === 24 ? n : 3;
-}
-
-export default async function ForecastPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  const sp = await searchParams;
-  const horizon = parseHorizon(sp.h);
-
+export default async function ForecastPage() {
   const budget = await getOrCreateUserBudget();
   const [accounts, transactions] = await Promise.all([
     listAccounts(budget.id),
     listTransactions({ budgetId: budget.id }),
   ]);
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const now = new Date();
+  // "Average monthly net" / the EOY projection are anchored to the working
+  // month (last completed calendar month, CLAUDE.md §8f) — the same basis
+  // Overview's own EOY projection uses — so the two screens agree instead
+  // of Forecast counting partial current-month activity Overview doesn't.
+  const { year, month } = workingMonth(now);
 
   const ytd = ytdAverages({
     transactions,
@@ -44,24 +32,33 @@ export default async function ForecastPage({
     endMonth: month,
     fxRate: budget.fx_rate,
   });
-  const balanceNow = totalBalanceEUR({
-    accounts,
-    transactions,
-    fxRate: budget.fx_rate,
-  });
+
+  // Real-time balance, for the one KPI that's a snapshot rather than a
+  // monthly summary — §8f's account-balance exception.
+  const balanceNow = totalBalanceEUR({ accounts, transactions, fxRate: budget.fx_rate });
+
+  function eomBalanceEUR(y: number, m: number): number {
+    const eom = new Date(y, m + 1, 0);
+    return accounts.reduce(
+      (s, a) => s + accountBalanceEURAt({ account: a, date: dateToISO(eom), transactions, fxRate: budget.fx_rate }),
+      0,
+    );
+  }
+  const lastActualBalance = eomBalanceEUR(year, month);
+  const monthsRemaining = 11 - month;
 
   const points = projectionSeries({
     accounts,
     transactions,
     fxRate: budget.fx_rate,
-    now: today,
+    year,
+    month,
     pastMonths: 12,
-    forwardMonths: horizon,
+    forwardMonths: monthsRemaining,
     avgNet: ytd.avgNet,
   });
 
-  const forwardBalance = balanceNow + ytd.avgNet * horizon;
-  const eoyBalance = balanceNow + ytd.avgNet * ytd.monthsRemaining;
+  const eoyBalance = lastActualBalance + ytd.avgNet * monthsRemaining;
 
   const expenseBurn = burnRatesEUR({
     transactions,
@@ -81,12 +78,10 @@ export default async function ForecastPage({
   return (
     <>
       <ForecastHero
-        horizon={horizon}
         avgNet={ytd.avgNet}
         monthsElapsed={ytd.monthsElapsed}
         year={year}
         todayBalance={balanceNow}
-        forwardBalance={forwardBalance}
         eoyBalance={eoyBalance}
         points={points}
       />
@@ -97,7 +92,7 @@ export default async function ForecastPage({
             balanceNow={balanceNow}
             avgNet={ytd.avgNet}
             savingsRate={ytd.savingsRate}
-            now={today}
+            now={now}
           />
           <PerCategoryOutlook rows={expenseBurn} limit={5} />
         </section>

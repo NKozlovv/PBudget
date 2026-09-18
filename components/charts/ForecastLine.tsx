@@ -193,7 +193,7 @@ export function ForecastLine({
         />
       ) : null}
 
-      {/* today marker: ring + dot, with a floating pill label */}
+      {/* boundary marker: ring where recorded data ends and the projection begins */}
       <circle cx={markerX} cy={markerY} r={6} fill="white" stroke="var(--indigo)" strokeWidth={3} />
       {points[points.length - 1] ? (
         <circle cx={xs[points.length - 1]} cy={ys[ys.length - 1]} r={4.5} fill="var(--teal)" />
@@ -229,14 +229,6 @@ export function ForecastLine({
         />
       ))}
     </svg>
-    {boundary > 0 ? (
-      <div
-        className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-[rgba(31,39,66,.82)] px-[10px] py-[3px] text-[10.5px] font-bold uppercase tracking-[0.06em] text-white"
-        style={{ left: `${(markerX / width) * 100}%` }}
-      >
-        Today
-      </div>
-    ) : null}
     {hover ? (
       <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>
         <span className="font-medium text-ink">{hover.data.label}</span>

@@ -57,12 +57,18 @@ export default async function AccountsPage() {
   const positives = summaries.filter((s) => s.eur > 0);
   const positivesTotal = positives.reduce((s, x) => s + x.eur, 0);
 
+  // Only a genuinely negative balance is an "overdraft" — a zero balance
+  // (e.g. an account that was just drained to $0) is a normal account with
+  // nothing in it, not an overdraft, so it gets its own (accurate) label.
   const shareLabels: Record<string, string> = {};
   for (const s of summaries) {
-    shareLabels[s.account.id] =
-      s.eur > 0 && positivesTotal > 0
-        ? `${((s.eur / positivesTotal) * 100).toFixed(1)}% of net worth`
-        : 'Overdraft · excluded from share';
+    if (s.eur > 0 && positivesTotal > 0) {
+      shareLabels[s.account.id] = `${((s.eur / positivesTotal) * 100).toFixed(1)}% of net worth`;
+    } else if (s.eur < 0) {
+      shareLabels[s.account.id] = 'Overdraft · excluded from share';
+    } else {
+      shareLabels[s.account.id] = '0% of net worth';
+    }
   }
 
   const shares = [...positives]

@@ -1,4 +1,4 @@
-import { accountBalanceEURAt, totalBalanceEUR } from '@/lib/balance';
+import { accountBalanceEURAt } from '@/lib/balance';
 import { dateToISO, monthName } from '@/lib/date';
 import type { Account, Transaction } from '@/lib/supabase/types';
 
@@ -9,58 +9,61 @@ export interface ProjectionPoint {
   date: string;
   /** Total EUR balance at this point. */
   balance: number;
-  /** True for projected points; false for actual past + today. */
+  /** True for projected points; false for actual past months. */
   projected: boolean;
 }
 
 /**
- * Build a continuous balance series: past `pastMonths` month-ends → today →
- * projected `forwardMonths` month-ends, using `avgNet` as the monthly pace.
+ * Build a continuous balance series: past `pastMonths` month-ends through
+ * (year, month) inclusive, then projected forward `forwardMonths` more
+ * month-ends at `avgNet` pace.
  *
- * The point at index `pastMonths` is "today" and is the bridge between
- * actual and projected — present in both segments so the line connects.
+ * (year, month) is the boundary between real and projected and should be
+ * the same "working month" (last completed calendar month) that `avgNet`
+ * itself was averaged through — CLAUDE.md §8f, and the same anchor
+ * Overview's own EOY projection uses (see dashboard/page.tsx's
+ * `eomBalanceEUR`/`projectedEOY`) — so the two screens' figures agree
+ * instead of one counting the in-progress current month and the other
+ * not. Account *balances* elsewhere (the "Balance today" KPI, the
+ * accounts page) stay real-time; only this averaged/projected line does not.
  */
 export function projectionSeries(args: {
   accounts: Account[];
   transactions: Transaction[];
   fxRate: number;
-  now: Date;
+  year: number;
+  /** 0-indexed; the last completed month, i.e. the boundary month. */
+  month: number;
   pastMonths: number;
   forwardMonths: number;
   avgNet: number;
 }): ProjectionPoint[] {
-  const { accounts, transactions, fxRate, now, pastMonths, forwardMonths, avgNet } = args;
+  const { accounts, transactions, fxRate, year, month, pastMonths, forwardMonths, avgNet } = args;
   const out: ProjectionPoint[] = [];
-  const year = now.getFullYear();
-  const month = now.getMonth();
 
-  // Past month-end balances.
-  for (let i = pastMonths; i >= 1; i--) {
-    const eom = new Date(year, month - i + 1, 0);
+  function eomBalance(y: number, m: number): number {
+    const eom = new Date(y, m + 1, 0);
     const date = dateToISO(eom);
     let total = 0;
     for (const a of accounts) {
       total += accountBalanceEURAt({ account: a, date, transactions, fxRate });
     }
+    return total;
+  }
+
+  // Past month-ends, including the boundary month itself (real data).
+  for (let i = pastMonths; i >= 0; i--) {
+    const eom = new Date(year, month - i + 1, 0);
     out.push({
       label: monthName(eom.getMonth(), true).toUpperCase(),
-      date,
-      balance: total,
+      date: dateToISO(eom),
+      balance: eomBalance(eom.getFullYear(), eom.getMonth()),
       projected: false,
     });
   }
 
-  // Today as the bridge point.
-  const today = totalBalanceEUR({ accounts, transactions, fxRate });
-  out.push({
-    label: monthName(month, true).toUpperCase(),
-    date: dateToISO(now),
-    balance: today,
-    projected: false,
-  });
-
-  // Projected forward at avgNet pace.
-  let running = today;
+  // Projected forward at avgNet pace, starting from the boundary balance.
+  let running = out[out.length - 1]!.balance;
   for (let i = 1; i <= forwardMonths; i++) {
     running += avgNet;
     const eom = new Date(year, month + i + 1, 0);
