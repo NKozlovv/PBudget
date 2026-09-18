@@ -64,7 +64,7 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
         <Icon name="arrow-right" size={15} strokeWidth={2} className="mt-1 shrink-0 text-ink-mute" />
       </div>
 
-      <div className="mt-5 flex h-[14px] gap-[3px]">
+      <div className="mt-4 flex h-[14px] gap-[3px]">
         {sorted.map((s) => {
           const hue = categoryColor(s.name);
           const share = total > 0 ? (s.value / total) * 100 : 0;
@@ -79,14 +79,14 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
         })}
       </div>
 
-      <div className="mt-3 flex flex-col">
+      <div className="mt-2 flex flex-col">
         {visible.map((s) => {
           const hue = categoryColor(s.name);
           const share = total > 0 ? Math.round((s.value / total) * 100) : 0;
           return (
             <div
               key={s.name}
-              className="flex items-center gap-2.5 rounded-[14px] px-3 py-[9px] transition-colors duration-[160ms] hover:bg-white/[0.72]"
+              className="flex items-center gap-2.5 rounded-[14px] px-3 py-[7px] transition-colors duration-[160ms] hover:bg-white/[0.72]"
             >
               <span className="h-[10px] w-[10px] shrink-0 rounded-full" style={{ background: hue }} />
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{s.name}</span>
@@ -108,7 +108,7 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
             e.stopPropagation();
             setExpanded((v) => !v);
           }}
-          className="mt-1 w-full rounded-[14px] px-3 py-[9px] text-left text-[12.5px] font-semibold text-indigo-dark transition-colors duration-[160ms] hover:bg-white/[0.72]"
+          className="mt-0.5 w-full rounded-[14px] px-3 py-[7px] text-left text-[12.5px] font-semibold text-indigo-dark transition-colors duration-[160ms] hover:bg-white/[0.72]"
         >
           {expanded ? 'Show less' : `Show ${hiddenCount} more`}
         </button>
