@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { fmtEUR } from '@/lib/money';
 
 const TRACK = '#eef0f6';
+const OVERSPEND = '#a8203f'; // darker than --out — matches the inner overspend arc
 const R_OUTER = 54;
 const R_INNER = 41;
 const C_OUTER = 2 * Math.PI * R_OUTER; // 339.29
@@ -37,7 +38,9 @@ export function BudgetRing({
 
   const percentDisplay = Math.round(ratio * 100);
   const left = income - spent;
-  const rowTwoColor = over ? 'var(--out)' : 'var(--in)';
+  // The "Over" row is specifically the overspend amount — it should match
+  // the inner arc's darker red, not the outer ring's --out.
+  const rowTwoColor = over ? OVERSPEND : 'var(--in)';
 
   const caption = over
     ? `Over income by ${Math.round((ratio - 1) * 100)}%`
@@ -75,7 +78,7 @@ export function BudgetRing({
             cy="60"
             r={R_INNER}
             fill="none"
-            stroke={over ? '#a8203f' : 'transparent'}
+            stroke={over ? OVERSPEND : 'transparent'}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={C_INNER}
