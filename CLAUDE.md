@@ -423,11 +423,17 @@ docs/                 # rehaul-plan.md, rehaul-progress.md,
 
 ### Version marker
 
-Shown at the bottom of the content area (moved off the sidebar in the
-v4 rehaul, which has no sidebar — see §6) as `BUILD_VERSION · BUILD_DATE`
-from `lib/version.ts`. Bump on every meaningful deploy so the user
-knows the new build is live. Current: `v3.1.0-α — liquid-glass rehaul
-complete, all screens on the v4 glass system`.
+**Removed 2026-09-19.** The `BUILD_VERSION · BUILD_DATE` footer that used
+to sit at the bottom of every page's content area is gone — direct
+feedback was that it read as unfinished/rudimentary once the app was past
+the stale-cache-confusion phase that motivated adding it in the first
+place (§11 below still says the user considered it "very important,"
+which was true earlier in the project but is now superseded by this).
+`lib/version.ts` itself is untouched (still exports `BUILD_VERSION`/
+`BUILD_DATE`) in case it's wanted again somewhere less prominent, but
+nothing in the app renders it — don't re-add the footer without asking
+first, the same way the JetBrains Mono flip-flops taught us to check
+before reintroducing something that's been deliberately removed.
 
 ---
 
@@ -484,8 +490,10 @@ npm run build       # full production build
 
 - Prefers incremental builds, each producing a working deployable file,
   over big-bang rewrites
-- Wants a version marker so they know the new build is live (very
-  important — they've been burned by stale caches)
+- Wanted a version marker early on so they'd know the new build was live
+  (they'd been burned by stale caches) — since superseded: had it removed
+  2026-09-19 as looking rudimentary once that was no longer a live
+  concern (see §9's "Version marker" note)
 - Is in Germany (UTC+1/2) — timezone-correct code matters
 - Uses EUR as base currency, has USD accounts (Deel, Wise, Cash, etc.)
 - Has a partner they'll eventually share the budget with (Phase 5)
@@ -503,9 +511,9 @@ npm run build       # full production build
    landed, what was skipped, and why. Most important file in the project.
 2. Skim `docs/rehaul-plan.md` for the original architecture decisions
    and chunk numbering.
-3. Check the version marker at the bottom of the page on the live site
-   (`v3.1.0-α` or newer — no longer in a sidebar, see §6) so you know
-   which build you're looking at.
+3. There's no on-page version marker any more (removed 2026-09-19, see
+   §9) — check `git log` on `master` for the latest commit instead of
+   looking for a build string on the live site.
 4. The legacy app is still at `/legacy` — useful for visual diffs and
    parity checks. Not the source of truth anymore.
 5. `master` **is** production and there's no separate staging branch as
