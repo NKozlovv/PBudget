@@ -26,11 +26,16 @@ export function ExportButton({
   const visibleMonths = months.slice(offset);
 
   function download() {
-    const header = ['Category', ...visibleMonths.map((m) => m.label), 'Year'];
+    const header = ['Category', ...visibleMonths.map((m) => m.label), 'Avg', 'Year'];
     const lines = [header];
     for (const row of rows) {
       const values = Array.from({ length: visibleCount }, (_, j) => (row.values[offset + j] ?? 0).toFixed(2));
-      lines.push([row.category.name, ...values, row.total.toFixed(2)]);
+      // row.total spans the full `months` array, which includes one
+      // leading baseline month used only for the first column's delta —
+      // sum just the visible months instead so this matches what's shown.
+      const visibleTotal = values.reduce((s, v) => s + Number(v), 0);
+      const avg = visibleCount > 0 ? visibleTotal / visibleCount : 0;
+      lines.push([row.category.name, ...values, avg.toFixed(2), visibleTotal.toFixed(2)]);
     }
     const csv = lines.map((line) => line.map(csvCell).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
