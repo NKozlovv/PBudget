@@ -53,20 +53,34 @@ export default async function AccountsPage() {
     accounts.map((a) => [a.id, colorFor(a.id)]),
   );
 
-  // Negative balances have no honest width in a share-of-total bar, so
+  // The donut/legend/per-row "X% of net worth" labels classify and size
+  // themselves by a plain native × today's-rate figure, not summary.eur —
+  // summary.eur accumulates each transaction's own historical fx_rate
+  // (right for the net-worth total, which is tracking real realized FX
+  // gains/losses), so an account genuinely at native 0 can still carry a
+  // small non-zero accumulated eur and get miscounted as "still has some
+  // balance." The net-worth total/delta above are deliberately left on
+  // summary.eur/deltaEUR — same figure the rest of the app (Overview,
+  // Forecast) uses, so those stay in agreement.
+  function simpleEur(s: (typeof summaries)[number]): number {
+    return s.account.currency === 'EUR' ? s.native : s.native * budget.fx_rate;
+  }
+
+  // Negative balances have no honest slice in a share-of-total donut, so
   // shares (and each row's "X% of net worth" label) are computed against
   // the sum of positive balances only — overdrafts are named separately.
-  const positives = summaries.filter((s) => s.eur > 0);
-  const positivesTotal = positives.reduce((s, x) => s + x.eur, 0);
+  const positives = summaries.filter((s) => simpleEur(s) > 0);
+  const positivesTotal = positives.reduce((s, x) => s + simpleEur(x), 0);
 
   // Only a genuinely negative balance is an "overdraft" — a zero balance
   // (e.g. an account that was just drained to $0) is a normal account with
   // nothing in it, not an overdraft, so it gets its own (accurate) label.
   const shareLabels: Record<string, string> = {};
   for (const s of summaries) {
-    if (s.eur > 0 && positivesTotal > 0) {
-      shareLabels[s.account.id] = `${Math.round((s.eur / positivesTotal) * 100)}% of net worth`;
-    } else if (s.eur < 0) {
+    const eur = simpleEur(s);
+    if (eur > 0 && positivesTotal > 0) {
+      shareLabels[s.account.id] = `${Math.round((eur / positivesTotal) * 100)}% of net worth`;
+    } else if (eur < 0) {
       shareLabels[s.account.id] = 'Overdraft · excluded from share';
     } else {
       shareLabels[s.account.id] = '0% of net worth';
@@ -74,13 +88,13 @@ export default async function AccountsPage() {
   }
 
   const allShares = [...positives]
-    .sort((a, b) => b.eur - a.eur)
+    .sort((a, b) => simpleEur(b) - simpleEur(a))
     .map((s) => ({
       id: s.account.id,
       name: s.account.name,
       color: colors[s.account.id] ?? 'var(--ink-mute)',
-      eur: s.eur,
-      pct: positivesTotal > 0 ? (s.eur / positivesTotal) * 100 : 0,
+      eur: simpleEur(s),
+      pct: positivesTotal > 0 ? (simpleEur(s) / positivesTotal) * 100 : 0,
     }));
 
   // The donut/legend fold anything under 4% into one "Other" slice so a
@@ -105,9 +119,9 @@ export default async function AccountsPage() {
       : allShares;
 
   const negatives = summaries
-    .filter((s) => s.eur < 0)
-    .sort((a, b) => a.eur - b.eur)
-    .map((s) => ({ name: s.account.name, eur: s.eur }));
+    .filter((s) => simpleEur(s) < 0)
+    .sort((a, b) => simpleEur(a) - simpleEur(b))
+    .map((s) => ({ name: s.account.name, eur: simpleEur(s) }));
 
   return (
     <>
