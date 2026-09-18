@@ -36,13 +36,15 @@ export default async function AccountsPage() {
   }
 
   const now = new Date();
+  // Biggest EUR contribution first — matches the "share of net worth" bar's
+  // own order, so the list and the bar always agree on rank.
   const summaries = accountsSummary({
     accounts,
     transactions,
     fxRate: budget.fx_rate,
     now,
     count: 6,
-  });
+  }).sort((a, b) => b.eur - a.eur);
 
   const totalEUR = summaries.reduce((s, x) => s + x.eur, 0);
   const deltaEUR = summaries.reduce((s, x) => s + x.deltaEUR, 0);
@@ -63,7 +65,7 @@ export default async function AccountsPage() {
   const shareLabels: Record<string, string> = {};
   for (const s of summaries) {
     if (s.eur > 0 && positivesTotal > 0) {
-      shareLabels[s.account.id] = `${((s.eur / positivesTotal) * 100).toFixed(1)}% of net worth`;
+      shareLabels[s.account.id] = `${Math.round((s.eur / positivesTotal) * 100)}% of net worth`;
     } else if (s.eur < 0) {
       shareLabels[s.account.id] = 'Overdraft · excluded from share';
     } else {
@@ -100,12 +102,7 @@ export default async function AccountsPage() {
       />
 
       <section className="glass flex flex-col gap-[14px] !rounded-[34px] p-[24px] px-[26px]">
-        <div className="flex flex-wrap items-baseline justify-between gap-[14px]">
-          <h2 className="text-[22px] font-extrabold -tracking-[0.025em] text-ink">All accounts</h2>
-          <span className="text-[12.5px] font-semibold text-ink-mute">
-            Sparkline is six month-end balances, oldest to newest
-          </span>
-        </div>
+        <h2 className="text-[22px] font-extrabold -tracking-[0.025em] text-ink">All accounts</h2>
         <AccountsGrid
           budgetId={budget.id}
           summaries={summaries}

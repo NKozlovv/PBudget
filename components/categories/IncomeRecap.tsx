@@ -1,4 +1,4 @@
-import { Icon } from '@/components/ui';
+import { Button, Icon } from '@/components/ui';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
 import type { CategorySummary } from '@/lib/categories/summary';
@@ -8,9 +8,10 @@ import type { CategorySummary } from '@/lib/categories/summary';
  * income at all — this app's schema tracks it, so it stays as a simple
  * restyled list (no accordion/progress-bar semantics, since "over pace"
  * doesn't apply to income). "+ New income category" lives in this
- * section's own header, next to its title — mirroring how "+ New
- * category" sits at the top of the expense table via the page header —
- * rather than floating alone below both tables.
+ * section's own header, next to its title, as the same button style as
+ * the expense table's "+ New category" — mirroring where it sits (via
+ * the page header) and matching how it looks, rather than floating below
+ * both tables as a lighter-weight text link.
  */
 export function IncomeRecap({
   summaries,
@@ -36,13 +37,10 @@ export function IncomeRecap({
             </span>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="text-[12.5px] font-semibold text-indigo-dark hover:underline"
-        >
-          + New income category
-        </button>
+        <Button onClick={onAdd}>
+          <Icon name="plus" size={13} />
+          New income category
+        </Button>
       </div>
 
       <div className="glass !rounded-[26px] p-[10px]">

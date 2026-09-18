@@ -112,7 +112,7 @@ export function AccountsHero({
             {shares.map((s) => (
               <span
                 key={s.id}
-                title={`${s.name} — ${s.pct.toFixed(1)}% of net worth`}
+                title={`${s.name} — ${Math.round(s.pct)}% of net worth`}
                 className="meter block h-full origin-left"
                 style={{ flex: `${Math.max(s.pct, 0.05)} 1 0`, background: s.color }}
               />
@@ -123,7 +123,7 @@ export function AccountsHero({
               <span key={s.id} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-ink-soft">
                 <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
                 {s.name}
-                <b className="font-bold tabular-nums text-ink">{s.pct.toFixed(1)}%</b>
+                <b className="font-bold tabular-nums text-ink">{Math.round(s.pct)}%</b>
               </span>
             ))}
             {negatives.map((n) => (

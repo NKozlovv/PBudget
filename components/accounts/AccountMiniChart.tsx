@@ -12,9 +12,10 @@ interface Point {
 
 /**
  * Per-account mini area chart (6 month-end points). Replaces the bare
- * Sparkline used elsewhere — adds a faint baseline, a top max-tick, and
- * x-axis month labels so the trend is readable on its own without
- * relying on the surrounding card copy.
+ * Sparkline used elsewhere — adds a faint baseline/top rule and x-axis
+ * month labels. No value labels or endpoint dot on the line itself — at
+ * this size (a compact row chart, not a standalone chart) they read as
+ * clutter; hovering shows the exact figure via the tooltip instead.
  *
  * Token-only colors except for the data stroke/fill, which the caller
  * passes from `categoryColor()` (account swatch).
@@ -55,8 +56,6 @@ export function AccountMiniChart({
     .map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i]!.toFixed(1)}`)
     .join(' ');
   const area = `${line} L${xs[xs.length - 1]!.toFixed(1)},${(padTop + innerH).toFixed(1)} L${xs[0]!.toFixed(1)},${(padTop + innerH).toFixed(1)} Z`;
-  const lastX = xs[xs.length - 1]!;
-  const lastY = ys[ys.length - 1]!;
 
   const gridY = padTop + innerH; // baseline
   const topY = padTop;
@@ -100,32 +99,10 @@ export function AccountMiniChart({
           strokeDasharray="2 3"
         />
 
-        {/* y-axis ticks at min/max — small text on the right edge */}
-        <text
-          x={width - padX}
-          y={topY + 3}
-          fontSize="9"
-          fontFamily="var(--font-sans)"
-          fill="var(--ink-mute)"
-          textAnchor="end"
-        >
-          {fmtEUR(rawMax, { compact: true, decimals: 0 })}
-        </text>
-        <text
-          x={width - padX}
-          y={gridY - 3}
-          fontSize="9"
-          fontFamily="var(--font-sans)"
-          fill="var(--ink-mute)"
-          textAnchor="end"
-        >
-          {fmtEUR(rawMin, { compact: true, decimals: 0 })}
-        </text>
-
-        {/* Area + line */}
+        {/* Area + line — no min/max labels or endpoint dot: at this size
+            they read as clutter, and the exact figure is one hover away. */}
         <path d={area} fill={`url(#${gradId})`} />
         <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={lastX} cy={lastY} r={2.5} fill={color} />
 
         {/* x-axis labels */}
         {tickIndices.map((i) => (

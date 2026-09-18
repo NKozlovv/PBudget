@@ -46,8 +46,13 @@ export function AccountCard({
   // once an account has been drawn down across several different
   // historical rates. This line promises "at {rate}", so it has to
   // actually be native × that one rate to avoid contradicting itself.
-  const eurNow = native * fxRate;
-  const eurDelta = deltaNative * fxRate;
+  const rate = account.currency === 'EUR' ? 1 : fxRate;
+  const eurNow = native * rate;
+  const eurDelta = deltaNative * rate;
+  // Same reasoning for the sparkline: each point's own `eur` field is the
+  // historical-accumulated figure, so re-derive it from that point's
+  // native balance at today's single rate instead, for the same reason.
+  const sparkAtCurrentRate = spark.map((p) => ({ ...p, eur: p.native * rate }));
 
   return (
     <div className="glass-inner flex flex-wrap items-center gap-[18px] !rounded-[22px] p-4 px-[18px] transition-transform duration-200 ease-theus hover:-translate-y-0.5">
@@ -104,7 +109,7 @@ export function AccountCard({
       </div>
 
       <div className="min-w-[96px] flex-none basis-[128px]">
-        <AccountMiniChart data={spark} color={color} width={128} height={44} />
+        <AccountMiniChart data={sparkAtCurrentRate} color={color} width={128} height={44} />
       </div>
 
       <div className="flex flex-none items-center gap-[7px]">
