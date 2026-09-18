@@ -116,7 +116,7 @@ export function BalancePanel({
         />
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] items-stretch gap-3">
-          <div className="glass-tile flex min-h-[80px] flex-col justify-between gap-2 !rounded-[20px] p-4 px-[18px]">
+          <div className="glass-tile flex min-h-[80px] flex-col justify-between gap-2 !rounded-[20px] p-4 px-[18px] transition-colors duration-[160ms] hover:!bg-white/[0.85]">
             <div className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-mute">
               Projected 31 Dec
             </div>
@@ -132,7 +132,7 @@ export function BalancePanel({
               </span>
             </div>
           </div>
-          <div className="glass-tile flex min-h-[80px] flex-col justify-between gap-2 !rounded-[20px] p-4 px-[18px]">
+          <div className="glass-tile flex min-h-[80px] flex-col justify-between gap-2 !rounded-[20px] p-4 px-[18px] transition-colors duration-[160ms] hover:!bg-white/[0.85]">
             <div className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-mute">
               Net this year
             </div>

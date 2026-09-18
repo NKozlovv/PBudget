@@ -43,7 +43,6 @@ export function SavingsRatePanel({ months, avgRatePct, savingsThisYear }: {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[15px] font-bold text-ink">Savings rate</div>
-          <div className="mt-0.5 text-[12px] font-medium text-ink-mute">Share of income kept, by month</div>
         </div>
         <div className="flex shrink-0 items-center gap-2 rounded-full bg-indigo/[0.12] px-3 py-1.5">
           <span className="block h-0 w-[14px] border-t-2 border-dashed border-indigo" />
@@ -106,7 +105,10 @@ export function SavingsRatePanel({ months, avgRatePct, savingsThisYear }: {
 
       <div className="mt-3 flex flex-1 flex-col justify-end gap-[3px]">
         {summaryRows.map((row) => (
-          <div key={row.label} className="glass-tile !rounded-[13px] px-[13px] py-[7px]">
+          <div
+            key={row.label}
+            className="glass-tile !rounded-[13px] px-[13px] py-[7px] transition-colors duration-[160ms] hover:!bg-white/[0.85]"
+          >
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: row.hue }} />
               <span className="flex-1 truncate text-[10px] font-bold uppercase tracking-[0.08em] text-ink-mute">

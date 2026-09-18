@@ -82,7 +82,7 @@ export function TopNav({
         <span className="text-[17px] font-extrabold -tracking-[0.02em] text-ink">Theus</span>
       </Link>
 
-      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto">
+      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1">
         {TABS.map((tab) => (
           <Link key={tab.href} href={tab.href} className={tabClass(isActive(tab.href))}>
             {tab.label}

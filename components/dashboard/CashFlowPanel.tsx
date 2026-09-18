@@ -1,18 +1,14 @@
-import { fmtCurrency, fmtEUR } from '@/lib/money';
+'use client';
+
+import { fmtEUR } from '@/lib/money';
+import { ChartTooltip } from '@/components/charts/ChartTooltip';
+import { useChartHover } from '@/components/charts/useChartHover';
 
 export interface CashFlowMonth {
   label: string;
   income: number;
   expense: number;
   projected: boolean;
-}
-
-export interface TopAccount {
-  id: string;
-  name: string;
-  currency: string;
-  native: number;
-  hue: string;
 }
 
 const kFmt = (n: number) => (n === 0 ? '0' : `${(n / 1000).toFixed(1)}k`);
@@ -22,8 +18,8 @@ const kFmt = (n: number) => (n === 0 ? '0' : `${(n / 1000).toFixed(1)}k`);
  * months (real + YTD-average-projected), a y-axis instead of per-bar
  * labels (design_handoff_theus_rehaul README "Block 2 — cash flow +
  * spending mix"): with 12 columns there isn't room for two always-on
- * figures per column, so the axis carries the scale and each column's
- * `title` carries the exact numbers on hover.
+ * figures per column, so the axis carries the scale and a themed
+ * tooltip carries the exact numbers on hover.
  */
 export function CashFlowPanel({
   months,
@@ -31,18 +27,16 @@ export function CashFlowPanel({
   ytdExpense,
   ytdNet,
   year,
-  topAccounts,
 }: {
   months: CashFlowMonth[];
   ytdIncome: number;
   ytdExpense: number;
   ytdNet: number;
   year: number;
-  /** Biggest accounts by EUR balance — fills the panel's leftover height below the chart. */
-  topAccounts?: TopAccount[];
 }) {
   const max = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
   const ticks = [max, (max * 2) / 3, max / 3, 0];
+  const { containerRef, hover, show, hide } = useChartHover<CashFlowMonth>();
 
   return (
     <div className="glass !rounded-[28px] p-[24px] px-[26px]">
@@ -65,7 +59,7 @@ export function CashFlowPanel({
         </div>
       </div>
 
-      <div className="mt-5 flex items-end gap-1.5">
+      <div ref={containerRef} className="relative mt-5 flex items-end gap-1.5">
         <div
           className="flex flex-none flex-col justify-between pb-[23px] text-right text-[9.5px] font-bold tabular-nums text-ink-mute"
           style={{ height: 153 }}
@@ -89,7 +83,9 @@ export function CashFlowPanel({
               <div
                 key={i}
                 className="relative flex flex-1 flex-col items-center gap-1.5 rounded-[8px] transition-colors duration-[160ms] hover:bg-white/[0.55]"
-                title={`${m.label}: in ${fmtEUR(m.income, { decimals: 0 })} · out ${fmtEUR(m.expense, { decimals: 0 })} · net ${fmtEUR(m.income - m.expense, { decimals: 0 })}${m.projected ? ' (projected)' : ''}`}
+                onMouseEnter={(e) => show(e, m)}
+                onMouseMove={(e) => show(e, m)}
+                onMouseLeave={hide}
               >
                 <div className="flex h-[153px] w-full items-end gap-[3px] px-0.5">
                   <div
@@ -121,27 +117,20 @@ export function CashFlowPanel({
             );
           })}
         </div>
-      </div>
 
-      {topAccounts && topAccounts.length > 0 ? (
-        <div className="mt-4 flex flex-col">
-          <div className="px-3 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-mute">
-            Biggest accounts
-          </div>
-          {topAccounts.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center gap-2.5 rounded-[14px] px-3 py-[9px] transition-colors duration-[160ms] hover:bg-white/[0.72]"
-            >
-              <span className="h-[10px] w-[10px] shrink-0 rounded-full" style={{ background: a.hue }} />
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{a.name}</span>
-              <span className="shrink-0 text-[14px] font-bold tabular-nums text-ink">
-                {fmtCurrency(a.native, a.currency, { decimals: 0 })}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
+        {hover ? (
+          <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>
+            <span className="font-bold text-ink">{hover.data.label}</span>
+            {hover.data.projected ? <span className="ml-1 text-ink-mute">(projected)</span> : null}
+            <br />
+            <span style={{ color: 'var(--in)' }}>in {fmtEUR(hover.data.income, { decimals: 0 })}</span>
+            <span className="mx-1 text-ink-mute">·</span>
+            <span style={{ color: 'var(--out)' }}>out {fmtEUR(hover.data.expense, { decimals: 0 })}</span>
+            <span className="mx-1 text-ink-mute">·</span>
+            <span className="text-ink">net {fmtEUR(hover.data.income - hover.data.expense, { decimals: 0 })}</span>
+          </ChartTooltip>
+        ) : null}
+      </div>
     </div>
   );
 }

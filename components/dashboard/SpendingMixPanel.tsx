@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
 
@@ -80,6 +81,13 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
           {expanded ? 'Show less' : `Show ${hiddenCount} more`}
         </button>
       ) : null}
+
+      <Link
+        href="/trends"
+        className="mt-1 flex items-center gap-1 rounded-[14px] px-3 py-[9px] text-[12.5px] font-semibold text-ink-mute transition-colors duration-[160ms] hover:bg-white/[0.72] hover:text-indigo-dark"
+      >
+        View month-by-month in Trends →
+      </Link>
     </div>
   );
 }

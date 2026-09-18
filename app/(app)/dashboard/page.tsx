@@ -3,8 +3,9 @@ import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
 import { BalancePanel } from '@/components/dashboard/BalancePanel';
 import { SavingsRatePanel, type SavingsRateMonth } from '@/components/dashboard/SavingsRatePanel';
-import { CashFlowPanel, type TopAccount } from '@/components/dashboard/CashFlowPanel';
+import { CashFlowPanel } from '@/components/dashboard/CashFlowPanel';
 import { SpendingMixPanel } from '@/components/dashboard/SpendingMixPanel';
+import { AccountFaceCards, type AccountFaceData } from '@/components/dashboard/AccountFaceCards';
 import { workingMonth, monthLong } from '@/lib/dashboard/period';
 import {
   totalBalanceEUR,
@@ -15,7 +16,6 @@ import {
   ytdAverages,
   burnRatesEUR,
 } from '@/lib/balance';
-import { categoryColor } from '@/lib/categoryColor';
 import { dateToISO, monthName } from '@/lib/date';
 
 export const metadata = { title: 'Overview · Theus' };
@@ -101,11 +101,11 @@ export default async function DashboardPage() {
   const catSlices = catBurnRates.map((r) => ({ name: r.name, value: r.avgMonthly }));
   const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
 
-  // Biggest accounts — ranked by EUR balance (real-time, not workingMonth:
-  // a balance is a current-moment figure) so a fair comparison across
-  // currencies; displayed in each account's own native currency.
+  // Account cards — the 4 biggest by EUR balance (real-time, not
+  // workingMonth: a balance is a current-moment figure), ranked fairly
+  // across currencies, displayed in each account's own native currency.
   const today = dateToISO(now);
-  const topAccounts: TopAccount[] = [...accounts]
+  const accountFaces: AccountFaceData[] = [...accounts]
     .map((a) => ({
       account: a,
       eur: accountBalanceEURAt({ account: a, date: today, transactions: allTx, fxRate }),
@@ -123,7 +123,6 @@ export default async function DashboardPage() {
       name: account.name,
       currency: account.currency,
       native,
-      hue: categoryColor(account.name),
     }));
 
   return (
@@ -159,10 +158,11 @@ export default async function DashboardPage() {
           ytdExpense={savingsExpense}
           ytdNet={savingsThisYear}
           year={cashFlowYear}
-          topAccounts={topAccounts}
         />
         <SpendingMixPanel slices={catSlices} total={catTotal} />
       </div>
+
+      <AccountFaceCards accounts={accountFaces} />
     </>
   );
 }
