@@ -46,7 +46,7 @@ export function BudgetRing({
       : `Below your ${Math.round(avgRatePct)}% average`;
 
   return (
-    <div className="glass-inner flex flex-col gap-3 p-4">
+    <div className="glass-inner flex flex-col gap-3 p-4 transition-colors duration-[160ms] hover:!bg-white/[0.85]">
       <div className="text-center text-[10px] font-bold uppercase tracking-[0.1em] text-ink-mute">
         Spent of income · {monthLabel}
       </div>

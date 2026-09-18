@@ -46,14 +46,14 @@ export function CashFlowPanel({
   const { containerRef, hover, show, hide } = useChartHover<CashFlowMonth>();
 
   return (
-    <div className="glass flex h-full flex-col !rounded-[28px] p-[24px] px-[26px]">
+    <div className="glass flex h-full max-h-[320px] flex-col !rounded-[28px] p-[24px] px-[26px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-[19px] font-bold -tracking-[0.02em] text-ink">Cash flow</div>
           <div className="mt-1 text-[12.5px] font-medium text-ink-mute">
             YTD in {fmtEUR(ytdIncome, { decimals: 0 })} · out {fmtEUR(ytdExpense, { decimals: 0 })} · net{' '}
             {ytdNet >= 0 ? '+' : ''}
-            {fmtEUR(ytdNet, { decimals: 0 })} · {year} projected at the elapsed-month average
+            {fmtEUR(ytdNet, { decimals: 0 })} · {year} projected
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3.5">

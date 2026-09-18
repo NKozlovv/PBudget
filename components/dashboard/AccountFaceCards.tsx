@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { fmtCurrency } from '@/lib/money';
 
 export interface AccountFaceData {
@@ -27,7 +28,8 @@ function faceFor(id: string) {
  * app has no such field, so the masked line shows the account's real
  * currency instead of a fabricated number. Shows the 4 biggest accounts
  * by EUR balance; no Received/Spent breakdown per user feedback (was
- * reading all-zero for most accounts and added clutter).
+ * reading all-zero for most accounts and added clutter). Each card
+ * links through to /accounts.
  */
 export function AccountFaceCards({ accounts }: { accounts: AccountFaceData[] }) {
   return (
@@ -35,7 +37,7 @@ export function AccountFaceCards({ accounts }: { accounts: AccountFaceData[] }) 
       {accounts.map((a) => {
         const face = faceFor(a.id);
         return (
-          <div key={a.id} className="glass flex flex-col !rounded-[26px] p-4 px-4 pb-5">
+          <Link href="/accounts" key={a.id} className="glass flex flex-col !rounded-[26px] p-4 px-4 pb-5">
             <div
               className="relative overflow-hidden p-[13px] px-[15px]"
               style={{
@@ -90,7 +92,7 @@ export function AccountFaceCards({ accounts }: { accounts: AccountFaceData[] }) 
                 <span className="text-[14px] font-bold text-ink-mute">{a.currency}</span>
               </div>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

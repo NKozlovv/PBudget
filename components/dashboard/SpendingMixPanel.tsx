@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, type KeyboardEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
@@ -11,7 +11,7 @@ export interface SpendingMixSlice {
   value: number;
 }
 
-const VISIBLE_COUNT = 6;
+const VISIBLE_COUNT = 5;
 
 /**
  * Spending mix panel — right cell of the Overview's second row. A
@@ -20,20 +20,48 @@ const VISIBLE_COUNT = 6;
  * driven by the fixed six-hue category map. The legend collapses to
  * the top categories with a "show more" toggle — a budget with a dozen-
  * plus categories otherwise runs the list on for a long, low-value tail.
+ *
+ * The whole panel is a link through to /trends for the month-by-month
+ * breakdown — a `<div>` with a click/keyboard handler rather than an
+ * `<a>` wrapper, since it contains a real "Show more" button and
+ * nesting a button inside a link is invalid HTML. That button (and the
+ * segmented-bar/legend-row `title` tooltips) stop propagation so they
+ * don't also navigate.
  */
 export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]; total: number }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const sorted = [...slices].sort((a, b) => b.value - a.value).filter((s) => s.value > 0);
   const hiddenCount = sorted.length - VISIBLE_COUNT;
   const visible = expanded || hiddenCount <= 0 ? sorted : sorted.slice(0, VISIBLE_COUNT);
 
+  function goToTrends() {
+    router.push('/trends');
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      goToTrends();
+    }
+  }
+
   return (
-    <div className="glass !rounded-[28px] p-[24px] px-[26px]">
-      <div>
-        <div className="text-[19px] font-bold -tracking-[0.02em] text-ink">Spending mix</div>
-        <div className="mt-1 text-[12.5px] font-medium text-ink-mute">
-          YTD average · {sorted.length} categor{sorted.length === 1 ? 'y' : 'ies'}
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={goToTrends}
+      onKeyDown={onKeyDown}
+      className="glass flex cursor-pointer flex-col !rounded-[28px] p-[24px] px-[26px]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[19px] font-bold -tracking-[0.02em] text-ink">Spending mix</div>
+          <div className="mt-1 text-[12.5px] font-medium text-ink-mute">
+            YTD average · {sorted.length} categor{sorted.length === 1 ? 'y' : 'ies'}
+          </div>
         </div>
+        <Icon name="arrow-right" size={15} strokeWidth={2} className="mt-1 shrink-0 text-ink-mute" />
       </div>
 
       <div className="mt-5 flex h-[14px] gap-[3px]">
@@ -76,20 +104,15 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
       {hiddenCount > 0 ? (
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((v) => !v);
+          }}
           className="mt-1 w-full rounded-[14px] px-3 py-[9px] text-left text-[12.5px] font-semibold text-indigo-dark transition-colors duration-[160ms] hover:bg-white/[0.72]"
         >
           {expanded ? 'Show less' : `Show ${hiddenCount} more`}
         </button>
       ) : null}
-
-      <Link
-        href="/trends"
-        className="mt-2 flex items-center justify-center gap-1.5 rounded-full bg-indigo/[0.12] px-3 py-[10px] text-[12.5px] font-bold text-indigo-dark transition-colors duration-[160ms] hover:bg-indigo/[0.2]"
-      >
-        View month-by-month in Trends
-        <Icon name="arrow-right" size={13} strokeWidth={2.2} />
-      </Link>
     </div>
   );
 }
