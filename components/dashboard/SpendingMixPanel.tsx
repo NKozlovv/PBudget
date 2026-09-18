@@ -11,7 +11,7 @@ export interface SpendingMixSlice {
   value: number;
 }
 
-const VISIBLE_COUNT = 5;
+const VISIBLE_COUNT = 4;
 
 /**
  * Spending mix panel — right cell of the Overview's second row. A
