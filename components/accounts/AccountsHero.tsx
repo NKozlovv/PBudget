@@ -91,30 +91,33 @@ export function AccountsHero({
             </span>
           </div>
           {mixLabel ? <div className="mt-2 text-[13.5px] font-semibold text-ink-soft">{mixLabel}</div> : null}
-
-          {negatives.length > 0 ? (
-            <div className="mt-4 flex flex-col gap-1.5">
-              {negatives.map((n) => (
-                <span key={n.name} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-out">
-                  <span className="h-[9px] w-[9px] shrink-0 rounded-[3px] border-[1.5px] border-dashed border-out" />
-                  {n.name} {fmtEUR(n.eur)} · negative, excluded from the pie
-                </span>
-              ))}
-            </div>
-          ) : null}
         </div>
 
-        {shares.length > 0 ? (
+        {shares.length > 0 || negatives.length > 0 ? (
           <div className="flex shrink-0 flex-wrap items-center gap-[22px]">
-            <NetWorthPie shares={shares} />
-            <div className="grid grid-cols-[repeat(2,minmax(0,auto))] gap-x-4 gap-y-1.5">
-              {shares.map((s) => (
-                <span key={s.id} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-ink-soft">
-                  <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
-                  <span className="truncate">{s.name}</span>
-                  <b className="shrink-0 font-bold tabular-nums text-ink">{Math.round(s.pct)}%</b>
-                </span>
-              ))}
+            {shares.length > 0 ? <NetWorthPie shares={shares} /> : null}
+            <div className="flex flex-col gap-1.5">
+              {shares.length > 0 ? (
+                <div className="grid grid-cols-[repeat(2,minmax(0,auto))] gap-x-4 gap-y-1.5">
+                  {shares.map((s) => (
+                    <span key={s.id} className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-ink-soft">
+                      <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
+                      <span className="truncate">{s.name}</span>
+                      <b className="shrink-0 font-bold tabular-nums text-ink">{Math.round(s.pct)}%</b>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {negatives.length > 0 ? (
+                <div className="mt-1 flex flex-col gap-1">
+                  {negatives.map((n) => (
+                    <span key={n.name} className="inline-flex items-center gap-[7px] text-[12px] font-semibold text-out">
+                      <span className="h-[9px] w-[9px] shrink-0 rounded-[3px] border-[1.5px] border-dashed border-out" />
+                      {n.name} {fmtEUR(n.eur)} · negative, excluded
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

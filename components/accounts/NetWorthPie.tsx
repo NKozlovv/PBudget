@@ -5,53 +5,45 @@ import { useChartHover } from '@/components/charts/useChartHover';
 import { fmtEUR } from '@/lib/money';
 import type { AccountShare } from './AccountsHero';
 
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
+const R = 42;
+const STROKE = 24;
+const C = 2 * Math.PI * R;
 
-function slicePath(cx: number, cy: number, r: number, startAngle: number, endAngle: number): string {
-  const p1 = polarToCartesian(cx, cy, r, startAngle);
-  const p2 = polarToCartesian(cx, cy, r, endAngle);
-  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-  return `M ${cx} ${cy} L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} Z`;
-}
-
-/** Net-worth share pie, one slice per positive-balance account (sorted, same data as the account list). */
+/** Net-worth share donut — one ring segment per (possibly grouped, see "Other") positive-balance share. */
 export function NetWorthPie({ shares }: { shares: AccountShare[] }) {
   const { containerRef, hover, show, hide } = useChartHover<AccountShare>();
-  const cx = 60;
-  const cy = 60;
-  const r = 56;
 
-  let cumulative = 0;
-  const slices = shares.map((s) => {
-    const startAngle = (cumulative / 100) * 360;
+  let cumulative = 0; // percent
+  const segments = shares.map((s) => {
+    const dash = (s.pct / 100) * C;
+    const offset = -((cumulative / 100) * C);
     cumulative += s.pct;
-    const endAngle = (cumulative / 100) * 360;
-    return { ...s, startAngle, endAngle };
+    return { ...s, dash, offset };
   });
 
   return (
     <div ref={containerRef} className="relative mx-auto h-[120px] w-[120px] shrink-0">
       <svg viewBox="0 0 120 120" width="100%" height="100%">
-        {slices.length <= 1 ? (
-          <circle cx={cx} cy={cy} r={r} fill={slices[0]?.color ?? 'var(--ink-mute)'} />
-        ) : (
-          slices.map((s) => (
-            <path
+        <circle cx={60} cy={60} r={R} fill="none" stroke="#eef0f6" strokeWidth={STROKE} />
+        <g transform="rotate(-90 60 60)">
+          {segments.map((s) => (
+            <circle
               key={s.id}
-              d={slicePath(cx, cy, r, s.startAngle, s.endAngle)}
-              fill={s.color}
-              stroke="rgba(255,255,255,.75)"
-              strokeWidth={1.5}
+              cx={60}
+              cy={60}
+              r={R}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={STROKE}
+              strokeDasharray={`${s.dash} ${C - s.dash}`}
+              strokeDashoffset={s.offset}
               className="cursor-default transition-opacity duration-150 hover:opacity-80"
               onMouseEnter={(e) => show(e, s)}
               onMouseMove={(e) => show(e, s)}
               onMouseLeave={hide}
             />
-          ))
-        )}
+          ))}
+        </g>
       </svg>
       {hover ? (
         <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>

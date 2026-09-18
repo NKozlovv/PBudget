@@ -73,7 +73,7 @@ export default async function AccountsPage() {
     }
   }
 
-  const shares = [...positives]
+  const allShares = [...positives]
     .sort((a, b) => b.eur - a.eur)
     .map((s) => ({
       id: s.account.id,
@@ -82,6 +82,27 @@ export default async function AccountsPage() {
       eur: s.eur,
       pct: positivesTotal > 0 ? (s.eur / positivesTotal) * 100 : 0,
     }));
+
+  // The donut/legend fold anything under 4% into one "Other" slice so a
+  // budget with a dozen small accounts doesn't end in a fan of illegible
+  // slivers — the account list below still shows each one's real,
+  // individual share.
+  const OTHER_THRESHOLD = 4;
+  const main = allShares.filter((s) => s.pct >= OTHER_THRESHOLD);
+  const small = allShares.filter((s) => s.pct < OTHER_THRESHOLD);
+  const shares =
+    small.length > 0
+      ? [
+          ...main,
+          {
+            id: 'other',
+            name: `Other (${small.length})`,
+            color: 'var(--slate)',
+            eur: small.reduce((s, x) => s + x.eur, 0),
+            pct: small.reduce((s, x) => s + x.pct, 0),
+          },
+        ]
+      : allShares;
 
   const negatives = summaries
     .filter((s) => s.eur < 0)
