@@ -86,7 +86,7 @@ export function BudgetSwitcher({
       </button>
 
       {open ? (
-        <div className="glass glass-nohover absolute left-0 right-0 top-full z-30 mt-1.5 !rounded-[16px] overflow-hidden">
+        <div className="glass-popover absolute left-0 right-0 top-full z-30 mt-1.5 !rounded-[16px] overflow-hidden">
           <ul role="listbox" className="flex flex-col p-1">
             {budgets.map((b) => {
               const isActive = b.id === activeId;

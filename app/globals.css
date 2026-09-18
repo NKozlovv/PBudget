@@ -85,6 +85,23 @@ body {
     inset 0 1.5px 0 rgba(255, 255, 255, 0.9);
 }
 
+/* Floating popovers (dropdown menus, option lists, tooltips) sit on top of
+   arbitrary foreground content — table text, colored tags, chart bars —
+   not the soft ambient ground .glass is tuned for, so they need a near-
+   opaque backing rather than the panel-level translucency or the text
+   underneath shows through and becomes unreadable. */
+.glass-popover {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.91) 45%, rgba(255, 255, 255, 0.96));
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: var(--r-inner);
+  box-shadow:
+    0 20px 44px -14px rgba(31, 39, 66, 0.34),
+    0 4px 14px rgba(31, 39, 66, 0.12),
+    inset 0 1.5px 0 rgba(255, 255, 255, 1);
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass,
   .glass-inner,
@@ -217,7 +234,15 @@ body {
 }
 
 .rise {
-  animation: rise-in 380ms ease both;
+  /* No `forwards`/`both` fill-mode: the keyframe's end state (opacity 1,
+     transform none) already matches the element's un-animated style, and
+     a filled animation leaves `transform` computed as a resolved matrix
+     rather than the literal `none` — which still counts as "a transform"
+     for CSS purposes and makes the element a containing block for any
+     `position: fixed` descendant forever after, pinning things like
+     BulkActionBar to the bottom of the (tall, scrollable) page instead of
+     the viewport. Letting the animation end normally avoids that. */
+  animation: rise-in 380ms ease;
 }
 
 .bar {

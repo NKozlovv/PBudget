@@ -18,7 +18,7 @@ export function BulkActionBar({
 }) {
   if (count === 0) return null;
   return (
-    <div className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
+    <div className="fixed bottom-6 left-1/2 z-30" style={{ transform: 'translateX(-50%)' }}>
       <div className="glass glass-nohover flex items-center gap-5 !rounded-full py-3 pl-5 pr-3">
         <div className="flex items-baseline gap-3">
           <span className="text-[13px] font-bold text-indigo-dark">{count} selected</span>

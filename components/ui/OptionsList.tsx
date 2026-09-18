@@ -37,7 +37,7 @@ export function OptionsList({
       role="listbox"
       aria-multiselectable={selected ? true : undefined}
       className={cn(
-        'glass glass-nohover absolute z-50 mt-1.5 max-h-64 min-w-full overflow-auto !rounded-[16px] p-1',
+        'glass-popover absolute z-50 mt-1.5 max-h-64 min-w-full overflow-auto !rounded-[16px] p-1',
         className,
       )}
     >

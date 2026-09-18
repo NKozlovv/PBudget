@@ -140,6 +140,9 @@ export function Filters({
       ) : null}
 
       <div className="ml-auto flex items-center gap-3">
+        <span className="whitespace-nowrap text-[12.5px] font-semibold text-ink-mute">
+          Showing {shown} of {total}
+        </span>
         <div className="flex w-[210px] items-center gap-2 rounded-full border border-white/90 bg-white/[0.72] px-[18px] py-[11px] backdrop-blur-xl transition-colors duration-200 focus-within:bg-white focus-within:[box-shadow:0_0_0_3px_rgba(74,92,224,.25)] hover:bg-white">
           <Icon name="search" size={13} className="shrink-0 text-ink-mute" />
           <input
@@ -150,9 +153,6 @@ export function Filters({
             className="w-full bg-transparent text-[13.5px] text-ink placeholder:text-ink-mute focus:outline-none"
           />
         </div>
-        <span className="whitespace-nowrap text-[12.5px] font-semibold text-ink-mute">
-          Showing {shown} of {total}
-        </span>
       </div>
     </div>
   );

@@ -1,7 +1,5 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-
 /** How close to an edge (in px) before the tooltip stops centering on the
  * cursor and pins to that edge instead — charts usually sit inside an
  * `overflow-hidden` card, which silently clips anything that overflows it,
@@ -31,16 +29,12 @@ export function ChartTooltip({
     if (x < EDGE_GUARD) align = 'left';
     else if (x > containerWidth - EDGE_GUARD) align = 'right';
   }
+  const xShift = align === 'left' ? '0' : align === 'right' ? '-100%' : '-50%';
 
   return (
     <div
-      className={cn(
-        'glass glass-nohover pointer-events-none absolute z-30 -translate-y-full whitespace-nowrap !rounded-[10px] px-2.5 py-1.5 text-[11px] leading-tight text-ink',
-        align === 'left' && 'translate-x-0',
-        align === 'center' && '-translate-x-1/2',
-        align === 'right' && '-translate-x-full',
-      )}
-      style={{ left: x, top: y - 10 }}
+      className="glass-popover pointer-events-none absolute z-30 whitespace-nowrap !rounded-[10px] px-2.5 py-1.5 text-[11px] leading-tight text-ink"
+      style={{ left: x, top: y - 10, transform: `translate(${xShift}, -100%)` }}
     >
       {children}
     </div>

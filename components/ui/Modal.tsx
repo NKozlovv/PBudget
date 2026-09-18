@@ -23,10 +23,8 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[#151a2d]/40 backdrop-blur-sm" />
         <Dialog.Content
-          className={cn(
-            'glass glass-nohover fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 !rounded-[28px] p-6 outline-none',
-            className,
-          )}
+          className={cn('glass glass-nohover fixed left-1/2 top-1/2 z-50 w-full max-w-md !rounded-[28px] p-6 outline-none', className)}
+          style={{ transform: 'translate(-50%, -50%)' }}
         >
           <Dialog.Title className="text-[19px] font-bold -tracking-[0.02em] text-ink">{title}</Dialog.Title>
           {description ? (

@@ -29,7 +29,7 @@ export function YearSelect({ years, selected }: { years: number[]; selected: num
         <Icon name="chevron-down" size={13} className={cn('transition-transform duration-200 ease-theus', open && 'rotate-180')} />
       </button>
       {open ? (
-        <div className="glass glass-nohover absolute right-0 top-full z-30 mt-2 min-w-[100px] !rounded-[14px] p-1">
+        <div className="glass-popover absolute right-0 top-full z-30 mt-2 min-w-[100px] !rounded-[14px] p-1">
           {years.map((y) => (
             <button
               key={y}

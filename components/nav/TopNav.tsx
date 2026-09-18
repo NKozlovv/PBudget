@@ -103,7 +103,7 @@ export function TopNav({
             />
           </button>
           {moreOpen ? (
-            <div className="glass glass-nohover absolute left-0 top-full z-30 mt-2 min-w-[190px] !rounded-[16px] p-1">
+            <div className="glass-popover absolute left-0 top-full z-30 mt-2 min-w-[190px] !rounded-[16px] p-1">
               {MORE.map((m) => (
                 <Link
                   key={m.href}
@@ -139,7 +139,7 @@ export function TopNav({
           </button>
 
           {accountOpen ? (
-            <div className="glass glass-nohover absolute right-0 top-full z-30 mt-2 w-[260px] !rounded-[20px] p-3">
+            <div className="glass-popover absolute right-0 top-full z-30 mt-2 w-[260px] !rounded-[20px] p-3">
               <div className="flex flex-col gap-3">
                 <BudgetSwitcher budgets={budgets} activeId={activeBudgetId} />
                 <div className="flex items-center justify-between border-t border-white/60 pt-3">
