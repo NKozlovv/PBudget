@@ -1,6 +1,6 @@
 import { fmtEUR } from '@/lib/money';
 
-const SCALE = 25; // fixed ±25% scale
+const SCALE_FLOOR = 25; // never scale tighter than ±25%, even if every month is small
 const POS_H = 74; // px headroom above the zero line
 const BASE = 70; // px below the zero line, down to the month-label row
 const NEG_H = 46; // px max height for the deepest negative bar
@@ -23,8 +23,15 @@ export function SavingsRatePanel({ months, avgRatePct, savingsThisYear }: {
   avgRatePct: number;
   savingsThisYear: number;
 }) {
-  const clampedAvg = Math.max(-SCALE, Math.min(SCALE, avgRatePct));
-  const avgLineTop = POS_H - (clampedAvg / SCALE) * POS_H;
+  // A fixed ±25% scale clamps every month above that to the same maxed-out
+  // bar height — two real months at +52% and +31% would render identically.
+  // Scale to whatever the data actually needs (with headroom), never
+  // tighter than ±25%.
+  const dataMax = Math.max(SCALE_FLOOR, Math.abs(avgRatePct), ...months.map((m) => Math.abs(m.pct)));
+  const scale = Math.ceil((dataMax * 1.1) / 5) * 5;
+
+  const clampedAvg = Math.max(-scale, Math.min(scale, avgRatePct));
+  const avgLineTop = POS_H - (clampedAvg / scale) * POS_H;
 
   const ranked = [...months].sort((a, b) => b.pct - a.pct);
   const best = ranked[0];
@@ -61,9 +68,9 @@ export function SavingsRatePanel({ months, avgRatePct, savingsThisYear }: {
         />
         <div className="absolute inset-0 flex items-stretch gap-[7px]">
           {months.map((m) => {
-            const clamped = Math.max(-SCALE, Math.min(SCALE, m.pct));
+            const clamped = Math.max(-scale, Math.min(scale, m.pct));
             const positive = clamped >= 0;
-            const height = positive ? (clamped / SCALE) * POS_H : (Math.abs(clamped) / SCALE) * NEG_H;
+            const height = positive ? (clamped / scale) * POS_H : (Math.abs(clamped) / scale) * NEG_H;
             const labelTop = positive ? POS_H - height - 17 : POS_H + height + 4;
             const tone = positive ? 'var(--in)' : 'var(--out)';
             return (
@@ -103,11 +110,11 @@ export function SavingsRatePanel({ months, avgRatePct, savingsThisYear }: {
         ))}
       </div>
 
-      <div className="mt-3 flex flex-1 flex-col justify-end gap-[3px]">
+      <div className="mt-3 flex flex-1 flex-col justify-end gap-2">
         {summaryRows.map((row) => (
           <div
             key={row.label}
-            className="glass-tile !rounded-[13px] px-[13px] py-[7px] transition-colors duration-[160ms] hover:!bg-white/[0.85]"
+            className="glass-tile !rounded-[13px] px-[13px] py-[10px] transition-colors duration-[160ms] hover:!bg-white/[0.85]"
           >
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: row.hue }} />

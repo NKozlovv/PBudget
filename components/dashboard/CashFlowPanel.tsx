@@ -12,6 +12,8 @@ export interface CashFlowMonth {
 }
 
 const kFmt = (n: number) => (n === 0 ? '0' : `${(n / 1000).toFixed(1)}k`);
+/** Reserved for the month-label row below the bars — matches its rendered height. */
+const LABEL_H = 23;
 
 /**
  * Cash flow panel — left cell of the Overview's second row. Twelve
@@ -20,6 +22,11 @@ const kFmt = (n: number) => (n === 0 ? '0' : `${(n / 1000).toFixed(1)}k`);
  * spending mix"): with 12 columns there isn't room for two always-on
  * figures per column, so the axis carries the scale and a themed
  * tooltip carries the exact numbers on hover.
+ *
+ * The chart fills whatever height the grid row stretches this panel
+ * to (via percentage-height bars, not a fixed pixel plot) — Spending
+ * Mix's row count varies, and a fixed chart height left dead space
+ * below it whenever Spending Mix was naturally taller.
  */
 export function CashFlowPanel({
   months,
@@ -39,7 +46,7 @@ export function CashFlowPanel({
   const { containerRef, hover, show, hide } = useChartHover<CashFlowMonth>();
 
   return (
-    <div className="glass !rounded-[28px] p-[24px] px-[26px]">
+    <div className="glass flex h-full flex-col !rounded-[28px] p-[24px] px-[26px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-[19px] font-bold -tracking-[0.02em] text-ink">Cash flow</div>
@@ -59,26 +66,33 @@ export function CashFlowPanel({
         </div>
       </div>
 
-      <div ref={containerRef} className="relative mt-5 flex items-end gap-1.5">
+      <div
+        ref={containerRef}
+        className="relative mt-5 flex min-h-0 flex-1 items-stretch gap-1.5"
+        style={{ minHeight: 153 + LABEL_H }}
+      >
         <div
-          className="flex flex-none flex-col justify-between pb-[23px] text-right text-[9.5px] font-bold tabular-nums text-ink-mute"
-          style={{ height: 153 }}
+          className="flex flex-none flex-col justify-between text-right text-[9.5px] font-bold tabular-nums text-ink-mute"
+          style={{ paddingBottom: LABEL_H }}
         >
           {ticks.map((t, i) => (
             <span key={i}>{kFmt(t)}</span>
           ))}
         </div>
 
-        <div className="relative flex flex-1 items-end gap-1.5">
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col justify-between" style={{ height: 153 }}>
+        <div className="relative flex flex-1 items-stretch gap-1.5">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 flex flex-col justify-between"
+            style={{ bottom: LABEL_H }}
+          >
             {ticks.map((_, i) => (
               <span key={i} className="block h-px w-full bg-[rgba(31,39,66,.10)]" />
             ))}
           </div>
 
           {months.map((m, i) => {
-            const incomeH = (m.income / max) * 153;
-            const expenseH = (m.expense / max) * 153;
+            const incomePct = (m.income / max) * 100;
+            const expensePct = (m.expense / max) * 100;
             return (
               <div
                 key={i}
@@ -87,11 +101,11 @@ export function CashFlowPanel({
                 onMouseMove={(e) => show(e, m)}
                 onMouseLeave={hide}
               >
-                <div className="flex h-[153px] w-full items-end gap-[3px] px-0.5">
+                <div className="flex w-full flex-1 items-end gap-[3px] px-0.5">
                   <div
                     className="bar w-[46%] rounded-[7px_7px_3px_3px] transition-[filter] duration-200 hover:brightness-[1.08]"
                     style={{
-                      height: incomeH,
+                      height: `${incomePct}%`,
                       background: m.projected ? 'rgba(31,185,164,.14)' : 'linear-gradient(180deg,#1fb9a4,#12a08c)',
                       border: m.projected ? '1.5px dashed #1fb9a4' : undefined,
                       boxSizing: 'border-box',
@@ -100,7 +114,7 @@ export function CashFlowPanel({
                   <div
                     className="bar w-[46%] rounded-[7px_7px_3px_3px] transition-[filter] duration-200 hover:brightness-[1.08]"
                     style={{
-                      height: expenseH,
+                      height: `${expensePct}%`,
                       background: m.projected ? 'rgba(242,112,143,.14)' : 'linear-gradient(180deg,#f2708f,#d94a6f)',
                       border: m.projected ? '1.5px dashed #f2708f' : undefined,
                       boxSizing: 'border-box',

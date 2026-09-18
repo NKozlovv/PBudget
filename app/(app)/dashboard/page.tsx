@@ -127,7 +127,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <div className="grid grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)] items-stretch gap-5 max-[900px]:grid-cols-1">
+      <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1.15fr)] items-stretch gap-5 max-[900px]:grid-cols-1">
         <BalancePanel
           accountCount={accounts.length}
           totalBalance={balanceEUR}

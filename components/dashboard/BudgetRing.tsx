@@ -99,8 +99,8 @@ export function BudgetRing({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-1">
+        <div className="-mx-1.5 flex items-center gap-2 rounded-[8px] px-1.5 py-1 transition-colors duration-[160ms] hover:bg-white/60">
           <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: color }} />
           <span className="flex-1 truncate text-[9.5px] font-bold uppercase tracking-[0.06em] text-ink-mute">
             Spent
@@ -109,7 +109,7 @@ export function BudgetRing({
             {fmtEUR(spent, { decimals: 0 })}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="-mx-1.5 flex items-center gap-2 rounded-[8px] px-1.5 py-1 transition-colors duration-[160ms] hover:bg-white/60">
           <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: rowTwoColor }} />
           <span
             className="flex-1 truncate text-[9.5px] font-bold uppercase tracking-[0.06em]"

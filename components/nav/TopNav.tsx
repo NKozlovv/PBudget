@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Icon, IconButton, type IconName } from '@/components/ui';
+import { Icon, type IconName } from '@/components/ui';
 import { useDismissable } from '@/components/ui/useDismissable';
 import { BudgetSwitcher } from './BudgetSwitcher';
 import { SignOutButton } from '@/components/auth/SignOutButton';
@@ -126,8 +126,6 @@ export function TopNav({
       </div>
 
       <div className="flex shrink-0 items-center gap-2.5">
-        <IconButton icon="bell" iconSize={18} strokeWidth={1.7} dot aria-label="Notifications" />
-
         <div ref={accountRef} className="relative">
           <button
             type="button"

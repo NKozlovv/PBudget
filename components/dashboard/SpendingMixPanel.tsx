@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Icon } from '@/components/ui';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtEUR } from '@/lib/money';
 
@@ -84,9 +85,10 @@ export function SpendingMixPanel({ slices, total }: { slices: SpendingMixSlice[]
 
       <Link
         href="/trends"
-        className="mt-1 flex items-center gap-1 rounded-[14px] px-3 py-[9px] text-[12.5px] font-semibold text-ink-mute transition-colors duration-[160ms] hover:bg-white/[0.72] hover:text-indigo-dark"
+        className="mt-2 flex items-center justify-center gap-1.5 rounded-full bg-indigo/[0.12] px-3 py-[10px] text-[12.5px] font-bold text-indigo-dark transition-colors duration-[160ms] hover:bg-indigo/[0.2]"
       >
-        View month-by-month in Trends →
+        View month-by-month in Trends
+        <Icon name="arrow-right" size={13} strokeWidth={2.2} />
       </Link>
     </div>
   );
