@@ -50,6 +50,14 @@ export function TransactionsClient({
     setVisibleCount(PAGE_SIZE);
   }
 
+  const months = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of allTransactions) {
+      if (typeof t.date === 'string' && t.date.length >= 7) set.add(t.date.slice(0, 7));
+    }
+    return [...set].sort().reverse();
+  }, [allTransactions]);
+
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     const rows = allTransactions.filter((t) => {
@@ -61,6 +69,7 @@ export function TransactionsClient({
         if (!matchesUncategorised && !matchesNamed) return false;
       }
       if (filters.subcategory !== 'All' && t.subcategory !== filters.subcategory) return false;
+      if (filters.month !== 'All' && t.date.slice(0, 7) !== filters.month) return false;
       if (q && !(t.comment ?? '').toLowerCase().includes(q)) return false;
       return true;
     });
@@ -89,6 +98,7 @@ export function TransactionsClient({
         expenseCats={expenseCats}
         incomeCats={incomeCats}
         subcategories={subcategories}
+        months={months}
         value={filters}
         onChange={updateFilters}
         shown={filtered.length}

@@ -1,6 +1,7 @@
 'use client';
 
-import { FilterPill, Icon } from '@/components/ui';
+import { useState } from 'react';
+import { FilterPill, Icon, OptionsList, useDismissable, type DropdownOption } from '@/components/ui';
 import { UNCATEGORISED } from '@/lib/transactions/constants';
 import { cn } from '@/lib/utils';
 import type { Account, Category, Subcategory, TxType } from '@/lib/supabase/types';
@@ -10,11 +11,12 @@ export interface TxFilterValue {
   account: string;
   category: string;
   subcategory: string;
+  month: string;
   search: string;
 }
 
 export function emptyTxFilters(): TxFilterValue {
-  return { type: 'All', account: 'All', category: 'All', subcategory: 'All', search: '' };
+  return { type: 'All', account: 'All', category: 'All', subcategory: 'All', month: 'All', search: '' };
 }
 
 const TYPE_PILLS: Array<{ value: TxType; label: string }> = [
@@ -23,19 +25,33 @@ const TYPE_PILLS: Array<{ value: TxType; label: string }> = [
   { value: 'adjustment', label: 'Adjustments' },
 ];
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function monthLabel(yyyymm: string): string {
+  const [y, m] = yyyymm.split('-');
+  const idx = Number(m) - 1;
+  if (!y || idx < 0 || idx > 11) return yyyymm;
+  return `${MONTH_NAMES[idx]} ${y}`;
+}
+
 /**
- * Filter row — design_handoff_theus_rehaul README "Transactions". Sign
- * pills are single-select; Category/Subcategory/Account are real native
- * `<select>` elements styled as capsule pills (keyboard, mobile pickers
- * and screen readers come free — a themed popover can't offer that).
- * Subcategory options are scoped to the chosen category and reset
- * whenever it changes; "Clear" appears once anything is engaged.
+ * Filter row — design_handoff_theus_rehaul README "Transactions", with
+ * two departures from the mockup based on direct feedback: a Month
+ * filter (the design doesn't have one, but at 1000+ transactions it's
+ * genuinely needed), and the Category/Subcategory/Account/Month pills
+ * are a themed popover (glass `OptionsList`) instead of real native
+ * `<select>` elements — the spec's rationale for native selects was
+ * free keyboard/mobile/screen-reader support, but the browser's own
+ * unthemeable dropdown chrome read as visibly off-system, which won
+ * out. Sign pills stay single-select; "Clear" appears once anything
+ * is engaged; the search box and the live count sit to the right.
  */
 export function Filters({
   accounts,
   expenseCats,
   incomeCats,
   subcategories,
+  months,
   value,
   onChange,
   shown,
@@ -45,6 +61,8 @@ export function Filters({
   expenseCats: Category[];
   incomeCats: Category[];
   subcategories: Subcategory[];
+  /** Distinct 'YYYY-MM' strings present in the data, newest first. */
+  months: string[];
   value: TxFilterValue;
   onChange: (next: TxFilterValue) => void;
   /** Filtered count / unfiltered total — "Showing N of 412", recomputed from the filtered set. */
@@ -68,6 +86,7 @@ export function Filters({
     value.account !== 'All' ||
     value.category !== 'All' ||
     value.subcategory !== 'All' ||
+    value.month !== 'All' ||
     value.search.length > 0;
 
   return (
@@ -80,17 +99,6 @@ export function Filters({
           {p.label}
         </FilterPill>
       ))}
-
-      <div className="flex w-[210px] items-center gap-2 rounded-full border border-white/90 bg-white/[0.72] px-[18px] py-[11px] backdrop-blur-xl transition-colors duration-200 focus-within:bg-white focus-within:[box-shadow:0_0_0_3px_rgba(74,92,224,.25)] hover:bg-white">
-        <Icon name="search" size={13} className="shrink-0 text-ink-mute" />
-        <input
-          type="search"
-          placeholder="Search merchant or note"
-          value={value.search}
-          onChange={(e) => patch({ search: e.target.value })}
-          className="w-full bg-transparent text-[13.5px] text-ink placeholder:text-ink-mute focus:outline-none"
-        />
-      </div>
 
       <CapsuleSelect
         value={value.category}
@@ -115,6 +123,11 @@ export function Filters({
         onChange={(v) => patch({ account: v })}
         options={[{ value: 'All', label: 'All accounts' }, ...accounts.map((a) => ({ value: a.id, label: a.name }))]}
       />
+      <CapsuleSelect
+        value={value.month}
+        onChange={(v) => patch({ month: v })}
+        options={[{ value: 'All', label: 'All months' }, ...months.map((m) => ({ value: m, label: monthLabel(m) }))]}
+      />
 
       {hasAnyFilter ? (
         <button
@@ -126,9 +139,21 @@ export function Filters({
         </button>
       ) : null}
 
-      <span className="ml-auto whitespace-nowrap text-[12.5px] font-semibold text-ink-mute">
-        Showing {shown} of {total}
-      </span>
+      <div className="ml-auto flex items-center gap-3">
+        <div className="flex w-[210px] items-center gap-2 rounded-full border border-white/90 bg-white/[0.72] px-[18px] py-[11px] backdrop-blur-xl transition-colors duration-200 focus-within:bg-white focus-within:[box-shadow:0_0_0_3px_rgba(74,92,224,.25)] hover:bg-white">
+          <Icon name="search" size={13} className="shrink-0 text-ink-mute" />
+          <input
+            type="search"
+            placeholder="Search merchant or note"
+            value={value.search}
+            onChange={(e) => patch({ search: e.target.value })}
+            className="w-full bg-transparent text-[13.5px] text-ink placeholder:text-ink-mute focus:outline-none"
+          />
+        </div>
+        <span className="whitespace-nowrap text-[12.5px] font-semibold text-ink-mute">
+          Showing {shown} of {total}
+        </span>
+      </div>
     </div>
   );
 }
@@ -141,44 +166,50 @@ function CapsuleSelect({
 }: {
   value: string;
   onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+  options: DropdownOption[];
   disabled?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismissable<HTMLDivElement>(open, () => setOpen(false));
   const engaged = value !== 'All';
+  const selected = options.find((o) => o.value === value);
+
   return (
-    <div className="relative">
-      <select
-        value={value}
+    <div ref={ref} className="relative">
+      <button
+        type="button"
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
         className={cn(
-          'max-w-[190px] appearance-none rounded-full py-[10px] pl-4 pr-[34px] text-[13.5px] font-semibold transition-colors duration-200 focus:outline-none focus:[box-shadow:0_0_0_3px_rgba(74,92,224,.25)] disabled:cursor-not-allowed disabled:opacity-50',
+          'flex max-w-[190px] items-center gap-1.5 rounded-full py-[10px] pl-4 pr-3 text-[13.5px] font-semibold transition-colors duration-200 focus:outline-none focus-visible:[box-shadow:0_0_0_3px_rgba(74,92,224,.25)] disabled:cursor-not-allowed disabled:opacity-50',
           engaged
             ? 'border border-indigo bg-indigo/[0.12] text-indigo-dark'
             : 'border border-white/90 bg-white/[0.72] text-ink hover:border-indigo',
         )}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        aria-hidden
-        viewBox="0 0 24 24"
-        className={cn(
-          'pointer-events-none absolute right-[14px] top-1/2 h-3 w-3 -translate-y-1/2',
-          engaged ? 'text-indigo-dark' : 'text-ink-mute',
-        )}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M6 9l6 6 6-6" />
-      </svg>
+        <span className="truncate">{selected?.label}</span>
+        <Icon
+          name="chevron-down"
+          size={12}
+          className={cn(
+            'shrink-0 transition-transform duration-200 ease-theus',
+            open && 'rotate-180',
+            engaged ? 'text-indigo-dark' : 'text-ink-mute',
+          )}
+        />
+      </button>
+      {open ? (
+        <OptionsList
+          options={options}
+          value={value}
+          onSelect={(v) => {
+            onChange(v);
+            setOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
