@@ -151,9 +151,7 @@ export function TripsTable({
       </div>
 
       <p className="text-[12.5px] font-semibold text-ink-soft">
-        Fixed = flights, lodging and fees, the part you commit to before leaving. Daily = food, local transport,
-        activities and shopping, divided by days away. "Per day"/"Per person-day" include fixed costs; "Daily/day"
-        and "Daily/p-day" strip those out, so they show what a normal day there actually cost.{' '}
+        {`Fixed = flights, lodging and fees, the part you commit to before leaving. Daily = food, local transport, activities and shopping, divided by days away. "Per day"/"Per person-day" include fixed costs; "Daily/day" and "Daily/p-day" strip those out, so they show what a normal day there actually cost.`}{' '}
         <span className="text-ink-mute">
           {`Verdict always compares per-person-day cost against the average across every trip (${fmtEUR(basePpd, { decimals: 0 })}/p·day here) — ±10% is "on average", regardless of which metric is selected above. A ~ next to a date range means it's estimated from that trip's own transactions — click the pencil to set exact dates or rename the trip.`}
         </span>
