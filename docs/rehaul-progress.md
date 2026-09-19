@@ -2379,3 +2379,59 @@ real-data source (no leftover mockup sample values); confirmed no other
 `Subcategory`-shaped object literal in the codebase needed the new
 `is_fixed_cost` field added by hand (`app/actions/import.ts`'s bulk
 subcategory insert relies on the DB default, which is correct there).
+
+**Two build-blocking follow-ups the same day:**
+
+1. `react/no-unescaped-entities` failed the production build twice (a
+   raw apostrophe in JSX text — once in `page.tsx`'s empty state, once
+   in `TripsTable.tsx`'s subtitle, and then again in a footnote line
+   added for #2 below). ESLint only flags apostrophes in literal JSX
+   text children, not inside string literals — the fix each time was
+   wrapping the sentence as a template-literal expression (`{`...`}`)
+   instead of raw text. Local `npm run lint`/`npm run build` aren't
+   available in this worktree (no Node), so this class of error only
+   surfaces once Vercel actually runs the build — worth specifically
+   grepping new JSX for apostrophes before pushing next time.
+
+2. **User feedback: didn't understand how trip length was being
+   calculated, and wanted to enter dates + traveler count explicitly
+   rather than have both guessed/half-guessed.** The derived-date
+   approach (`fromDate`/`toDate` = earliest/latest tagged transaction
+   date) has a real flaw: a prepaid flight or hotel deposit tagged to
+   the trip the moment it's booked — often weeks before departure —
+   pulls `fromDate` back to the booking date, inflating the day count
+   and skewing every per-day figure. Fixed by extending `trip_details`
+   with **`start_date`/`end_date`** (nullable date columns): `/trips`
+   now prefers those when both are set, and only falls back to the
+   derived guess otherwise. `TripSummary` grew a `datesAreExplicit`
+   flag so the UI can tell the two cases apart — `TripsTable` shows a
+   `~` after any date range that's still a guess, with a footnote
+   explaining it and pointing at the edit affordance.
+   - `EditTravelersModal.tsx` → renamed **`EditTripModal.tsx`** and
+     expanded from a single travelers field to Start date / End date /
+     Travelers together, all upserted in one call
+     (`setTripDetailsAction`, replacing `setTripTravelersAction`) —
+     deliberately **not** a partial update: `start_date`/`end_date` are
+     always included in the payload (even as `null`) so clearing a
+     date field back to "estimate it" actually takes, instead of a
+     partial upsert silently leaving the old override in place.
+     Validates that both dates are set together (not just one) and
+     that start ≤ end. Pre-fills the two date inputs with the current
+     derived guess when no explicit override exists yet, so editing
+     starts from something plausible rather than blank.
+
+Migration for this follow-up:
+
+```sql
+alter table public.trip_details
+  add column start_date date,
+  add column end_date date;
+```
+
+**Verification:** no local build (same constraint as above) — reviewed
+`lib/trips/summary.ts`'s merge logic by hand (explicit-both-set →
+explicit dates; anything else → derived guess, matching
+`setTripDetailsAction`'s own "both or neither" validation so the two
+never disagree about what counts as "explicit"); re-grepped every new/
+changed JSX file for raw apostrophes in text children before pushing,
+having just been burned by that exact class of error twice.

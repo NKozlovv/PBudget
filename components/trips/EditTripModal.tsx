@@ -3,34 +3,49 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Field, Input, Modal } from '@/components/ui';
-import { setTripTravelersAction } from '@/app/actions/trips';
+import { setTripDetailsAction } from '@/app/actions/trips';
 
-export function EditTravelersModal({
+export function EditTripModal({
   budgetId,
   trip,
   travelers,
+  startDate,
+  endDate,
+  datesAreExplicit,
   onClose,
 }: {
   budgetId: string;
   trip: string;
   travelers: number;
+  /** Current fromDate/toDate — explicit if datesAreExplicit, else the derived guess (used to pre-fill so you're not starting from blank). */
+  startDate: string;
+  endDate: string;
+  datesAreExplicit: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [value, setValue] = useState(String(travelers));
+  const [travelersValue, setTravelersValue] = useState(String(travelers));
+  const [start, setStart] = useState(datesAreExplicit ? startDate : '');
+  const [end, setEnd] = useState(datesAreExplicit ? endDate : '');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const n = Number(value);
+    const n = Number(travelersValue);
     if (!Number.isFinite(n) || n < 1) {
-      setError('Enter at least 1.');
+      setError('Travelers: enter at least 1.');
       return;
     }
     setError(null);
     setPending(true);
-    const res = await setTripTravelersAction({ budget_id: budgetId, trip, travelers: n });
+    const res = await setTripDetailsAction({
+      budget_id: budgetId,
+      trip,
+      travelers: n,
+      start_date: start || null,
+      end_date: end || null,
+    });
     setPending(false);
     if (res.ok) {
       onClose();
@@ -44,10 +59,20 @@ export function EditTravelersModal({
     <Modal
       open={true}
       onOpenChange={(o) => !o && onClose()}
-      title={`${trip} — travelers`}
-      description="Used for the per-person-day comparison across trips."
+      title={trip}
+      description="Dates and headcount for this trip — used for the day count and per-person-day comparison."
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Start date" hint={!datesAreExplicit ? 'Estimated — pick to override' : undefined}>
+            {({ id }) => (
+              <Input id={id} type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            )}
+          </Field>
+          <Field label="End date" hint={!datesAreExplicit ? 'Estimated — pick to override' : undefined}>
+            {({ id }) => <Input id={id} type="date" value={end} onChange={(e) => setEnd(e.target.value)} />}
+          </Field>
+        </div>
         <Field label="Number of travelers">
           {({ id }) => (
             <Input
@@ -56,9 +81,8 @@ export function EditTravelersModal({
               min={1}
               step={1}
               required
-              autoFocus
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
+              value={travelersValue}
+              onChange={(e) => setTravelersValue(e.target.value)}
             />
           )}
         </Field>

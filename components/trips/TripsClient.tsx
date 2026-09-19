@@ -6,7 +6,7 @@ import { TripsRanked } from './TripsRanked';
 import { TripsMix } from './TripsMix';
 import { TripsMatrix } from './TripsMatrix';
 import { TripsTable } from './TripsTable';
-import { EditTravelersModal } from './EditTravelersModal';
+import { EditTripModal } from './EditTripModal';
 import type { TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
@@ -47,13 +47,16 @@ export function TripsClient({ budgetId, trips }: { budgetId: string; trips: Trip
 
       <TripsMatrix trips={chronological} metric={metric} selected={selected} />
 
-      <TripsTable trips={trips} selected={selected} onSelect={toggleSelect} onEditTravelers={setEditingTrip} />
+      <TripsTable trips={trips} selected={selected} onSelect={toggleSelect} onEditTrip={setEditingTrip} />
 
       {editing ? (
-        <EditTravelersModal
+        <EditTripModal
           budgetId={budgetId}
           trip={editing.trip}
           travelers={editing.travelers}
+          startDate={editing.fromDate}
+          endDate={editing.toDate}
+          datesAreExplicit={editing.datesAreExplicit}
           onClose={() => setEditingTrip(null)}
         />
       ) : null}

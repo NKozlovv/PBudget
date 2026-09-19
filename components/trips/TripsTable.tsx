@@ -23,12 +23,12 @@ export function TripsTable({
   trips,
   selected,
   onSelect,
-  onEditTravelers,
+  onEditTrip,
 }: {
   trips: TripSummary[];
   selected: string | null;
   onSelect: (trip: string) => void;
-  onEditTravelers: (trip: string) => void;
+  onEditTrip: (trip: string) => void;
 }) {
   const grand = trips.reduce((s, t) => s + t.total, 0);
   const days = trips.reduce((s, t) => s + t.days, 0);
@@ -89,6 +89,14 @@ export function TripsTable({
                   </td>
                   <td className="whitespace-nowrap border-b border-white/45 px-3 py-3 text-right text-[13px] font-semibold text-[#3f465c]">
                     {dateRangeDisplay(t.fromDate, t.toDate)}
+                    {!t.datesAreExplicit ? (
+                      <span
+                        title="Estimated from this trip's earliest/latest tagged transaction — click the pencil to set exact dates"
+                        className="ml-1 text-ink-mute"
+                      >
+                        ~
+                      </span>
+                    ) : null}
                   </td>
                   <td className="border-b border-white/45 px-3 py-3 text-right text-[13px] font-semibold tabular-nums text-[#3f465c]">
                     {t.days}
@@ -135,9 +143,9 @@ export function TripsTable({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEditTravelers(t.trip);
+                        onEditTrip(t.trip);
                       }}
-                      title="Set number of travelers"
+                      title="Edit trip dates and travelers"
                       className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ink-mute transition-colors hover:bg-white/70 hover:text-ink"
                     >
                       <Icon name="pencil" size={13} />
@@ -152,7 +160,10 @@ export function TripsTable({
 
       <p className="text-[12.5px] font-semibold text-ink-soft">
         Fixed = flights, lodging and fees, the part you commit to before leaving. Daily = food, local transport,
-        activities and shopping, divided by days away.
+        activities and shopping, divided by days away.{' '}
+        <span className="text-ink-mute">
+          {`A ~ next to a date range means it's estimated from that trip's own transactions — click the pencil to set exact dates.`}
+        </span>
       </p>
     </section>
   );

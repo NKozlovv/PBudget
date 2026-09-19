@@ -68,6 +68,9 @@ export interface TripDetails {
   budget_id: string;
   trip: string;
   travelers: number;
+  /** Explicit override for the trip's date range — see lib/trips/summary.ts. Null until the user sets it; the page falls back to a derived guess (earliest/latest tagged transaction date) until then. */
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
 }
 

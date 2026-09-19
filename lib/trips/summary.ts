@@ -15,8 +15,10 @@ export interface TripSummary {
   txCount: number;
   fromDate: string;
   toDate: string;
-  /** Inclusive calendar days spanned by the trip's own tagged transactions. */
+  /** Inclusive calendar days spanned by fromDate/toDate. */
   days: number;
+  /** False when fromDate/toDate are a guess (earliest/latest tagged transaction date) rather than the user's own start_date/end_date from trip_details. */
+  datesAreExplicit: boolean;
   travelers: number;
   total: number;
   fixed: number;
@@ -34,10 +36,13 @@ export interface TripSummary {
  * no trip concept, so both are excluded the same way lib/categories/summary.ts
  * excludes them from a category's spend totals.
  *
- * A trip's date range and day count come from its own transactions' dates,
- * not a stored start/end — there's no `trips` table, just a text tag (see
- * lib/transactions/constants.ts), so "when the trip happened" is whatever
- * its tagged spend actually spans.
+ * A trip's date range prefers the user's own trip_details.start_date/
+ * end_date. Those are null until set, so the fallback — earliest/latest
+ * tagged transaction date — covers a trip nobody has configured yet. That
+ * fallback is only ever a guess: a transaction's date is when the money
+ * moved, not necessarily a day you were on the trip (a flight bought weeks
+ * ahead and tagged immediately would otherwise stretch the range back to
+ * the booking date). datesAreExplicit tells the UI which case it's in.
  */
 export function tripSummaries(args: {
   transactions: Transaction[];
@@ -47,7 +52,7 @@ export function tripSummaries(args: {
 }): TripSummary[] {
   const { transactions, travelSubcategories, tripDetails, fxRate } = args;
   const fixedByName = new Map(travelSubcategories.map((s) => [s.name, s.is_fixed_cost]));
-  const travelersByTrip = new Map(tripDetails.map((d) => [d.trip, d.travelers]));
+  const detailsByTrip = new Map(tripDetails.map((d) => [d.trip, d]));
 
   const groups = new Map<string, Transaction[]>();
   for (const t of transactions) {
@@ -69,11 +74,11 @@ export function tripSummaries(args: {
   const out: TripSummary[] = [];
   for (const [trip, txs] of groups) {
     const bySubMap = new Map<string, number>();
-    let fromDate = txs[0]!.date;
-    let toDate = txs[0]!.date;
+    let derivedFrom = txs[0]!.date;
+    let derivedTo = txs[0]!.date;
     for (const t of txs) {
-      if (t.date < fromDate) fromDate = t.date;
-      if (t.date > toDate) toDate = t.date;
+      if (t.date < derivedFrom) derivedFrom = t.date;
+      if (t.date > derivedTo) derivedTo = t.date;
       const sub = (t.subcategory ?? '').trim() || 'Uncategorised';
       bySubMap.set(sub, (bySubMap.get(sub) ?? 0) + txToEUR(t, fxRate));
     }
@@ -87,8 +92,13 @@ export function tripSummaries(args: {
     const total = bySubcategory.reduce((s, x) => s + x.amount, 0);
     const fixed = bySubcategory.filter((x) => x.fixed).reduce((s, x) => s + x.amount, 0);
     const daily = total - fixed;
+
+    const details = detailsByTrip.get(trip);
+    const fromDate = details?.start_date ?? derivedFrom;
+    const toDate = details?.end_date ?? derivedTo;
+    const datesAreExplicit = Boolean(details?.start_date && details?.end_date);
     const days = daysBetweenInclusive(fromDate, toDate);
-    const travelers = Math.max(1, travelersByTrip.get(trip) ?? 1);
+    const travelers = Math.max(1, details?.travelers ?? 1);
 
     out.push({
       trip,
@@ -96,6 +106,7 @@ export function tripSummaries(args: {
       fromDate,
       toDate,
       days,
+      datesAreExplicit,
       travelers,
       total,
       fixed,
