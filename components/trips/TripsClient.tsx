@@ -13,10 +13,16 @@ import type { TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
 /**
- * Owns the metric picker shared across every section below the hero. No
- * click-to-focus/dim interaction any more (dropped per feedback — rows keep
- * their hover lift, but clicking a trip no longer filters the rest of the
- * page) — see docs/rehaul-progress.md's "Trips page" entries.
+ * Owns the metric picker shared across every section on the page.
+ * `CompareByBar` renders above `TripsHero` (not nested inside it) on
+ * purpose — it stays a sibling of the hero, not a child, so its
+ * `position: sticky` containing block is the whole page rather than the
+ * hero's own short box; nested inside the hero it would stop sticking the
+ * moment you scrolled past that (short) card, defeating the point of
+ * making it sticky at all. No click-to-focus/dim interaction any more
+ * either (dropped per feedback — rows keep their hover lift, but clicking
+ * a trip no longer filters the rest of the page) — see
+ * docs/rehaul-progress.md's "Trips page" entries.
  */
 export function TripsClient({ budgetId, trips }: { budgetId: string; trips: TripSummary[] }) {
   const [metric, setMetric] = useState<TripMetric>('perDay');
@@ -38,9 +44,9 @@ export function TripsClient({ budgetId, trips }: { budgetId: string; trips: Trip
 
   return (
     <>
-      <TripsHero trips={trips} metric={metric} />
-
       <CompareByBar metric={metric} onMetricChange={setMetric} />
+
+      <TripsHero trips={trips} metric={metric} />
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-stretch gap-5">
         <TripsRanked trips={trips} metric={metric} />

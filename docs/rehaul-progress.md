@@ -2635,3 +2635,41 @@ new Avg cell the same way the existing per-cell `v === 0` guard already
 does (a subcategory nobody spent on anywhere shows "—", not `NaN` from
 a zero-length-array division); re-grepped `components/trips/` for raw
 apostrophes in JSX text once more.
+
+**Build failure, again:** literal double quotes this time — the
+`TripsTable` footnote's new `"Per day"/"Daily/day"` prose was raw JSX
+text, not inside a template-literal expression like the rest of that
+paragraph. `react/no-unescaped-entities` flags `"` the same way it
+flags `'`; fixed the same way (wrapped as `{`...`}`), and re-grepped
+`components/trips/` for **both** quote characters this time
+(`>[^<{]*["'][^<]*<`), not just apostrophes — this is the third time
+this exact class of error has broken the build this session.
+
+## Trips: matrix header clarity, Compare-by repositioned above the hero (2026-09-20, same day)
+
+Two follow-ups from a fourth round of feedback:
+
+1. **"What's the formula, and when does Avg show per-person-day?"** —
+   a fair question, since the Avg/Sum columns added earlier only
+   explained themselves via a hover `title`. Made it self-evident
+   instead: the **header text itself now changes** with the active
+   metric (`Avg` / `Avg/day` / `Avg/p·day`), and `Sum` is now labelled
+   `Sum (€)` to make explicit it's always a plain euro total, never a
+   rate.
+2. **"Move Compare-by into the hero card, above the KPI tiles — but
+   keep it sticky."** Flagged the real conflict first rather than
+   guessing: `position: sticky` can't stick past its own parent's
+   bottom edge, and the hero card is short, so nesting the picker
+   inside it would make it stop following the page the moment you
+   scrolled past the hero — undoing the whole point of pulling it out
+   sticky in the previous round. User's call: keep it sticky, and
+   instead of moving it into the hero, move it **above** the hero
+   (still a sibling in `TripsClient`'s flow, not a child of
+   `TripsHero`) — `CompareByBar` now renders first, `TripsHero`
+   second. Its `top-[92px]` sticky offset didn't need to change; that
+   was always about where it ends up pinned once scrolled, not where
+   it starts in flow.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+both changed files by hand; re-grepped `components/trips/` for both
+quote characters in raw JSX text once more.

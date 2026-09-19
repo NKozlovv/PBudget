@@ -27,6 +27,7 @@ export function TripsMatrix({
     for (const s of t.bySubcategory) totals.set(s.name, (totals.get(s.name) ?? 0) + s.amount);
   }
   const subcategories = Array.from(totals.keys()).sort((a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0));
+  const avgSuffix = metric === 'total' ? '' : metric === 'perDay' ? '/day' : '/p·day';
 
   return (
     <section className="glass flex flex-col gap-[18px] !rounded-[34px] p-[24px] px-[26px]">
@@ -67,13 +68,13 @@ export function TripsMatrix({
                 className="whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold text-ink"
                 title="Mean across trips that actually spent on this subcategory — changes with the metric above."
               >
-                Avg
+                {`Avg${avgSuffix}`}
               </th>
               <th
                 className="whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold text-ink"
                 title="Absolute total across every trip — always the raw sum, regardless of which metric is selected."
               >
-                Sum
+                Sum (€)
               </th>
             </tr>
           </thead>
