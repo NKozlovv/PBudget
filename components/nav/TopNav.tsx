@@ -16,6 +16,7 @@ const TABS: { href: string; label: string }[] = [
   { href: '/transactions', label: 'Transactions' },
   { href: '/accounts', label: 'Accounts' },
   { href: '/categories', label: 'Categories' },
+  { href: '/trips', label: 'Trips' },
   { href: '/trends', label: 'Trends' },
   { href: '/forecast', label: 'Forecast' },
 ];

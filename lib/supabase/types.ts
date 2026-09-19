@@ -54,6 +54,21 @@ export interface Subcategory {
   id: string;
   category_id: string;
   name: string;
+  /** Trips-page cost split: true = booked before leaving (flights, lodging), false = spent on the ground. Only meaningful for subcategories under the Travel category. */
+  is_fixed_cost: boolean;
+}
+
+/**
+ * Per-trip metadata that the free-text `transactions.trip` tag can't hold on
+ * its own (see lib/transactions/constants.ts). Keyed by name, not an id,
+ * because a trip *is* just a name shared across transactions — there's no
+ * `trips` row for it to belong to.
+ */
+export interface TripDetails {
+  budget_id: string;
+  trip: string;
+  travelers: number;
+  created_at: string;
 }
 
 export interface Transaction {

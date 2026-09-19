@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Button, Icon, Modal, Mono } from '@/components/ui';
 import { NameForm } from './NameForm';
 import {
@@ -9,9 +10,11 @@ import {
   deleteSubcategoryAction,
   renameCategoryAction,
   renameSubcategoryAction,
+  setSubcategoryFixedCostAction,
 } from '@/app/actions/categories';
 import { categoryColor } from '@/lib/categoryColor';
 import { categoryIcon } from '@/lib/dashboard/categoryIcon';
+import { isTravelCategory } from '@/lib/transactions/constants';
 import { fmtEUR } from '@/lib/money';
 import type { CategorySummary, SubcategorySummary } from '@/lib/categories/summary';
 import type { Subcategory } from '@/lib/supabase/types';
@@ -60,6 +63,25 @@ export function CategoryDetailModal({
   const cat = summary.category;
   const color = categoryColor(cat.name);
   const icon = categoryIcon(cat.name);
+  const isTravel = isTravelCategory(cat.name);
+
+  async function toggleFixedCost(subId: string, next: boolean) {
+    setLocalSubs((prev) =>
+      prev.map((s) =>
+        s.subcategory.id === subId ? { ...s, subcategory: { ...s.subcategory, is_fixed_cost: next } } : s,
+      ),
+    );
+    const res = await setSubcategoryFixedCostAction({ id: subId, is_fixed_cost: next });
+    if (!res.ok) {
+      // Revert on failure — the optimistic flip above assumed success.
+      setLocalSubs((prev) =>
+        prev.map((s) =>
+          s.subcategory.id === subId ? { ...s, subcategory: { ...s.subcategory, is_fixed_cost: !next } } : s,
+        ),
+      );
+      setError(res.error);
+    }
+  }
 
   function close() {
     setRenamingCat(false);
@@ -137,6 +159,21 @@ export function CategoryDetailModal({
                   <span className="font-mono text-[11px] tabular-nums text-ink-mute">
                     YTD {fmtEUR(s.ytd, { decimals: 0 })}
                   </span>
+                  {isTravel ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleFixedCost(s.subcategory.id, !s.subcategory.is_fixed_cost)}
+                      title="Whether the Trips page counts this as a fixed (booked-ahead) or daily (on-the-ground) cost"
+                      className={cn(
+                        'shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.04em] transition-colors',
+                        s.subcategory.is_fixed_cost
+                          ? 'bg-indigo/[0.14] text-indigo-dark'
+                          : 'bg-white/60 text-ink-mute hover:bg-white',
+                      )}
+                    >
+                      {s.subcategory.is_fixed_cost ? 'Fixed' : 'Daily'}
+                    </button>
+                  ) : null}
                   <div className="flex items-center gap-1 pl-2">
                     <button
                       type="button"
@@ -264,7 +301,7 @@ export function CategoryDetailModal({
                 setLocalSubs((prev) => [
                   ...prev,
                   {
-                    subcategory: { id: res.data.id, category_id: cat.id, name: name.trim() },
+                    subcategory: { id: res.data.id, category_id: cat.id, name: name.trim(), is_fixed_cost: false },
                     thisMonth: 0,
                     ytd: 0,
                     avgMonthly: 0,

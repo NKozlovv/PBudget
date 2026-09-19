@@ -99,9 +99,11 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
 - **`budget_invites`** — pending invites by email (id, budget_id, email, invited_by, created_at)
 - **`accounts`** — per budget (id, budget_id, name, currency, opening_balance, sort_order)
 - **`categories`** — per budget, kind ∈ {'expense', 'income'}
-- **`subcategories`** — per category
-- **`transactions`** — per budget (date, type ∈ {'expense','income','adjustment'}, amount, currency, **fx_rate**, category (text), subcategory (text), account_id, comment, created_by, created_at, updated_at)
+- **`subcategories`** — per category. Also **`is_fixed_cost`** (boolean, default false, added 2026-09-19) — Trips page cost-type split (see below); only meaningful for subcategories under the Travel category, set via a toggle in that category's drill-down modal.
+- **`transactions`** — per budget (date, type ∈ {'expense','income','adjustment'}, amount, currency, **fx_rate**, category (text), subcategory (text), **trip** (text, nullable), account_id, comment, created_by, created_at, updated_at)
   - `fx_rate` column was added later via ALTER TABLE. It stores the USD→EUR rate in effect on the transaction's date. Null for EUR tx.
+  - `trip` was added in the v4 rehaul (branch `claude/design-handoff-implementation-724101`, "Add trip tagging for Travel-category transactions"). Free-text trip label, only ever set when `category` is exactly `'Travel'` (`lib/transactions/constants.ts`'s `TRAVEL_CATEGORY`/`isTravelCategory`/`enforceTripRule` — every write path that touches `category` nulls `trip` out if the new category isn't Travel). There is no `trips` table; a trip **is** just this text value shared across transactions, autocompleted from prior values (`TripField.tsx`).
+- **`trip_details`** — added 2026-09-19 for the Trips page (`/trips`). One row per (budget_id, trip) — `travelers` (integer, default 1) is the only field, since a trip's date range/day count is derived from its own tagged transactions' dates, not stored. PK is `(budget_id, trip)` rather than an id, matching `trip`'s own name-not-id identity above.
 
 ### RLS policies
 
@@ -110,7 +112,7 @@ All tables have RLS enabled. The policies are scoped to the `authenticated` role
 - **`budgets`** — select if you're a member; insert requires `owner_id = auth.uid()`; update/delete requires you're the owner
 - **`budget_members`** — select if you're a member; insert requires you're adding yourself OR you own the budget; delete same rule
 - **`budget_invites`** — owner of budget manages, or you see invites to your own email
-- **`accounts`, `categories`, `subcategories`, `transactions`** — "for all" policies gated on `public.is_budget_member(budget_id)`
+- **`accounts`, `categories`, `subcategories`, `transactions`, `trip_details`** — "for all" policies gated on `public.is_budget_member(budget_id)`
 
 ### Helper function (already in DB)
 
@@ -169,6 +171,14 @@ Active at the new app's `/`. Routes under `app/(app)/`:
 - `/forecast` — projected EOY balance, YTD averages, forecast bars
   (actual + projected), per-category burn-rate tables
 - `/import` — XLSX bulk import with FX preflight (drag-drop)
+- `/trips` — added 2026-09-19. Trips ranked, subcategory mix, a
+  subcategory × trip matrix, and a full side-by-side table, all driven
+  by a "Compare by" toggle (Total / Per day / Per person-day). Reads
+  Travel-category transactions carrying a `trip` tag (see §4) — no
+  route exists without at least one tagged transaction. See this
+  file's Trips entry in `docs/rehaul-progress.md` for the full build
+  log; unlike the rest of this section it was built directly against
+  v4 (`components/trips/*`, `lib/trips/*`), not ported from Sterling.
 
 Plus auth routes under `app/(auth)/` (login / signup / reset) on a
 split-screen Sterling-style layout, and `/styleguide` for the dev-only
@@ -391,12 +401,20 @@ components/
                       # ForecastLine, Sparkline
   forecast/           # BurnRateTable
   import/             # ImportDropzone
+  trips/              # added 2026-09-19 — TripsClient, TripsHero,
+                      # TripsRanked, TripsMix, TripsMatrix, TripsTable,
+                      # EditTravelersModal (/trips)
 
 lib/
   supabase/           # client (browser), server (RSC), middleware
                       # (cookie refresh), types
   data/               # read-only repos: budgets, accounts, categories,
-                      # transactions
+                      # transactions, trips (trip_details only — trip
+                      # aggregation itself is lib/trips/summary.ts,
+                      # computed from listTransactions())
+  trips/              # summary (per-trip aggregation from Travel-
+                      # category, trip-tagged transactions), view
+                      # (metric picker helpers — /trips)
   xlsx/               # parse, classify, dates
   categories/         # summary (Categories page), formOptions
                       # (subcategory dropdown + most-used auto-pick),

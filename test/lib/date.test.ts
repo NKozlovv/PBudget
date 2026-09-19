@@ -8,6 +8,8 @@ import {
   dateDisplay,
   eomDateStr,
   monthName,
+  daysBetweenInclusive,
+  dateRangeDisplay,
 } from '@/lib/date';
 
 /**
@@ -99,6 +101,40 @@ describe('date helpers — eomDateStr', () => {
 
   it('handles February in a leap year', () => {
     expect(eomDateStr(2024, 1)).toBe('2024-02-29');
+  });
+});
+
+describe('date helpers — daysBetweenInclusive', () => {
+  it('counts a single day as 1', () => {
+    expect(daysBetweenInclusive('2026-03-06', '2026-03-06')).toBe(1);
+  });
+
+  it('counts an inclusive range within a month', () => {
+    // 6, 7, ..., 18 Mar = 13 days.
+    expect(daysBetweenInclusive('2026-03-06', '2026-03-18')).toBe(13);
+  });
+
+  it('is order-independent', () => {
+    expect(daysBetweenInclusive('2026-03-18', '2026-03-06')).toBe(13);
+  });
+
+  it('spans a year boundary without a UTC-shift off-by-one', () => {
+    // 29, 30, 31 Dec + 1, 2 Jan = 5 days.
+    expect(daysBetweenInclusive('2025-12-29', '2026-01-02')).toBe(5);
+  });
+});
+
+describe('date helpers — dateRangeDisplay', () => {
+  it('drops the repeated month for a same-month range', () => {
+    expect(dateRangeDisplay('2026-03-06', '2026-03-18')).toBe('6–18 Mar');
+  });
+
+  it('shows both months when the range crosses a month boundary', () => {
+    expect(dateRangeDisplay('2026-02-28', '2026-03-03')).toBe('28 Feb – 3 Mar');
+  });
+
+  it('shows both years when the range crosses a year boundary', () => {
+    expect(dateRangeDisplay('2025-12-29', '2026-01-02')).toBe('29 Dec 2025 – 2 Jan 2026');
   });
 });
 

@@ -2258,3 +2258,124 @@ deleted CSS custom properties, both down to zero before each commit.
 Pushed incrementally (one commit per numbered step above) so Vercel
 built a preview after each one rather than one giant unreviewable
 diff.
+
+## Trips page (2026-09-19, same day)
+
+The user handed over another design-handoff mockup (`Theus Trips.dc.html`
+— same "dc" prototype format as the v4 rehaul's own handoff file, and
+coincidentally already speaking v4's exact palette/type/glass system since
+that's what's live on this branch) for a new screen: trips ranked by cost,
+a subcategory breakdown per trip, a subcategory × trip heat matrix, and a
+full side-by-side comparison table, all reacting to a "Compare by" toggle
+(Total / Per day / Per person-day).
+
+Before building, checked what trip-tagging already existed on this branch
+(this same Chunk 20 work already added it — "Add trip tagging for
+Travel-category transactions" / "Add bulk edit for selected transactions" /
+"Add standalone bulk trip-tagging to bulk edit") rather than assuming the
+mockup's own data model (a relational `trips` table with start/end dates
+and a people count, which is what the mockup's static sample data
+implies). The real shape is much lighter: `transactions.trip` is a
+free-text label, valid only when `category` is exactly `'Travel'`
+(`lib/transactions/constants.ts`), autocompleted from prior values, with
+no `trips` table at all — a trip **is** just a name shared across
+transactions. Built on top of that instead of introducing a second,
+parallel trip concept:
+
+- **Two small additions, not a redesign of the existing tagging:**
+  - `subcategories.is_fixed_cost` (boolean, default false) — lets the
+    user mark which Travel subcategories are "fixed" (booked before
+    leaving — flights, lodging, fees) vs "daily" (spent on the ground)
+    for the fixed/daily split. A toggle pill next to each subcategory row
+    in `CategoryDetailModal.tsx`, shown only when the category is Travel
+    (`setSubcategoryFixedCostAction`, optimistic with revert-on-failure
+    like the modal's existing rename/delete flows).
+  - `trip_details` (new table, one row per `(budget_id, trip)`) — the one
+    fact a free-text tag can't hold: how many people went. Not an id-based
+    `trips` table on purpose, since `trip` itself is the identity;
+    `travelers` defaults to 1 when no row exists yet. A trip's date range
+    and day count are **derived** from its own tagged transactions' dates
+    (`lib/date.ts`'s new `daysBetweenInclusive`/`dateRangeDisplay`, both
+    regression-tested), not stored — there was nowhere sensible to store
+    "when the trip happened" that wouldn't drift from the transactions
+    the page actually reads.
+- **`lib/trips/summary.ts`** — `tripSummaries()`, a pure function mirroring
+  `lib/categories/summary.ts`'s split (data-fetch vs compute): groups
+  every Travel-category, trip-tagged **expense** into one `TripSummary`
+  per trip (income/adjustments excluded, same reasoning as
+  `categoriesSummary()` — CLAUDE.md §8a), with per-subcategory EUR totals,
+  fixed/daily split, and per-day/per-person-day figures.
+- **`lib/trips/view.ts`** — the "Compare by" metric (`total` / `perDay` /
+  `perPersonDay`) as a small shared type + value/format/average helpers,
+  used identically by every section so the hero, ranked list, matrix and
+  table can never disagree about what a given metric means.
+- **`app/(app)/trips/page.tsx`** — fetches every transaction via the
+  existing `listTransactions()` (already paginates past the 1000-row cap,
+  CLAUDE.md §8g — no new unbounded query written), the Travel category's
+  own subcategories (for the fixed/daily flags), and `trip_details`; hands
+  them to `tripSummaries()` and the result to a client component. Reads
+  unfiltered rather than passing `category: 'Travel'` to `listTransactions`
+  on purpose — that's an exact-string `.eq()` server-side, whereas
+  `isTravelCategory()` (used inside `tripSummaries()`) is deliberately
+  case/whitespace-tolerant like every other trip-tagging check in the app;
+  filtering server-side by exact match risked silently missing real
+  trip-tagged rows if `category` was ever stored with different casing —
+  exactly the class of silent-wrong-number bug CLAUDE.md §8g already
+  warns about. Empty state (no tagged transactions yet) explains how to
+  get one.
+- **`components/trips/*`** — `TripsClient` owns the metric + trip-focus
+  selection state shared across sections (same interaction the mockup
+  had: click a trip to dim every other row/segment/cell); `TripsHero`
+  (grand total + KPI strip + metric picker + insight line), `TripsRanked`
+  (bars + benchmark line), `TripsMix` (per-trip subcategory segments,
+  its own Share-of-trip/Absolute toggle, legend), `TripsMatrix`
+  (subcategory × trip heat table), `TripsTable` (full comparison table
+  with a per-row "set travelers" affordance → `EditTravelersModal`).
+  Colors come from the app's real `categoryColor()` hash (applied to
+  subcategory names) instead of the mockup's own hardcoded per-subcategory
+  palette, so a trip's colors agree with how that subcategory is colored
+  everywhere else in the app.
+- **Nav:** added `/trips` to `TopNav.tsx`'s real tab row (not behind
+  "More") — same call already made for Accounts/Forecast in Chunk 20's
+  own top-nav port, since the bar has room and this isn't a low-frequency
+  screen.
+- **Visual style:** the mockup's own liquid-glass look was kept as-is
+  rather than adapted, per explicit user direction — moot in practice
+  here, since it's the same system already live on every other v4 screen
+  (same ground gradient, `.glass`/`.glass-tile` recipe, capsule controls,
+  Plus Jakarta Sans), just componentized with the app's real primitives
+  (`Card`-level `.glass` sections, `Icon`, `Modal`, `Field`) instead of
+  the mockup's inline styles.
+
+**Migration required** (given to the user to run in Supabase SQL Editor,
+per CLAUDE.md §10 — not applied automatically):
+
+```sql
+alter table public.subcategories
+  add column is_fixed_cost boolean not null default false;
+
+create table public.trip_details (
+  budget_id uuid not null references public.budgets(id) on delete cascade,
+  trip text not null,
+  travelers integer not null default 1 check (travelers > 0),
+  created_at timestamptz not null default now(),
+  primary key (budget_id, trip)
+);
+
+alter table public.trip_details enable row level security;
+
+create policy "trip_details_all" on public.trip_details
+  for all to authenticated
+  using (public.is_budget_member(budget_id))
+  with check (public.is_budget_member(budget_id));
+```
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+every new/changed file by hand; added regression tests for the two new
+`lib/date.ts` functions (same file `test/lib/date.test.ts` already covers
+per CLAUDE.md §8b) covering same-month/cross-month/cross-year ranges and
+order-independence; traced every `TripSummary` field back to its
+real-data source (no leftover mockup sample values); confirmed no other
+`Subcategory`-shaped object literal in the codebase needed the new
+`is_fixed_cost` field added by hand (`app/actions/import.ts`'s bulk
+subcategory insert relies on the DB default, which is correct there).

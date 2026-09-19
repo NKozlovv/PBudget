@@ -84,6 +84,39 @@ export function eomDateStr(year: number, month: number): string {
   return dateToISO(d);
 }
 
+/**
+ * Inclusive calendar-day span between two 'YYYY-MM-DD' dates (order doesn't
+ * matter). Both sides are built via the local-component constructor, so this
+ * is immune to the UTC-midnight shift the rest of this file guards against —
+ * a naive `(new Date(b) - new Date(a)) / 86400000` would be off by one for
+ * exactly the TZs (east of UTC) this project actually runs in.
+ */
+export function daysBetweenInclusive(a: string, b: string): number {
+  const x = parseISO(a);
+  const y = parseISO(b);
+  const start = new Date(x.year, x.month, x.day).getTime();
+  const end = new Date(y.year, y.month, y.day).getTime();
+  return Math.round(Math.abs(end - start) / 86_400_000) + 1;
+}
+
+/**
+ * Compact human range for a pair of 'YYYY-MM-DD' dates, e.g. "6–18 Mar",
+ * "28 Feb – 3 Mar", or "29 Dec 2025 – 2 Jan 2026" — only as verbose as it
+ * needs to be, dropping the month/year on the left side when they match the
+ * right side's.
+ */
+export function dateRangeDisplay(from: string, to: string): string {
+  const a = parseISO(from);
+  const b = parseISO(to);
+  if (a.year === b.year && a.month === b.month) {
+    return `${a.day}–${b.day} ${monthName(b.month, true)}`;
+  }
+  if (a.year === b.year) {
+    return `${a.day} ${monthName(a.month, true)} – ${b.day} ${monthName(b.month, true)}`;
+  }
+  return `${a.day} ${monthName(a.month, true)} ${a.year} – ${b.day} ${monthName(b.month, true)} ${b.year}`;
+}
+
 const MONTH_NAMES = [
   'January',
   'February',

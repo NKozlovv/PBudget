@@ -167,6 +167,26 @@ export async function renameSubcategoryAction(input: {
   }
 }
 
+/** Trips page cost-type split — see Subcategory.is_fixed_cost. */
+export async function setSubcategoryFixedCostAction(input: {
+  id: string;
+  is_fixed_cost: boolean;
+}): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('subcategories')
+      .update({ is_fixed_cost: input.is_fixed_cost })
+      .eq('id', input.id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath('/categories');
+    revalidatePath('/trips');
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
 export async function deleteSubcategoryAction(id: string): Promise<ActionResult> {
   try {
     const supabase = await createClient();
