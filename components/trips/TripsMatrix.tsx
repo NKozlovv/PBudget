@@ -12,6 +12,34 @@ function cellValue(t: TripSummary, subcategory: string, metric: TripMetric): num
   return amount / (t.days * t.travelers);
 }
 
+/**
+ * Day-weighted average for one subcategory row: Σ spend ÷ Σ days (or
+ * person-days), across only the trips that spent on it — not a mean of
+ * each trip's own per-day rate. Matters because subcategories aren't all
+ * the same shape: Hotels genuinely scales with nights, so a 20-night
+ * trip's rate is backed by 20 nights of evidence and should count more
+ * than a 2-night trip's; weighting by days gets that right. A per-trip,
+ * unweighted mean (like averageMetric() in lib/trips/view.ts, used for
+ * the trip-level average elsewhere on this page) answers a different
+ * question — "what does a typical trip cost" — where treating every trip
+ * as one vote is the point, not a shortcoming.
+ */
+function subcategoryAvg(trips: TripSummary[], subcategory: string, metric: TripMetric): number | null {
+  const withAmount = trips
+    .map((t) => ({ t, amount: t.bySubcategory.find((s) => s.name === subcategory)?.amount ?? 0 }))
+    .filter((x) => x.amount > 0);
+  if (withAmount.length === 0) return null;
+  if (metric === 'total') {
+    return withAmount.reduce((s, x) => s + x.amount, 0) / withAmount.length;
+  }
+  const totalAmount = withAmount.reduce((s, x) => s + x.amount, 0);
+  const totalUnits = withAmount.reduce(
+    (s, x) => s + (metric === 'perDay' ? x.t.days : x.t.days * x.t.travelers),
+    0,
+  );
+  return totalUnits > 0 ? totalAmount / totalUnits : 0;
+}
+
 /** Subcategory × trip heat table — read across a row to compare one cost type over every trip. */
 export function TripsMatrix({
   trips,
@@ -66,7 +94,7 @@ export function TripsMatrix({
               ))}
               <th
                 className="whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold text-ink"
-                title="Mean across trips that actually spent on this subcategory — changes with the metric above."
+                title="Day-weighted average across trips that actually spent on this subcategory (Σ spend ÷ Σ days) — changes with the metric above."
               >
                 {`Avg${avgSuffix}`}
               </th>
@@ -82,8 +110,7 @@ export function TripsMatrix({
             {subcategories.map((sub) => {
               const values = trips.map((t) => cellValue(t, sub, metric));
               const cmax = Math.max(...values, 0) || 1;
-              const nonZero = values.filter((v) => v > 0);
-              const avg = nonZero.length > 0 ? nonZero.reduce((s, v) => s + v, 0) / nonZero.length : 0;
+              const avg = subcategoryAvg(trips, sub, metric);
               const sum = totals.get(sub) ?? 0;
               return (
                 <tr key={sub}>
@@ -111,7 +138,7 @@ export function TripsMatrix({
                     );
                   })}
                   <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2 text-right text-[13px] font-bold tabular-nums text-ink">
-                    {nonZero.length === 0 ? '—' : fmtEUR(metric === 'total' ? avg : Math.round(avg), { decimals: 0 })}
+                    {avg === null ? '—' : fmtEUR(metric === 'total' ? avg : Math.round(avg), { decimals: 0 })}
                   </td>
                   <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2 text-right text-[13px] font-extrabold tabular-nums text-ink">
                     {fmtEUR(sum, { decimals: 0 })}

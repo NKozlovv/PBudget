@@ -2673,3 +2673,39 @@ Two follow-ups from a fourth round of feedback:
 **Verification:** no local build (no Node in this worktree) — reviewed
 both changed files by hand; re-grepped `components/trips/` for both
 quote characters in raw JSX text once more.
+
+## Trips: matrix Avg is now day-weighted per subcategory (2026-09-20, same day)
+
+User pushed back on the Avg column's math with a real observation:
+"if I average less per day on hotels on a longer trip, shouldn't that
+count for more?" — correct for Hotels (genuinely scales with nights: a
+23-night trip's nightly rate is backed by 23 nights of evidence, a
+2-night trip's by 2) but not for Flights (a lump sum per trip,
+independent of length — no weighting scheme makes "flights per day"
+mean something, since the underlying quantity isn't a rate at all).
+
+Landed on weighting **uniformly** rather than adding a second per-
+subcategory classification (a "scales with days" flag alongside
+`is_fixed_cost`) — simpler, correct for rate-like subcategories, and no
+worse than before for lump-sum ones. `subcategoryAvg()`
+(`TripsMatrix.tsx`) now computes `Σ spend ÷ Σ days` (or person-days)
+across the trips that spent on that subcategory, replacing the old
+"mean of each trip's own per-day rate."
+
+**Deliberately left inconsistent with the trip-level average**
+(`averageMetric()`, `lib/trips/view.ts`, used for the hero KPIs, ranked-
+list benchmark, and table verdict) — that one stays the earlier fix's
+unweighted per-trip mean, on purpose. The two answer different
+questions: "what does a typical *trip* cost" (treat every trip as one
+vote — the whole point of that earlier fix) vs. "what's the going rate
+for *this specific recurring cost*" (more nights of a hotel stay is
+more evidence about the nightly rate, so it should count more). Same
+underlying tension, different unit of analysis, both correct for what
+they're answering — documented in `subcategoryAvg()`'s own doc comment
+so a future pass doesn't try to "fix" one to match the other.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+the changed file by hand; traced the 'total' branch specifically (no
+day-weighting applies — Σ spend ÷ trip count, same as before, since
+Total isn't a rate to weight against days in the first place); re-
+grepped `components/trips/` for both quote characters in raw JSX text.
