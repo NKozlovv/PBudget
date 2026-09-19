@@ -2,7 +2,7 @@
 
 import { subcategoryColor } from '@/lib/trips/subcategoryColor';
 import { fmtEUR } from '@/lib/money';
-import { formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
+import { averageMetric, formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
 function cellValue(t: TripSummary, subcategory: string, metric: TripMetric): number {
@@ -49,7 +49,7 @@ export function TripsMatrix({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] border-separate border-spacing-1">
+        <table className="w-full min-w-[820px] border-separate border-spacing-1">
           <thead>
             <tr>
               <th className="px-2 py-1.5 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-mute">
@@ -63,12 +63,27 @@ export function TripsMatrix({
                   </div>
                 </th>
               ))}
+              <th
+                className="whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold text-ink"
+                title="Mean across trips that actually spent on this subcategory — changes with the metric above."
+              >
+                Avg
+              </th>
+              <th
+                className="whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold text-ink"
+                title="Absolute total across every trip — always the raw sum, regardless of which metric is selected."
+              >
+                Sum
+              </th>
             </tr>
           </thead>
           <tbody>
             {subcategories.map((sub) => {
               const values = trips.map((t) => cellValue(t, sub, metric));
               const cmax = Math.max(...values, 0) || 1;
+              const nonZero = values.filter((v) => v > 0);
+              const avg = nonZero.length > 0 ? nonZero.reduce((s, v) => s + v, 0) / nonZero.length : 0;
+              const sum = totals.get(sub) ?? 0;
               return (
                 <tr key={sub}>
                   <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2">
@@ -94,6 +109,12 @@ export function TripsMatrix({
                       </td>
                     );
                   })}
+                  <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2 text-right text-[13px] font-bold tabular-nums text-ink">
+                    {nonZero.length === 0 ? '—' : fmtEUR(metric === 'total' ? avg : Math.round(avg), { decimals: 0 })}
+                  </td>
+                  <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2 text-right text-[13px] font-extrabold tabular-nums text-ink">
+                    {fmtEUR(sum, { decimals: 0 })}
+                  </td>
                 </tr>
               );
             })}
@@ -106,6 +127,15 @@ export function TripsMatrix({
                   {formatMetric(metricValue(t, metric), metric)}
                 </td>
               ))}
+              <td className="px-2.5 py-2 text-right text-[13.5px] font-extrabold tabular-nums text-ink">
+                {formatMetric(averageMetric(trips, metric), metric)}
+              </td>
+              <td className="px-2.5 py-2 text-right text-[13.5px] font-extrabold tabular-nums text-ink">
+                {fmtEUR(
+                  trips.reduce((s, t) => s + t.total, 0),
+                  { decimals: 0 },
+                )}
+              </td>
             </tr>
           </tbody>
         </table>

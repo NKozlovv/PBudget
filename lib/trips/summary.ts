@@ -26,7 +26,10 @@ export interface TripSummary {
   daily: number;
   perDay: number;
   perPersonDay: number;
+  /** Non-fixed (on-the-ground) spend per day — daily / days. */
   dailyPerDay: number;
+  /** Non-fixed (on-the-ground) spend per person-day — daily / (days × travelers). */
+  dailyPerPersonDay: number;
   /** Nonzero subcategories, largest first. */
   bySubcategory: TripSubcategoryTotal[];
 }
@@ -119,6 +122,7 @@ export function tripSummaries(args: {
       perDay: total / days,
       perPersonDay: total / (days * travelers),
       dailyPerDay: daily / days,
+      dailyPerPersonDay: daily / (days * travelers),
       bySubcategory,
     });
   }

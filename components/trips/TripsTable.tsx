@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui';
 import { averageMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
-const HEAD: { label: string; align: 'left' | 'right' }[] = [
+const HEAD: { label: string; align: 'left' | 'right'; hint?: string }[] = [
   { label: 'Trip', align: 'left' },
   { label: 'Dates', align: 'right' },
   { label: 'Days', align: 'right' },
@@ -15,7 +15,9 @@ const HEAD: { label: string; align: 'left' | 'right' }[] = [
   { label: 'Total', align: 'right' },
   { label: 'Fixed', align: 'right' },
   { label: 'Per day', align: 'right' },
+  { label: 'Daily/day', align: 'right', hint: 'Non-fixed spend only, divided by days away — what a normal day there actually cost.' },
   { label: 'Per person-day', align: 'right' },
+  { label: 'Daily/p-day', align: 'right', hint: 'Non-fixed spend only, divided by days away × travelers.' },
   { label: 'Verdict', align: 'right' },
 ];
 
@@ -42,12 +44,13 @@ export function TripsTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] border-collapse">
+        <table className="w-full min-w-[1040px] border-collapse">
           <thead>
             <tr>
               {HEAD.map((h) => (
                 <th
                   key={h.label}
+                  title={h.hint}
                   className={cn(
                     'whitespace-nowrap border-b border-white/60 px-3 py-[9px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-mute',
                     h.align === 'right' ? 'text-right' : 'text-left',
@@ -104,6 +107,9 @@ export function TripsTable({
                   >
                     {fmtEUR(Math.round(t.perDay), { decimals: 0 })}
                   </td>
+                  <td className="border-b border-white/45 px-3 py-3 text-right text-[13px] font-bold tabular-nums text-[#3f465c]">
+                    {fmtEUR(Math.round(t.dailyPerDay), { decimals: 0 })}
+                  </td>
                   <td
                     className={cn(
                       'border-b border-white/45 px-3 py-3 text-right text-[13px] font-bold tabular-nums',
@@ -111,6 +117,9 @@ export function TripsTable({
                     )}
                   >
                     {fmtEUR(Math.round(t.perPersonDay), { decimals: 0 })}
+                  </td>
+                  <td className="border-b border-white/45 px-3 py-3 text-right text-[13px] font-bold tabular-nums text-[#3f465c]">
+                    {fmtEUR(Math.round(t.dailyPerPersonDay), { decimals: 0 })}
                   </td>
                   <td className="whitespace-nowrap border-b border-white/45 px-3 py-3 text-right">
                     <span
@@ -143,7 +152,8 @@ export function TripsTable({
 
       <p className="text-[12.5px] font-semibold text-ink-soft">
         Fixed = flights, lodging and fees, the part you commit to before leaving. Daily = food, local transport,
-        activities and shopping, divided by days away.{' '}
+        activities and shopping, divided by days away. "Per day"/"Per person-day" include fixed costs; "Daily/day"
+        and "Daily/p-day" strip those out, so they show what a normal day there actually cost.{' '}
         <span className="text-ink-mute">
           {`Verdict always compares per-person-day cost against the average across every trip (${fmtEUR(basePpd, { decimals: 0 })}/p·day here) — ±10% is "on average", regardless of which metric is selected above. A ~ next to a date range means it's estimated from that trip's own transactions — click the pencil to set exact dates or rename the trip.`}
         </span>

@@ -2601,3 +2601,37 @@ apostrophes in JSX text again; traced `averageMetric`'s new definition
 against the 'total' case specifically to confirm it's unchanged
 (`Σ totals ÷ count` was already un-weighted, so only perDay/
 perPersonDay actually change behavior).
+
+## Trips: matrix Avg/Sum columns, non-fixed per-day figures (2026-09-20)
+
+Two well-specified additions from a third annotated-screenshot pass:
+
+1. **`TripsMatrix` gained per-subcategory Avg and Sum columns.**
+   Explicit ask: Avg should track the active metric (Total/Per day/Per
+   person-day), Sum should always be the raw absolute total regardless
+   of metric — "pointless" otherwise, since summing a per-day rate
+   across trips isn't a meaningful number. Avg is the mean across only
+   the trips that actually spent on that subcategory (a trip with
+   nothing in a given row doesn't count toward "the average cost when
+   you did spend on this" — diluting by trips where a category simply
+   didn't apply would understate it). Sum reuses the same per-
+   subcategory totals already computed for row sorting. The "Trip
+   total" footer row grew matching Avg/Sum cells: Avg is
+   `averageMetric(trips, metric)` (already shared with the hero/ranked/
+   table), Sum is the grand total across every trip.
+2. **`TripsTable` gained "Daily/day" and "Daily/p-day" columns** —
+   "Per day"/"Per person-day" include fixed costs (flights, lodging),
+   which was hiding the number the user actually wanted: what a normal
+   day on the ground cost, with the big upfront spend backed out.
+   `TripSummary` already computed `dailyPerDay`; added the missing
+   `dailyPerPersonDay` (`daily / (days × travelers)`) alongside it in
+   `lib/trips/summary.ts`. Both new columns sit right after their
+   "include-fixed" counterparts; table `min-w` bumped from 860px to
+   1040px to fit them without crowding.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+both changed files by hand; confirmed `nonZero.length === 0` guards the
+new Avg cell the same way the existing per-cell `v === 0` guard already
+does (a subcategory nobody spent on anywhere shows "—", not `NaN` from
+a zero-length-array division); re-grepped `components/trips/` for raw
+apostrophes in JSX text once more.
