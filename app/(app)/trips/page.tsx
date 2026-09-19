@@ -32,15 +32,13 @@ export default async function TripsPage() {
     fxRate: budget.fx_rate,
   });
 
-  const dayCount = trips.reduce((s, t) => s + t.days, 0);
-
   return (
     <>
       <PageHeader
         title="Trips"
         meta={
           trips.length > 0
-            ? `${trips.length} ${trips.length === 1 ? 'trip' : 'trips'} · ${dayCount} ${dayCount === 1 ? 'day' : 'days'} away`
+            ? `${trips.length} ${trips.length === 1 ? 'trip' : 'trips'}`
             : `Tag a "${TRAVEL_CATEGORY}" transaction with a trip name — from the transaction form or by bulk-editing existing rows — and it'll show up here.`
         }
       />

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { TripsHero } from './TripsHero';
+import { CompareByBar } from './CompareByBar';
 import { TripsRanked } from './TripsRanked';
 import { TripsMix } from './TripsMix';
 import { TripsMatrix } from './TripsMatrix';
@@ -11,15 +12,13 @@ import type { TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
 /**
- * Owns the metric picker + trip-focus selection shared across every section
- * below the hero — same interaction model as the user's `Theus Trips.dc.html`
- * mockup, just driven by real Travel-category, trip-tagged transactions
- * instead of its hardcoded sample data. See docs/rehaul-progress.md's
- * "Trips page" entry.
+ * Owns the metric picker shared across every section below the hero. No
+ * click-to-focus/dim interaction any more (dropped per feedback — rows keep
+ * their hover lift, but clicking a trip no longer filters the rest of the
+ * page) — see docs/rehaul-progress.md's "Trips page" entries.
  */
 export function TripsClient({ budgetId, trips }: { budgetId: string; trips: TripSummary[] }) {
   const [metric, setMetric] = useState<TripMetric>('perDay');
-  const [selected, setSelected] = useState<string | null>(null);
   const [editingTrip, setEditingTrip] = useState<string | null>(null);
 
   // Chronological order for the sections that read left-to-right as a
@@ -30,24 +29,22 @@ export function TripsClient({ budgetId, trips }: { budgetId: string; trips: Trip
     [trips],
   );
 
-  function toggleSelect(trip: string) {
-    setSelected((cur) => (cur === trip ? null : trip));
-  }
-
   const editing = editingTrip ? trips.find((t) => t.trip === editingTrip) ?? null : null;
 
   return (
     <>
-      <TripsHero trips={trips} metric={metric} onMetricChange={setMetric} />
+      <TripsHero trips={trips} metric={metric} />
+
+      <CompareByBar metric={metric} onMetricChange={setMetric} />
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-start gap-5">
-        <TripsRanked trips={trips} metric={metric} selected={selected} onSelect={toggleSelect} />
-        <TripsMix trips={chronological} selected={selected} />
+        <TripsRanked trips={trips} metric={metric} />
+        <TripsMix trips={chronological} />
       </div>
 
-      <TripsMatrix trips={chronological} metric={metric} selected={selected} />
+      <TripsMatrix trips={chronological} metric={metric} />
 
-      <TripsTable trips={trips} selected={selected} onSelect={toggleSelect} onEditTrip={setEditingTrip} />
+      <TripsTable trips={trips} onEditTrip={setEditingTrip} />
 
       {editing ? (
         <EditTripModal

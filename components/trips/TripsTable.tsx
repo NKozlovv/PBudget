@@ -21,13 +21,9 @@ const HEAD: { label: string; align: 'left' | 'right' }[] = [
 /** Every trip, side by side — the full comparison table, always sorted by total spend. */
 export function TripsTable({
   trips,
-  selected,
-  onSelect,
   onEditTrip,
 }: {
   trips: TripSummary[];
-  selected: string | null;
-  onSelect: (trip: string) => void;
   onEditTrip: (trip: string) => void;
 }) {
   const grand = trips.reduce((s, t) => s + t.total, 0);
@@ -70,17 +66,9 @@ export function TripsTable({
               const fixedPct = t.total > 0 ? Math.round((t.fixed / t.total) * 100) : 0;
               const good = t.perPersonDay < basePpd * 0.9;
               const bad = t.perPersonDay > basePpd * 1.1;
-              const isSelected = selected === t.trip;
 
               return (
-                <tr
-                  key={t.trip}
-                  onClick={() => onSelect(t.trip)}
-                  className={cn(
-                    'cursor-pointer transition-colors duration-150 hover:bg-white/[0.44]',
-                    isSelected && 'bg-white/[0.5]',
-                  )}
-                >
+                <tr key={t.trip} className="transition-colors duration-150 hover:bg-white/[0.44]">
                   <td className="border-b border-white/45 px-3 py-3">
                     <div className="whitespace-nowrap text-[14px] font-bold text-ink">{t.trip}</div>
                     <div className="whitespace-nowrap text-[11.5px] font-semibold text-[#7b8296]">
@@ -141,11 +129,8 @@ export function TripsTable({
                   <td className="border-b border-white/45 px-2 py-3 text-right">
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditTrip(t.trip);
-                      }}
-                      title="Edit trip dates and travelers"
+                      onClick={() => onEditTrip(t.trip)}
+                      title="Edit trip name, dates and travelers"
                       className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ink-mute transition-colors hover:bg-white/70 hover:text-ink"
                     >
                       <Icon name="pencil" size={13} />
@@ -162,7 +147,7 @@ export function TripsTable({
         Fixed = flights, lodging and fees, the part you commit to before leaving. Daily = food, local transport,
         activities and shopping, divided by days away.{' '}
         <span className="text-ink-mute">
-          {`A ~ next to a date range means it's estimated from that trip's own transactions — click the pencil to set exact dates.`}
+          {`Verdict always compares per-person-day cost against the average across every trip (${fmtEUR(basePpd, { decimals: 0 })}/p·day here) — ±10% is "on average", regardless of which metric is selected above. A ~ next to a date range means it's estimated from that trip's own transactions — click the pencil to set exact dates or rename the trip.`}
         </span>
       </p>
     </section>

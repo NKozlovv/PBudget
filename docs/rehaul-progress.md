@@ -2435,3 +2435,77 @@ explicit dates; anything else → derived guess, matching
 never disagree about what counts as "explicit"); re-grepped every new/
 changed JSX file for raw apostrophes in text children before pushing,
 having just been burned by that exact class of error twice.
+
+## Trips: annotated-screenshot feedback round (2026-09-19, same day)
+
+The user reviewed the live page and marked up screenshots directly.
+Six changes, all in `components/trips/*` + `app/actions/trips.ts`:
+
+1. **Dropped the aggregate "N days away" figure** everywhere it summed
+   day-counts across unrelated trips (page header meta, the hero
+   badge, the "Average per day" KPI tile's sub-line) — summed across 6
+   separate trips scattered through the year, "56 days away" reads as
+   a real countdown when it isn't one. Per-trip day counts (ranked
+   list, matrix column headers, the table's Days column) are untouched
+   — those are unambiguous. `dayCount`/`personDayCount` are still
+   computed internally for the per-day/per-person-day KPI values,
+   just not surfaced as their own label any more.
+2. **Removed the click-to-focus/dim interaction** (`selected` state
+   that dimmed every other row/segment/cell when you tapped a trip) —
+   "no need for the on-click filter, leave hover, remove filtering."
+   Dropped `selected`/`onSelect` from `TripsRanked`, `TripsMix`,
+   `TripsMatrix`, `TripsTable`, and the state itself from
+   `TripsClient`. Ranked-list rows went from `<button onClick>` to a
+   plain `<div>` — they're not interactive any more, just hover-lifted
+   for visual feedback (kept per explicit request). Also dropped "on
+   the ground" from the ranked list's per-trip subline (redundant with
+   the "$/day" figure right before it) and the row's "Tap a trip to
+   hold it in focus" instruction line, now dead.
+3. **New Trips-only subcategory palette**
+   (`lib/trips/subcategoryColor.ts`) — `categoryColor()`'s app-wide
+   seven-hue set has three blue-ish hues (indigo/sky/navy) that read
+   near-identical at segment/swatch size; landing two of them adjacent
+   in the same trip's bar made it hard to read. Same hash-by-name
+   mechanism, a wider/more-spread eight-hue set, used only by
+   `TripsMix`/`TripsMatrix` — `categoryColor()` itself is untouched,
+   so nothing outside Trips changes color.
+4. **Real hover tooltip on the mix chart's segments**, replacing the
+   native `title` attribute ("add tooltip with design, not like it is
+   right now"). CSS-only (`group/seg` + `group-hover/seg:opacity-100`,
+   no JS hover state per segment) — a dark `bg-ink` pill above the
+   segment with a small triangle, showing name/amount/percent. Needed
+   dropping `overflow-hidden` from the segment track (it would've
+   clipped a tooltip escaping upward) in favor of
+   `first:rounded-l-[8px] last:rounded-r-[8px]` on the segments
+   themselves for the same rounded-bar look.
+5. **Trip rename**, added to the existing "edit trip" modal
+   (`EditTripModal.tsx`, née `EditTravelersModal`) as a Trip name field
+   above dates/travelers — "add ability to re-name them." New
+   `renameTripAction` moves every transaction's `trip` text from old
+   to new (same free-text-label mechanism as everywhere else); if the
+   new name is an existing trip this merges the two, matching how
+   `renameCategoryAction`/`reassignCategoryAction` already treat a
+   category rename that lands on an existing name. The `trip_details`
+   row (dates/travelers) tries to rename alongside it; on a merge
+   collision (new name already has its own `trip_details` row) that
+   update fails against the `(budget_id, trip)` primary key, so this
+   trip's override is dropped rather than failing the whole rename —
+   the merge target's own dates/travelers win, which is the only
+   sane outcome once transactions from both trips are indistinguishable.
+6. **Verdict column self-explains** — "how do you calculate average?"
+   answered by adding the actual average value and the ±10% rule to
+   the table's footnote instead of leaving it to ask about. Also
+   pulled the "Compare by" metric picker out of the hero into its own
+   sticky, centered `CompareByBar` — the metric it drives affects
+   sections well below the fold (ranked list, matrix, table), so it
+   now stays reachable while scrolled down instead of requiring a trip
+   back to the top. `top-[92px]` is a hand-estimated clearance under
+   TopNav's own sticky bar, not a measured value — worth eyeballing on
+   the actual deploy.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+every changed file by hand; re-grepped all of `components/trips/` for
+raw apostrophes in JSX text again (the build-breaking class from
+earlier today); traced `TripsHero`'s KPI math after removing the
+`sub` lines to confirm `dayCount`/`personDayCount` are still computed
+from real per-trip data rather than left as dead variables.

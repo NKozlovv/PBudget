@@ -1,7 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/utils';
-import { categoryColor } from '@/lib/categoryColor';
+import { tripSubcategoryColor } from '@/lib/trips/subcategoryColor';
 import { fmtEUR } from '@/lib/money';
 import { formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
@@ -14,15 +13,7 @@ function cellValue(t: TripSummary, subcategory: string, metric: TripMetric): num
 }
 
 /** Subcategory × trip heat table — read across a row to compare one cost type over every trip. */
-export function TripsMatrix({
-  trips,
-  metric,
-  selected,
-}: {
-  trips: TripSummary[];
-  metric: TripMetric;
-  selected: string | null;
-}) {
+export function TripsMatrix({ trips, metric }: { trips: TripSummary[]; metric: TripMetric }) {
   const totals = new Map<string, number>();
   for (const t of trips) {
     for (const s of t.bySubcategory) totals.set(s.name, (totals.get(s.name) ?? 0) + s.amount);
@@ -57,13 +48,7 @@ export function TripsMatrix({
                 Subcategory
               </th>
               {trips.map((t) => (
-                <th
-                  key={t.trip}
-                  className={cn(
-                    'whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold',
-                    selected && selected !== t.trip ? 'text-[#8b92a6]' : 'text-ink',
-                  )}
-                >
+                <th key={t.trip} className="whitespace-nowrap px-2 py-1.5 text-right text-[12px] font-bold text-ink">
                   {t.trip}
                   <div className="text-[11px] font-semibold text-[#7b8296]">
                     {t.days}d · {t.travelers}p
@@ -81,7 +66,7 @@ export function TripsMatrix({
                   <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2">
                     <span
                       className="mr-2 inline-block h-[9px] w-[9px] rounded-[3px]"
-                      style={{ background: categoryColor(sub) }}
+                      style={{ background: tripSubcategoryColor(sub) }}
                     />
                     <span className="text-[13px] font-bold text-ink">{sub}</span>
                   </td>
@@ -95,7 +80,6 @@ export function TripsMatrix({
                         style={{
                           background: v === 0 ? 'rgba(255,255,255,.22)' : `rgba(74, 92, 224, ${(0.07 + r * 0.72).toFixed(3)})`,
                           color: v === 0 ? '#9aa0b4' : r > 0.55 ? '#ffffff' : '#1d2340',
-                          boxShadow: selected === t.trip ? 'inset 0 0 0 2px rgba(21,26,45,.35)' : 'none',
                         }}
                       >
                         {v === 0 ? '—' : fmtEUR(metric === 'total' ? v : Math.round(v), { decimals: 0 })}
@@ -110,13 +94,7 @@ export function TripsMatrix({
                 Trip total
               </td>
               {trips.map((t) => (
-                <td
-                  key={t.trip}
-                  className={cn(
-                    'px-2.5 py-2 text-right text-[13.5px] font-extrabold tabular-nums',
-                    selected && selected !== t.trip ? 'text-[#8b92a6]' : 'text-ink',
-                  )}
-                >
+                <td key={t.trip} className="px-2.5 py-2 text-right text-[13.5px] font-extrabold tabular-nums text-ink">
                   {formatMetric(metricValue(t, metric), metric)}
                 </td>
               ))}

@@ -402,8 +402,10 @@ components/
   forecast/           # BurnRateTable
   import/             # ImportDropzone
   trips/              # added 2026-09-19 — TripsClient, TripsHero,
-                      # TripsRanked, TripsMix, TripsMatrix, TripsTable,
-                      # EditTravelersModal (/trips)
+                      # CompareByBar (sticky metric picker), TripsRanked,
+                      # TripsMix, TripsMatrix, TripsTable, EditTripModal
+                      # (name/dates/travelers — renamed from
+                      # EditTravelersModal) (/trips)
 
 lib/
   supabase/           # client (browser), server (RSC), middleware
@@ -414,7 +416,10 @@ lib/
                       # computed from listTransactions())
   trips/              # summary (per-trip aggregation from Travel-
                       # category, trip-tagged transactions), view
-                      # (metric picker helpers — /trips)
+                      # (metric picker helpers), subcategoryColor
+                      # (Trips-only palette, wider-spread than
+                      # categoryColor.ts — see rehaul-progress.md)
+                      # (/trips)
   xlsx/               # parse, classify, dates
   categories/         # summary (Categories page), formOptions
                       # (subcategory dropdown + most-used auto-pick),

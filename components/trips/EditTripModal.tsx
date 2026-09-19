@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Field, Input, Modal } from '@/components/ui';
-import { setTripDetailsAction } from '@/app/actions/trips';
+import { renameTripAction, setTripDetailsAction } from '@/app/actions/trips';
 
 export function EditTripModal({
   budgetId,
@@ -24,6 +24,7 @@ export function EditTripModal({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const [name, setName] = useState(trip);
   const [travelersValue, setTravelersValue] = useState(String(travelers));
   const [start, setStart] = useState(datesAreExplicit ? startDate : '');
   const [end, setEnd] = useState(datesAreExplicit ? endDate : '');
@@ -32,6 +33,11 @@ export function EditTripModal({
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const newName = name.trim();
+    if (!newName) {
+      setError('Trip name is required.');
+      return;
+    }
     const n = Number(travelersValue);
     if (!Number.isFinite(n) || n < 1) {
       setError('Travelers: enter at least 1.');
@@ -39,9 +45,19 @@ export function EditTripModal({
     }
     setError(null);
     setPending(true);
+
+    if (newName !== trip) {
+      const renameRes = await renameTripAction({ budget_id: budgetId, oldName: trip, newName });
+      if (!renameRes.ok) {
+        setPending(false);
+        setError(renameRes.error);
+        return;
+      }
+    }
+
     const res = await setTripDetailsAction({
       budget_id: budgetId,
-      trip,
+      trip: newName,
       travelers: n,
       start_date: start || null,
       end_date: end || null,
@@ -59,10 +75,13 @@ export function EditTripModal({
     <Modal
       open={true}
       onOpenChange={(o) => !o && onClose()}
-      title={trip}
-      description="Dates and headcount for this trip — used for the day count and per-person-day comparison."
+      title={`Edit ${trip}`}
+      description="Name, dates and headcount for this trip — used for the day count and per-person-day comparison."
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Field label="Trip name" hint="Renaming moves every transaction tagged with the old name.">
+          {({ id }) => <Input id={id} type="text" required value={name} onChange={(e) => setName(e.target.value)} />}
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Start date" hint={!datesAreExplicit ? 'Estimated — pick to override' : undefined}>
             {({ id }) => (
