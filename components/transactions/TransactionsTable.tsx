@@ -71,6 +71,11 @@ export function TransactionsTable({
     return total;
   }, [transactions, selectedIds, budgetFxRate]);
 
+  const selectedCategories = useMemo(
+    () => transactions.filter((t) => selectedIds.has(t.id)).map((t) => t.category),
+    [transactions, selectedIds],
+  );
+
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -251,6 +256,7 @@ export function TransactionsTable({
       >
         <BulkEditModal
           count={selectedIds.size}
+          selectedCategories={selectedCategories}
           accounts={accounts}
           expenseCats={expenseCats}
           incomeCats={incomeCats}

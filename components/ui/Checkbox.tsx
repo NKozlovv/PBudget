@@ -12,18 +12,22 @@ export function Checkbox({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="group/check flex items-center gap-2.5 text-left"
+      aria-disabled={disabled}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className="group/check flex items-center gap-2.5 text-left disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span
         className={cn(

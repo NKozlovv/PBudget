@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { enforceTripRule } from '@/lib/transactions/constants';
+import { TRAVEL_CATEGORY, enforceTripRule } from '@/lib/transactions/constants';
 import type { Currency, TxType } from '@/lib/supabase/types';
 
 export interface TxInput {
@@ -94,7 +94,18 @@ export async function bulkUpdateTransactionsAction(
   if (ids.length === 0) return { ok: true, data: undefined };
   try {
     const supabase = await createClient();
-    const { error } = await supabase.from('transactions').update(enforceTripRule(patch)).in('id', ids);
+    const finalPatch = enforceTripRule(patch);
+    let query = supabase.from('transactions').update(finalPatch).in('id', ids);
+    // Setting `trip` without also setting `category` (bulk "tag with a
+    // trip" on transactions that are already Travel) is the one case
+    // enforceTripRule can't cover — it only fires when `category` itself is
+    // part of the patch. Scope the update to Travel rows in that case, so
+    // any non-Travel row among `ids` (a stale selection, say) is simply
+    // left untouched by this update rather than mistagged.
+    if ('trip' in finalPatch && !('category' in finalPatch)) {
+      query = query.eq('category', TRAVEL_CATEGORY);
+    }
+    const { error } = await query;
     if (error) return { ok: false, error: error.message };
     bumpPaths();
     return { ok: true, data: undefined };

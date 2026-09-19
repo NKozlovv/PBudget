@@ -11,17 +11,18 @@ type BulkPatch = Partial<Omit<TxInput, 'budget_id'>>;
 
 /**
  * Bulk-edit only ever touches fields that are naturally *shared* across a
- * batch of transactions — category (+ subcategory, + trip when the category
- * is Travel) and account. Amount/date/comment are deliberately not offered
- * here: those are inherently per-transaction, and forcing every selected
- * row to the same amount or date would almost never be what "bulk edit"
- * means. Each field is behind its own "change this?" checkbox so an
- * unchecked field is left out of the patch entirely — bulkUpdateTransactionsAction
- * (and its own enforceTripRule call) only ever touches what's actually in
- * the patch, so unrelated columns on the selected rows are never disturbed.
+ * batch of transactions — category (+ subcategory), a trip tag, and
+ * account. Amount/date/comment are deliberately not offered here: those
+ * are inherently per-transaction, and forcing every selected row to the
+ * same amount or date would almost never be what "bulk edit" means. Each
+ * field is behind its own "change this?" checkbox so an unchecked field is
+ * left out of the patch entirely — bulkUpdateTransactionsAction only ever
+ * touches what's actually in the patch, so unrelated columns on the
+ * selected rows are never disturbed.
  */
 export function BulkEditModal({
   count,
+  selectedCategories,
   accounts,
   expenseCats,
   incomeCats,
@@ -31,6 +32,8 @@ export function BulkEditModal({
   onCancel,
 }: {
   count: number;
+  /** Current `category` of every selected transaction — the only thing that decides whether bulk trip-tagging is safe without also changing category. */
+  selectedCategories: Array<string | null>;
   accounts: Account[];
   expenseCats: Category[];
   incomeCats: Category[];
@@ -42,6 +45,8 @@ export function BulkEditModal({
   const [changeCategory, setChangeCategory] = useState(false);
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
+
+  const [changeTrip, setChangeTrip] = useState(false);
   const [trip, setTrip] = useState('');
 
   const [changeAccount, setChangeAccount] = useState(false);
@@ -55,19 +60,26 @@ export function BulkEditModal({
     [expenseCats, incomeCats],
   );
   const subcatOptions = subcategoriesByCategory[category] ?? [];
-  const isTravel = isTravelCategory(category);
+
+  // A trip tag is only ever valid on a Travel transaction. Whether that
+  // holds after this submission depends on whether category is *also*
+  // being changed here: if it is, the new category decides it; if it
+  // isn't, it comes down to what every selected row already is.
+  const allAlreadyTravel =
+    selectedCategories.length > 0 && selectedCategories.every((c) => isTravelCategory(c));
+  const willBeTravel = changeCategory ? isTravelCategory(category) : allAlreadyTravel;
+  const tripActive = changeTrip && willBeTravel;
 
   function handleCategoryChange(next: string) {
     setCategory(next);
     setSubcategory('');
-    if (!isTravelCategory(next)) setTrip('');
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
-    if (!changeCategory && !changeAccount) {
+    if (!changeCategory && !changeTrip && !changeAccount) {
       setError('Pick at least one field to change.');
       return;
     }
@@ -75,12 +87,19 @@ export function BulkEditModal({
       setError('Pick an account.');
       return;
     }
+    if (changeTrip && !willBeTravel) {
+      setError('Trip tags only apply to Travel transactions.');
+      return;
+    }
 
     const patch: BulkPatch = {};
     if (changeCategory) {
       patch.category = category.trim() || null;
       patch.subcategory = subcategory.trim() || null;
-      patch.trip = isTravel ? trip.trim() || null : null;
+      if (!isTravelCategory(category)) patch.trip = null;
+    }
+    if (tripActive) {
+      patch.trip = trip.trim() || null;
     }
     if (changeAccount) {
       patch.account_id = accountId;
@@ -126,11 +145,27 @@ export function BulkEditModal({
                 </Field>
               ) : null}
             </div>
-            {isTravel ? (
-              <Field label="Trip" hint="Pick a previous trip or type a new one.">
-                {({ id }) => <TripField id={id} value={trip} onChange={setTrip} suggestions={existingTrips} />}
-              </Field>
-            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-2.5 rounded-[16px] border border-white/70 bg-white/40 p-4">
+        <Checkbox
+          checked={tripActive}
+          onChange={setChangeTrip}
+          disabled={!willBeTravel}
+          label="Tag with a trip"
+        />
+        {!willBeTravel ? (
+          <p className="pl-[26px] text-[12px] text-ink-mute">
+            Only available when every selected transaction is Travel — set category to Travel above,
+            or select only Travel transactions.
+          </p>
+        ) : tripActive ? (
+          <div className="pl-[26px]">
+            <Field label="Trip" hint="Pick a previous trip or type a new one.">
+              {({ id }) => <TripField id={id} value={trip} onChange={setTrip} suggestions={existingTrips} />}
+            </Field>
           </div>
         ) : null}
       </div>
