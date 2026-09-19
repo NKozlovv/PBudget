@@ -6,6 +6,7 @@ import { Button, Modal, Mono } from '@/components/ui';
 import { ADD_TRANSACTION_EVENT } from './AddTransactionButton';
 import {
   bulkDeleteTransactionsAction,
+  bulkUpdateTransactionsAction,
   createTransactionAction,
   deleteTransactionAction,
   updateTransactionAction,
@@ -14,6 +15,7 @@ import {
 import { TransactionForm } from './TransactionForm';
 import { DayGroupedList } from './DayGroupedList';
 import { BulkActionBar } from './BulkActionBar';
+import { BulkEditModal } from './BulkEditModal';
 import { fmtCurrency, fmtEUR, signedAmount, txToEUR } from '@/lib/money';
 import { dateDisplay } from '@/lib/date';
 import type { Account, Category, Transaction } from '@/lib/supabase/types';
@@ -23,6 +25,7 @@ type Mode =
   | { kind: 'add' }
   | { kind: 'edit'; tx: Transaction }
   | { kind: 'delete'; tx: Transaction }
+  | { kind: 'bulkEdit' }
   | { kind: 'bulkDelete' };
 
 export function TransactionsTable({
@@ -119,6 +122,16 @@ export function TransactionsTable({
       setSelectedIds(new Set());
       router.refresh();
     }
+  }
+
+  async function handleBulkUpdate(patch: Partial<Omit<TxInput, 'budget_id'>>) {
+    const res = await bulkUpdateTransactionsAction([...selectedIds], patch);
+    if (res.ok) {
+      setMode({ kind: 'idle' });
+      setSelectedIds(new Set());
+      router.refresh();
+    }
+    return res;
   }
 
   return (
@@ -231,6 +244,24 @@ export function TransactionsTable({
       ) : null}
 
       <Modal
+        open={mode.kind === 'bulkEdit'}
+        onOpenChange={(o) => !o && setMode({ kind: 'idle' })}
+        title={`Edit ${selectedIds.size} transaction${selectedIds.size === 1 ? '' : 's'}`}
+        description="Only the fields you turn on below will be changed."
+      >
+        <BulkEditModal
+          count={selectedIds.size}
+          accounts={accounts}
+          expenseCats={expenseCats}
+          incomeCats={incomeCats}
+          subcategoriesByCategory={subcategoriesByCategory}
+          existingTrips={existingTrips}
+          onSubmit={handleBulkUpdate}
+          onCancel={() => setMode({ kind: 'idle' })}
+        />
+      </Modal>
+
+      <Modal
         open={mode.kind === 'bulkDelete'}
         onOpenChange={(o) => !o && setMode({ kind: 'idle' })}
         title={`Delete ${selectedIds.size} transaction${selectedIds.size === 1 ? '' : 's'}?`}
@@ -254,6 +285,7 @@ export function TransactionsTable({
         totalEUR={selectedNetEUR}
         pending={bulkPending}
         onClear={() => setSelectedIds(new Set())}
+        onEdit={() => setMode({ kind: 'bulkEdit' })}
         onDelete={() => setMode({ kind: 'bulkDelete' })}
       />
     </>

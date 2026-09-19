@@ -6,12 +6,14 @@ import { fmtEUR } from '@/lib/money';
 export function BulkActionBar({
   count,
   totalEUR,
+  onEdit,
   onDelete,
   onClear,
   pending,
 }: {
   count: number;
   totalEUR: number;
+  onEdit: () => void;
   onDelete: () => void;
   onClear: () => void;
   pending: boolean;
@@ -30,6 +32,9 @@ export function BulkActionBar({
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={onClear} disabled={pending}>
             Clear
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onEdit} disabled={pending}>
+            Edit
           </Button>
           <Button size="sm" onClick={onDelete} disabled={pending}>
             {pending ? 'Deleting…' : 'Delete'}

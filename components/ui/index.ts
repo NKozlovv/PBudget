@@ -5,6 +5,7 @@ export { Pill } from './Pill';
 export { Button } from './Button';
 export { KpiTile } from './KpiTile';
 export { Input } from './Input';
+export { Checkbox } from './Checkbox';
 export { Field } from './Field';
 export { Select } from './Select';
 export { Modal } from './Modal';
