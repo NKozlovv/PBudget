@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { enforceTripRule } from '@/lib/transactions/constants';
 import type { CategoryKind } from '@/lib/supabase/types';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
@@ -101,7 +102,7 @@ export async function reassignCategoryAction(input: {
     const supabase = await createClient();
     const { error } = await supabase
       .from('transactions')
-      .update({ category: input.newName.trim() })
+      .update(enforceTripRule({ category: input.newName.trim() }))
       .eq('budget_id', input.budget_id)
       .eq('category', input.oldName);
     if (error) return { ok: false, error: error.message };

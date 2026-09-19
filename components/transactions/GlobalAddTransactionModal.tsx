@@ -78,6 +78,7 @@ export function GlobalAddTransactionModal() {
           incomeCats={data.incomeCats}
           subcategoriesByCategory={data.subcategoriesByCategory}
           mostUsedSubcategory={data.mostUsedSubcategory}
+          existingTrips={data.existingTrips}
           submitLabel="Add transaction"
           onSubmit={async (input) => {
             const res = await createTransactionAction(input);

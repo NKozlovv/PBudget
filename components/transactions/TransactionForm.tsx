@@ -2,7 +2,9 @@
 
 import { useState, type FormEvent } from 'react';
 import { Button, Field, Input, Select } from '@/components/ui';
+import { TripField } from './TripField';
 import { pickDefaultAccount } from '@/lib/accounts/defaultAccount';
+import { isTravelCategory } from '@/lib/transactions/constants';
 import type { Account, Category, Currency, TxType } from '@/lib/supabase/types';
 import type { TxInput } from '@/app/actions/transactions';
 
@@ -14,6 +16,7 @@ export interface FormDefaults {
   account_id?: string | null;
   category?: string | null;
   subcategory?: string | null;
+  trip?: string | null;
   comment?: string | null;
 }
 
@@ -24,6 +27,7 @@ export function TransactionForm({
   incomeCats,
   subcategoriesByCategory = {},
   mostUsedSubcategory = {},
+  existingTrips = [],
   defaults,
   submitLabel,
   onSubmit,
@@ -37,6 +41,8 @@ export function TransactionForm({
   subcategoriesByCategory?: Record<string, string[]>;
   /** Category name → most-frequently-used subcategory name. */
   mostUsedSubcategory?: Record<string, string>;
+  /** Previously-used trip names, for the Trip field's autocomplete. */
+  existingTrips?: string[];
   defaults?: FormDefaults;
   submitLabel: string;
   onSubmit: (input: TxInput) => Promise<{ ok: true } | { ok: false; error: string }>;
@@ -50,6 +56,7 @@ export function TransactionForm({
   );
   const [category, setCategory] = useState<string>(defaults?.category ?? '');
   const [subcategory, setSubcategory] = useState<string>(defaults?.subcategory ?? '');
+  const [trip, setTrip] = useState<string>(defaults?.trip ?? '');
   const [amount, setAmount] = useState<string>(defaults?.amount?.toString() ?? '');
   const [comment, setComment] = useState<string>(defaults?.comment ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +66,15 @@ export function TransactionForm({
   const currency: Currency = (defaults?.currency ?? account?.currency ?? 'EUR') as Currency;
   const cats = type === 'income' ? incomeCats : type === 'expense' ? expenseCats : [];
   const subcatOptions = subcategoriesByCategory[category] ?? [];
+  const isTravel = isTravelCategory(category);
 
   function handleCategoryChange(nextCategory: string) {
     setCategory(nextCategory);
     setSubcategory(mostUsedSubcategory[nextCategory] ?? '');
+    // A trip tag only makes sense on a Travel transaction — losing the
+    // category loses the tag (also re-enforced server-side, see
+    // lib/transactions/constants.ts's enforceTripRule).
+    if (!isTravelCategory(nextCategory)) setTrip('');
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -94,6 +106,7 @@ export function TransactionForm({
       account_id: accountId,
       category: category.trim() || null,
       subcategory: subcategory.trim() || null,
+      trip: isTravel ? trip.trim() || null : null,
       comment: comment.trim() || null,
     });
     setPending(false);
@@ -173,6 +186,12 @@ export function TransactionForm({
           </Field>
         ) : null}
       </div>
+
+      {isTravel ? (
+        <Field label="Trip" hint="Pick a previous trip or type a new one.">
+          {({ id }) => <TripField id={id} value={trip} onChange={setTrip} suggestions={existingTrips} />}
+        </Field>
+      ) : null}
 
       <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
         <Field label={`Amount (${currency})`}>

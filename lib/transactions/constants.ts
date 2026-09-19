@@ -28,3 +28,44 @@ export function isUncategorised(category: string | null | undefined): boolean {
 export function categoryDisplayName(category: string | null | undefined): string {
   return isUncategorised(category) ? 'Uncategorised' : (category ?? '').trim();
 }
+
+/** The one category name that unlocks trip-tagging (transactions.trip). */
+export const TRAVEL_CATEGORY = 'Travel';
+
+/**
+ * True only for the exact "Travel" category (case/whitespace-insensitive) —
+ * not a fuzzy "contains travel" match like lib/dashboard/categoryIcon.ts
+ * uses for icon guessing. Trip tags are a real, separate DB field, so
+ * whether one is allowed needs a precise, predictable answer, not a
+ * heuristic that could also fire for something like a hypothetical "Travel
+ * insurance" category.
+ */
+export function isTravelCategory(category: string | null | undefined): boolean {
+  return (category ?? '').trim().toLowerCase() === TRAVEL_CATEGORY.toLowerCase();
+}
+
+/**
+ * A trip tag only ever makes sense on a Travel-category transaction — if a
+ * write touches `category` and the new value isn't Travel, `trip` is forced
+ * to null regardless of what was passed, so a transaction can never end up
+ * tagged under a different (or no) category. Shared by every server action
+ * that writes `transactions.category` (app/actions/transactions.ts's
+ * create/update/bulkUpdate, and app/actions/categories.ts's
+ * reassignCategoryAction, which moves transactions between categories in
+ * bulk) so the rule holds everywhere, not just the one form that happens to
+ * submit through it today. A patch that doesn't touch `category` at all
+ * leaves `trip` alone — untouched fields shouldn't be side-effected.
+ */
+export function enforceTripRule<T extends { category?: string | null; trip?: string | null }>(
+  input: T,
+): T {
+  if ('category' in input && !isTravelCategory(input.category ?? null)) {
+    // Spreading a generic T and overriding one key produces a type TS can't
+    // re-verify against T itself (it only knows T's declared constraint,
+    // not its full concrete shape) — the cast is the standard escape hatch
+    // for that, not a real type hole: every key from `input` is still here
+    // unchanged except the `trip` override this function exists to make.
+    return { ...input, trip: null } as T;
+  }
+  return input;
+}

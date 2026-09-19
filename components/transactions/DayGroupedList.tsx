@@ -1,5 +1,6 @@
 'use client';
 
+import { Icon } from '@/components/ui';
 import { categoryColor } from '@/lib/categoryColor';
 import { fmtCurrency, fmtEUR, signedAmount, txToEUR } from '@/lib/money';
 import { groupTransactionsByDate } from '@/lib/transactions/grouping';
@@ -117,10 +118,10 @@ export function DayGroupedList({
                   </span>
                 </span>
 
-                <span className="min-w-0">
+                <span className="flex min-w-0 flex-col items-start gap-[3px]">
                   {catName ? (
                     <span
-                      className="inline-block truncate rounded-full px-[11px] py-[5px] text-[11.5px] font-bold"
+                      className="inline-block max-w-full truncate rounded-full px-[11px] py-[5px] text-[11.5px] font-bold"
                       style={{ background: `${hue}29`, color: hue }}
                     >
                       {catName}
@@ -128,6 +129,12 @@ export function DayGroupedList({
                   ) : (
                     <span className="text-[11.5px] text-ink-mute">—</span>
                   )}
+                  {tx.trip ? (
+                    <span className="flex max-w-full items-center gap-[4px] truncate text-[11px] font-semibold text-ink-mute">
+                      <Icon name="plane" size={10} className="shrink-0" />
+                      <span className="truncate">{tx.trip}</span>
+                    </span>
+                  ) : null}
                 </span>
 
                 <span className="flex min-w-0 items-center gap-[6px]">

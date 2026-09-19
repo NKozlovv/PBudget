@@ -17,6 +17,8 @@ export interface TransactionFormData {
   incomeCats: Category[];
   subcategoriesByCategory: Record<string, string[]>;
   mostUsedSubcategory: Record<string, string>;
+  /** Distinct previously-used trip names, for the Trip field's autocomplete. */
+  existingTrips: string[];
 }
 
 /**
@@ -50,7 +52,7 @@ export async function getTransactionFormDataAction(): Promise<TransactionFormDat
   const active = (activeId && budgets.find((b) => (b as { id: string }).id === activeId)) || budgets[0];
   const budgetId = (active as { id: string }).id;
 
-  const [accountsRes, allCatsRes, pairsRes] = await Promise.all([
+  const [accountsRes, allCatsRes, pairsRes, tripsRes] = await Promise.all([
     supabase
       .from('accounts')
       .select('*')
@@ -63,8 +65,13 @@ export async function getTransactionFormDataAction(): Promise<TransactionFormDat
       .select('category, subcategory')
       .eq('budget_id', budgetId)
       .not('subcategory', 'is', null),
+    // Unbounded like pairsRes above — this only feeds the Trip field's
+    // autocomplete suggestions, not a total, so a truncated read at very
+    // large row counts (see CLAUDE.md §8g) would at worst drop a rare trip
+    // name from the list, never produce a wrong number.
+    supabase.from('transactions').select('trip').eq('budget_id', budgetId).not('trip', 'is', null),
   ]);
-  if (accountsRes.error || allCatsRes.error || pairsRes.error) return null;
+  if (accountsRes.error || allCatsRes.error || pairsRes.error || tripsRes.error) return null;
 
   const allCats = (allCatsRes.data ?? []) as Category[];
   const expenseCats = allCats.filter((c) => c.kind === 'expense');
@@ -83,6 +90,14 @@ export async function getTransactionFormDataAction(): Promise<TransactionFormDat
     subcategoriesById[s.category_id]!.push(s);
   }
 
+  const existingTrips = Array.from(
+    new Set(
+      ((tripsRes.data ?? []) as Array<{ trip: string | null }>)
+        .map((r) => (r.trip ?? '').trim())
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
   return {
     budgetId,
     accounts: (accountsRes.data ?? []) as Account[],
@@ -92,5 +107,6 @@ export async function getTransactionFormDataAction(): Promise<TransactionFormDat
     mostUsedSubcategory: mostUsedSubcategoryByCategory(
       (pairsRes.data ?? []) as Array<{ category: string | null; subcategory: string | null }>,
     ),
+    existingTrips,
   };
 }

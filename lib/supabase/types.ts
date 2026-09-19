@@ -66,6 +66,8 @@ export interface Transaction {
   fx_rate: number | null;
   category: string | null;
   subcategory: string | null;
+  /** Trip label — only ever set when `category` is the Travel category; see lib/transactions/constants.ts's isTravelCategory(). */
+  trip: string | null;
   account_id: string | null;
   comment: string | null;
   created_by: string | null;

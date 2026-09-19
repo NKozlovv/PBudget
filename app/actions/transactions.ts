@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { enforceTripRule } from '@/lib/transactions/constants';
 import type { Currency, TxType } from '@/lib/supabase/types';
 
 export interface TxInput {
@@ -13,6 +14,7 @@ export interface TxInput {
   account_id: string | null;
   category: string | null;
   subcategory: string | null;
+  trip: string | null;
   comment: string | null;
 }
 
@@ -32,7 +34,7 @@ export async function createTransactionAction(input: TxInput): Promise<ActionRes
     const { data, error } = await supabase
       .from('transactions')
       .insert({
-        ...input,
+        ...enforceTripRule(input),
         created_by: userData.user.id,
       })
       .select('id')
@@ -51,7 +53,7 @@ export async function updateTransactionAction(
 ): Promise<ActionResult> {
   try {
     const supabase = await createClient();
-    const { error } = await supabase.from('transactions').update(patch).eq('id', id);
+    const { error } = await supabase.from('transactions').update(enforceTripRule(patch)).eq('id', id);
     if (error) return { ok: false, error: error.message };
     bumpPaths();
     return { ok: true, data: undefined };
@@ -92,7 +94,7 @@ export async function bulkUpdateTransactionsAction(
   if (ids.length === 0) return { ok: true, data: undefined };
   try {
     const supabase = await createClient();
-    const { error } = await supabase.from('transactions').update(patch).in('id', ids);
+    const { error } = await supabase.from('transactions').update(enforceTripRule(patch)).in('id', ids);
     if (error) return { ok: false, error: error.message };
     bumpPaths();
     return { ok: true, data: undefined };

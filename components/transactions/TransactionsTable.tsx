@@ -32,6 +32,7 @@ export function TransactionsTable({
   incomeCats,
   subcategoriesByCategory,
   mostUsedSubcategory,
+  existingTrips,
   budgetId,
   budgetFxRate,
 }: {
@@ -41,6 +42,7 @@ export function TransactionsTable({
   incomeCats: Category[];
   subcategoriesByCategory: Record<string, string[]>;
   mostUsedSubcategory: Record<string, string>;
+  existingTrips: string[];
   budgetId: string;
   budgetFxRate: number;
 }) {
@@ -150,6 +152,7 @@ export function TransactionsTable({
           incomeCats={incomeCats}
           subcategoriesByCategory={subcategoriesByCategory}
           mostUsedSubcategory={mostUsedSubcategory}
+          existingTrips={existingTrips}
           submitLabel="Add transaction"
           onSubmit={handleCreate}
           onCancel={() => setMode({ kind: 'idle' })}
@@ -171,6 +174,7 @@ export function TransactionsTable({
               incomeCats={incomeCats}
               subcategoriesByCategory={subcategoriesByCategory}
               mostUsedSubcategory={mostUsedSubcategory}
+              existingTrips={existingTrips}
               defaults={{
                 date: mode.tx.date,
                 type: mode.tx.type,
@@ -179,6 +183,7 @@ export function TransactionsTable({
                 account_id: mode.tx.account_id,
                 category: mode.tx.category,
                 subcategory: mode.tx.subcategory,
+                trip: mode.tx.trip,
                 comment: mode.tx.comment,
               }}
               submitLabel="Save changes"

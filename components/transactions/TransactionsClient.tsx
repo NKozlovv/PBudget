@@ -65,6 +65,18 @@ export function TransactionsClient({
     return [...set].sort().reverse();
   }, [allTransactions]);
 
+  // The full transaction list is already in the browser (see this
+  // component's own doc comment), so distinct trip names for the Trip
+  // field's autocomplete come from it directly — no extra query needed.
+  const existingTrips = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of allTransactions) {
+      const trip = (t.trip ?? '').trim();
+      if (trip) set.add(trip);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [allTransactions]);
+
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     const rows = allTransactions.filter((t) => {
@@ -119,6 +131,7 @@ export function TransactionsClient({
         incomeCats={incomeCats}
         subcategoriesByCategory={subcategoriesByCategory}
         mostUsedSubcategory={mostUsedSubcategory}
+        existingTrips={existingTrips}
         budgetId={budgetId}
         budgetFxRate={budgetFxRate}
       />
