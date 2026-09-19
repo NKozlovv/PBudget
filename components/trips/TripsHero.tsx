@@ -1,7 +1,7 @@
 'use client';
 
 import { fmtEUR } from '@/lib/money';
-import { formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
+import { averageMetric, formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
 function splitFigure(n: number): { whole: string; cents: string } {
@@ -21,8 +21,6 @@ function splitFigure(n: number): { whole: string; cents: string } {
  */
 export function TripsHero({ trips, metric }: { trips: TripSummary[]; metric: TripMetric }) {
   const grand = trips.reduce((s, t) => s + t.total, 0);
-  const dayCount = trips.reduce((s, t) => s + t.days, 0);
-  const personDayCount = trips.reduce((s, t) => s + t.days * t.travelers, 0);
   const figure = splitFigure(grand);
 
   const ranked = [...trips].sort((a, b) => metricValue(b, metric) - metricValue(a, metric));
@@ -55,11 +53,11 @@ export function TripsHero({ trips, metric }: { trips: TripSummary[]; metric: Tri
   const kpis = [
     {
       label: 'Average per day',
-      value: fmtEUR(Math.round(grand / (dayCount || 1)), { decimals: 0 }),
+      value: fmtEUR(Math.round(averageMetric(trips, 'perDay')), { decimals: 0 }),
     },
     {
       label: 'Average per person-day',
-      value: fmtEUR(Math.round(grand / (personDayCount || 1)), { decimals: 0 }),
+      value: fmtEUR(Math.round(averageMetric(trips, 'perPersonDay')), { decimals: 0 }),
     },
   ];
 

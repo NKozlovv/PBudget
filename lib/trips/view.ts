@@ -25,14 +25,18 @@ export function formatMetric(value: number, metric: TripMetric): string {
   return fmtEUR(Math.round(value), { decimals: 0 }) + suffix;
 }
 
-/** Budget-wide average for the active metric — the benchmark line/label. */
+/**
+ * The plain mean of each trip's own metric value — one trip, one data
+ * point, regardless of how long it was. Deliberately NOT total spend over
+ * total days/person-days: that day-weighted version lets one very long or
+ * very short trip pull the "average" toward its own rate far more than its
+ * one-trip-out-of-N share, which reads as "the average trip costs X" while
+ * actually meaning something closer to "the average day across all travel
+ * costs X." Used identically by the hero KPIs, the ranked list's benchmark
+ * line, and the table's verdict column, so all three agree on what
+ * "average" means.
+ */
 export function averageMetric(trips: TripSummary[], metric: TripMetric): number {
-  const grand = trips.reduce((s, t) => s + t.total, 0);
-  if (metric === 'total') return trips.length > 0 ? grand / trips.length : 0;
-  if (metric === 'perDay') {
-    const days = trips.reduce((s, t) => s + t.days, 0);
-    return days > 0 ? grand / days : 0;
-  }
-  const personDays = trips.reduce((s, t) => s + t.days * t.travelers, 0);
-  return personDays > 0 ? grand / personDays : 0;
+  if (trips.length === 0) return 0;
+  return trips.reduce((s, t) => s + metricValue(t, metric), 0) / trips.length;
 }

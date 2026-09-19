@@ -371,6 +371,31 @@ further than a few hundred transactions. Regression coverage: none yet
 (would need a >1000-row fixture) — this was caught from a user-reported
 discrepancy on the Accounts page, not a test.
 
+### 8h. `overflow: hidden` on `.ambient-ground` broke `position: sticky` app-wide (2026-09-19)
+
+`app/globals.css`'s `.ambient-ground` (the outer wrapper in
+`app/(app)/layout.tsx`, applied on every protected page) had
+`overflow: hidden` on it — added to help contain the decorative blurred
+`.ambient-blob` elements. Per the CSS spec, **any** ancestor with
+`overflow` other than `visible` breaks `position: sticky` for every
+descendant, regardless of whether that ancestor's own content actually
+overflows. This almost certainly broke `TopNav`'s sticky positioning
+app-wide from the moment it shipped — it just went unnoticed because no
+page needed a *second* sticky element far enough down to prove it, until
+the Trips page's `CompareByBar` did.
+
+**Fix applied:** removed `overflow: hidden` from `.ambient-ground`. It
+was redundant anyway — `.ambient-layer` (the blobs' own direct parent,
+`position: absolute; inset: 0`) already has its own `overflow: hidden`
+that clips the blobs (and their blur bleed) identically, so removing the
+outer one changes nothing visually.
+
+**Symptom to watch for:** any `position: sticky` element that renders
+in its normal flow position but never actually pins as you scroll.
+Regression coverage: none (a CSS layout property, not something the
+Vitest suite touches) — confirm visually on the live deploy that TopNav
+now stays pinned when scrolled well past the fold on a long page.
+
 ---
 
 ## 9. Code architecture

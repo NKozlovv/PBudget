@@ -2509,3 +2509,95 @@ raw apostrophes in JSX text again (the build-breaking class from
 earlier today); traced `TripsHero`'s KPI math after removing the
 `sub` lines to confirm `dayCount`/`personDayCount` are still computed
 from real per-trip data rather than left as dead variables.
+
+## Trips: second annotated-screenshot round — sticky bug, average fix, colors, drill-down (2026-09-19, same day)
+
+Another round of marked-up screenshots, this time on the actual deploy
+(so real bugs, not just taste calls) — one of the six items below is a
+real fix that turned out to affect the whole app, not just Trips.
+
+1. **`CompareByBar` wasn't actually sticky** ("it needs to move with
+   the scroll to the bottom of the page" — it just sat in place). Root
+   cause: `app/globals.css`'s `.ambient-ground` (the app shell's outer
+   wrapper, `app/(app)/layout.tsx`) had `overflow: hidden` on it, and
+   per the CSS spec, **any** ancestor with overflow other than
+   `visible` breaks `position: sticky` for every descendant —
+   regardless of whether that ancestor's own content actually
+   overflows. This almost certainly also breaks `TopNav`'s own sticky
+   positioning app-wide, just unnoticed until a page needed a *second*
+   sticky element far enough down the page to expose it. Checked
+   whether `.ambient-ground`'s `overflow: hidden` was actually load-
+   bearing (it clips the decorative blurred `.ambient-blob` elements)
+   before touching it: it's redundant — `.ambient-layer`, the blobs'
+   own direct parent (`position: absolute; inset: 0`), already has its
+   own `overflow: hidden` that clips them (and their blur bleed)
+   identically. Removed it from `.ambient-ground`; `CompareByBar`
+   keeps `position: sticky` (no workaround needed once the real bug
+   was gone). This is an app-wide CSS fix, not scoped to Trips —
+   worth confirming TopNav itself now sticks correctly too on the next
+   pass over any page.
+2. **"Average" was day-weighted, not trip-weighted** ("average should
+   come only from trips, not from daily"). `averageMetric()`
+   (`lib/trips/view.ts`) used to compute `total spend ÷ total days` for
+   the per-day metric — a rate that lets one very long or very short
+   trip pull the "average" toward its own daily rate far more than its
+   one-trip-out-of-N share, which reads as "the average trip" but
+   actually means "the average day across all travel." Rewritten to
+   the plain mean of each trip's own metric value (`Σ trip values ÷
+   trip count`) — one trip, one data point, regardless of length.
+   `TripsHero`'s KPI tiles and `TripsTable`'s verdict-column baseline
+   now both call this same function instead of each hand-rolling their
+   own (previously day-weighted) version, so hero, ranked-list
+   benchmark line, and table verdict are guaranteed to agree.
+3. **Rank-based subcategory colors, not hash-based**
+   (`lib/trips/subcategoryColor.ts` rewritten). The hash-per-name
+   approach from the last round still left it to chance whether two
+   unrelated subcategory names' hashes landed on similar hues — real
+   feedback on a real five-subcategory set: "why only two colors."
+   `buildSubcategoryColorMap(trips)` now ranks every subcategory by
+   total spend once and assigns a hand-ordered, warm/cool-alternating
+   eight-hue palette by that rank — guaranteed-distinct instead of
+   hash luck. Computed once in `TripsClient` and passed down as a
+   `Map<string, string>` to `TripsMix`/`TripsMatrix` so a given
+   subcategory is the same color everywhere on the page, not just
+   within one component's own hash.
+4. **`TripsRanked` re-scoped**: dropped the above/below-average bar
+   coloring ("no need to color this based on spent more or less than
+   average, as it's gonna be always split in the middle") in favor of
+   one uniform gradient, and switched the sort from "by metric value"
+   to "by date, newest first" — a value-based ranking that visually
+   splits ~50/50 around the average line on every reasonable dataset
+   wasn't telling you much the bar lengths didn't already show; date
+   order at least reads as a timeline. The average benchmark tick mark
+   and footer line are untouched.
+5. **Equal-height "Trips ranked"/"What the money went on" row** — the
+   two cards visibly mismatched height whenever Ranked had more/taller
+   rows than Mix, leaving a dead gap under the shorter card. Grid
+   switched from `items-start` to `items-stretch`; `TripsMix`'s legend
+   row gets `mt-auto` so leftover height collects as intentional-
+   looking space above the legend (anchored to the card's bottom edge)
+   instead of a void below everything.
+6. **`TripsMix` becomes a drill-down, not just a summary** ("the right
+   menu should be more about digging into each trip" — confirmed:
+   inline expand, not a separate view). Each trip row is now a button
+   that expands an accordion (one open at a time, same pattern as the
+   Categories page's row disclosure) listing every subcategory with
+   its own color dot, transaction count, percent of trip, and amount.
+   Needed a `count` field added to `TripSummary.bySubcategory`
+   (`lib/trips/summary.ts`) — tracked alongside `amount` in the same
+   aggregation pass, no new query. The segment hover tooltip from the
+   previous round is preserved on the (now slightly restructured)
+   bar segments.
+
+**Migration:** none — no schema changes this round.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+every changed file by hand; specifically checked the `TripsMix` row
+button doesn't nest an interactive `<button>` inside another `<button>`
+(an earlier draft did, via `IconButton` for the disclosure chevron —
+swapped for a plain `Icon` in a non-interactive `<span>` since the row
+button already owns the click); re-grepped `components/trips/` for raw
+apostrophes in JSX text again; traced `averageMetric`'s new definition
+against the 'total' case specifically to confirm it's unchanged
+(`Σ totals ÷ count` was already un-weighted, so only perDay/
+perPersonDay actually change behavior).

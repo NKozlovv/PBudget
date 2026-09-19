@@ -6,6 +6,7 @@ import type { Subcategory, Transaction, TripDetails } from '@/lib/supabase/types
 export interface TripSubcategoryTotal {
   name: string;
   amount: number;
+  count: number;
   /** Booked-before-leaving vs spent-on-the-ground — see Subcategory.is_fixed_cost. */
   fixed: boolean;
 }
@@ -73,19 +74,23 @@ export function tripSummaries(args: {
 
   const out: TripSummary[] = [];
   for (const [trip, txs] of groups) {
-    const bySubMap = new Map<string, number>();
+    const bySubMap = new Map<string, { amount: number; count: number }>();
     let derivedFrom = txs[0]!.date;
     let derivedTo = txs[0]!.date;
     for (const t of txs) {
       if (t.date < derivedFrom) derivedFrom = t.date;
       if (t.date > derivedTo) derivedTo = t.date;
       const sub = (t.subcategory ?? '').trim() || 'Uncategorised';
-      bySubMap.set(sub, (bySubMap.get(sub) ?? 0) + txToEUR(t, fxRate));
+      const entry = bySubMap.get(sub) ?? { amount: 0, count: 0 };
+      entry.amount += txToEUR(t, fxRate);
+      entry.count += 1;
+      bySubMap.set(sub, entry);
     }
 
-    const bySubcategory = Array.from(bySubMap, ([name, amount]) => ({
+    const bySubcategory = Array.from(bySubMap, ([name, { amount, count }]) => ({
       name,
       amount,
+      count,
       fixed: fixedByName.get(name) ?? false,
     })).sort((a, b) => b.amount - a.amount);
 

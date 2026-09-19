@@ -8,6 +8,7 @@ import { TripsMix } from './TripsMix';
 import { TripsMatrix } from './TripsMatrix';
 import { TripsTable } from './TripsTable';
 import { EditTripModal } from './EditTripModal';
+import { buildSubcategoryColorMap } from '@/lib/trips/subcategoryColor';
 import type { TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
@@ -31,18 +32,22 @@ export function TripsClient({ budgetId, trips }: { budgetId: string; trips: Trip
 
   const editing = editingTrip ? trips.find((t) => t.trip === editingTrip) ?? null : null;
 
+  // Shared across the mix chart, matrix and their legends so a given
+  // subcategory is always the same color everywhere on the page.
+  const colors = useMemo(() => buildSubcategoryColorMap(trips), [trips]);
+
   return (
     <>
       <TripsHero trips={trips} metric={metric} />
 
       <CompareByBar metric={metric} onMetricChange={setMetric} />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-start gap-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-stretch gap-5">
         <TripsRanked trips={trips} metric={metric} />
-        <TripsMix trips={chronological} />
+        <TripsMix trips={chronological} colors={colors} />
       </div>
 
-      <TripsMatrix trips={chronological} metric={metric} />
+      <TripsMatrix trips={chronological} metric={metric} colors={colors} />
 
       <TripsTable trips={trips} onEditTrip={setEditingTrip} />
 

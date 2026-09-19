@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { fmtEUR } from '@/lib/money';
 import { dateRangeDisplay } from '@/lib/date';
 import { Icon } from '@/components/ui';
+import { averageMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
 const HEAD: { label: string; align: 'left' | 'right' }[] = [
@@ -26,11 +27,8 @@ export function TripsTable({
   trips: TripSummary[];
   onEditTrip: (trip: string) => void;
 }) {
-  const grand = trips.reduce((s, t) => s + t.total, 0);
-  const days = trips.reduce((s, t) => s + t.days, 0);
-  const personDays = trips.reduce((s, t) => s + t.days * t.travelers, 0);
-  const avgPerDay = days > 0 ? grand / days : 0;
-  const basePpd = personDays > 0 ? grand / personDays : 0;
+  const avgPerDay = averageMetric(trips, 'perDay');
+  const basePpd = averageMetric(trips, 'perPersonDay');
 
   const rows = [...trips].sort((a, b) => b.total - a.total);
 

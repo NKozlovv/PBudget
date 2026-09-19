@@ -4,11 +4,24 @@ import { cn } from '@/lib/utils';
 import { TRIP_METRICS, type TripMetric } from '@/lib/trips/view';
 
 /**
- * The metric picker, pulled out of TripsHero and made its own sticky,
- * centered pill — the metric it controls affects sections well below the
- * fold (ranked list, mix chart, matrix, table), so it stays reachable while
- * scrolled down instead of requiring a trip back to the hero. `top-[92px]`
- * clears TopNav's own sticky bar (`top-[14px]`, ~64px tall) plus a gap.
+ * The metric picker, pulled out of TripsHero — the metric it controls
+ * affects sections well below the fold (ranked list, mix chart, matrix,
+ * table), so it needs to stay reachable while scrolled down instead of
+ * requiring a trip back to the hero.
+ *
+ * This didn't actually stick at first: the app shell's `.ambient-ground`
+ * wrapper (app/globals.css) had `overflow: hidden` on it (meant to clip
+ * the decorative blurred blobs), and per the CSS spec ANY ancestor with
+ * overflow other than `visible` breaks `position: sticky` for every
+ * descendant, regardless of whether that ancestor's own content actually
+ * overflows — it almost certainly broke TopNav's own sticky too, just
+ * unnoticed until this page needed a second sticky element far enough
+ * down to prove it. Fixed at the source instead of working around it here
+ * with `position: fixed`: `.ambient-ground`'s `overflow: hidden` turned
+ * out to be redundant anyway — `.ambient-layer` (the blobs' own direct
+ * parent, `position: absolute; inset: 0`) already has its own
+ * `overflow: hidden` that clips the blobs (and their blur bleed)
+ * identically, so removing the outer one changes nothing visually.
  */
 export function CompareByBar({
   metric,

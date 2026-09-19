@@ -1,26 +1,32 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { fmtEUR } from '@/lib/money';
-import { TRIP_METRICS, averageMetric, formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
+import { averageMetric, formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
+/**
+ * Newest trip first (not sorted by value — a ranking that's "always split
+ * down the middle" around the average line doesn't tell you much more than
+ * the bar lengths already do; date order at least reads as a timeline).
+ * Bar length still reflects the active metric; a single uniform color
+ * keeps the focus on length rather than an above/below-average color that
+ * mostly just repeats what the ordering used to show.
+ */
 export function TripsRanked({ trips, metric }: { trips: TripSummary[]; metric: TripMetric }) {
-  const ranked = [...trips].sort((a, b) => metricValue(b, metric) - metricValue(a, metric));
-  const max = Math.max(...ranked.map((t) => metricValue(t, metric)), 1);
+  const byDate = [...trips].sort((a, b) => (a.fromDate < b.fromDate ? 1 : a.fromDate > b.fromDate ? -1 : 0));
+  const max = Math.max(...trips.map((t) => metricValue(t, metric)), 1);
   const avg = averageMetric(trips, metric);
   const avgPct = Math.min(100, (avg / max) * 100);
-  const metricLabel = TRIP_METRICS.find((m) => m.key === metric)?.label.toLowerCase() ?? '';
 
   return (
     <section className="glass flex flex-col gap-[18px] !rounded-[34px] p-[24px] px-[26px]">
       <div>
         <div className="text-[17px] font-bold -tracking-[0.02em] text-ink">Trips ranked</div>
-        <div className="mt-1 text-[13px] font-semibold text-ink-soft">Ordered by {metricLabel}.</div>
+        <div className="mt-1 text-[13px] font-semibold text-ink-soft">Most recent trip first.</div>
       </div>
 
       <div className="flex flex-col gap-3">
-        {ranked.map((t) => {
+        {byDate.map((t) => {
           const value = metricValue(t, metric);
           const barPct = Math.min(100, (value / max) * 100);
           const fixedPct = t.total > 0 ? Math.round((t.fixed / t.total) * 100) : 0;
@@ -43,12 +49,7 @@ export function TripsRanked({ trips, metric }: { trips: TripSummary[]; metric: T
               </div>
               <div className="relative mt-[9px] h-[13px] rounded-full bg-white/40 shadow-[inset_0_0_0_1px_rgba(255,255,255,.5)]">
                 <div
-                  className={cn(
-                    'meter absolute inset-y-0 left-0 origin-left rounded-full',
-                    value >= avg
-                      ? 'bg-[linear-gradient(90deg,#f2708f,#e0568a)]'
-                      : 'bg-[linear-gradient(90deg,#4a5ce0,#1fb9a4)]',
-                  )}
+                  className="meter absolute inset-y-0 left-0 origin-left rounded-full bg-[linear-gradient(90deg,#4a5ce0,#1fb9a4)]"
                   style={{ width: `${barPct}%` }}
                 />
                 <div

@@ -1,6 +1,6 @@
 'use client';
 
-import { tripSubcategoryColor } from '@/lib/trips/subcategoryColor';
+import { subcategoryColor } from '@/lib/trips/subcategoryColor';
 import { fmtEUR } from '@/lib/money';
 import { formatMetric, metricValue, type TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
@@ -13,7 +13,15 @@ function cellValue(t: TripSummary, subcategory: string, metric: TripMetric): num
 }
 
 /** Subcategory × trip heat table — read across a row to compare one cost type over every trip. */
-export function TripsMatrix({ trips, metric }: { trips: TripSummary[]; metric: TripMetric }) {
+export function TripsMatrix({
+  trips,
+  metric,
+  colors,
+}: {
+  trips: TripSummary[];
+  metric: TripMetric;
+  colors: Map<string, string>;
+}) {
   const totals = new Map<string, number>();
   for (const t of trips) {
     for (const s of t.bySubcategory) totals.set(s.name, (totals.get(s.name) ?? 0) + s.amount);
@@ -66,7 +74,7 @@ export function TripsMatrix({ trips, metric }: { trips: TripSummary[]; metric: T
                   <td className="whitespace-nowrap rounded-[12px] bg-white/[0.34] px-2.5 py-2">
                     <span
                       className="mr-2 inline-block h-[9px] w-[9px] rounded-[3px]"
-                      style={{ background: tripSubcategoryColor(sub) }}
+                      style={{ background: subcategoryColor(colors, sub) }}
                     />
                     <span className="text-[13px] font-bold text-ink">{sub}</span>
                   </td>
