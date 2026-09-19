@@ -2709,3 +2709,36 @@ the changed file by hand; traced the 'total' branch specifically (no
 day-weighting applies — Σ spend ÷ trip count, same as before, since
 Total isn't a rate to weight against days in the first place); re-
 grepped `components/trips/` for both quote characters in raw JSX text.
+
+## Trips: "Compare by" finally sits beside the title (2026-09-20, same day)
+
+Third position request for `CompareByBar` in three rounds: card-nested
+→ separate bar below the hero → above the hero → now literally beside
+the "Trips" title, same row ("LEVEL THEM UP???"). Each earlier round
+hit the same wall: nest it in anything only as tall as the header row
+itself, and `position: sticky` has zero room to hold its pinned
+position once you scroll past that short box — a sticky element can't
+stick further than its own containing block's height allows.
+
+Resolved this time by making the fix structural instead of another
+reposition: `TripsClient` now renders **one CSS Grid spanning the
+entire page**, not just the header. `PageHeader` (moved in from
+`app/(app)/trips/page.tsx` — trips.length===0 still renders its own
+`PageHeader` there for the empty state) and `CompareByBar` are the
+grid's first two items, side by side in row 1; every section after
+that (`TripsHero`, the Ranked/Mix row, `TripsMatrix`, `TripsTable`)
+spans both columns via `col-span-full`, one per row. Since all of them
+are now the *same* grid container's children, `CompareByBar`'s
+containing block is that grid — as tall as the whole page — so it
+keeps sticking all the way to the table instead of losing its grip
+the moment the (short) header row scrolls past.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+both changed files by hand; confirmed `EditTripModal` (Radix
+`Dialog.Portal`) stays outside the grid in its own fragment slot so it
+can't introduce a stray empty grid cell; re-grepped `components/trips/`
+and the trips page for both quote characters in raw JSX text (the
+`meta` string on the empty-state `PageHeader` has both `"..."` and `it'll`
+in one template literal, but as a prop value rather than JSX children
+text it isn't subject to `react/no-unescaped-entities` — confirmed by
+re-reading the rule's scope rather than assuming).

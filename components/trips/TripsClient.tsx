@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PageHeader } from '@/components/nav/PageHeader';
 import { TripsHero } from './TripsHero';
 import { CompareByBar } from './CompareByBar';
 import { TripsRanked } from './TripsRanked';
@@ -13,16 +14,29 @@ import type { TripMetric } from '@/lib/trips/view';
 import type { TripSummary } from '@/lib/trips/summary';
 
 /**
- * Owns the metric picker shared across every section on the page.
- * `CompareByBar` renders above `TripsHero` (not nested inside it) on
- * purpose — it stays a sibling of the hero, not a child, so its
- * `position: sticky` containing block is the whole page rather than the
- * hero's own short box; nested inside the hero it would stop sticking the
- * moment you scrolled past that (short) card, defeating the point of
- * making it sticky at all. No click-to-focus/dim interaction any more
- * either (dropped per feedback — rows keep their hover lift, but clicking
- * a trip no longer filters the rest of the page) — see
- * docs/rehaul-progress.md's "Trips page" entries.
+ * Owns the metric picker shared across every section on the page, and
+ * renders `PageHeader` itself (rather than `app/(app)/trips/page.tsx`
+ * doing it) so the title and `CompareByBar` can share one grid row.
+ *
+ * That grid is the whole page's layout, not just the header: `PageHeader`
+ * and `CompareByBar` are its first two items (columns 1 and 2 of row 1);
+ * every section after that spans both columns via `col-span-full`, one
+ * per row. This is deliberate, not just for the two-column header — a
+ * plain wrapper around only the header row would be exactly as short as
+ * its own content, giving `CompareByBar`'s `position: sticky` zero room
+ * to hold its pinned position as you scroll (a sticky element can't
+ * stick further than its own containing block's height allows). Making
+ * the *whole page* one grid means `CompareByBar`'s containing block is
+ * that grid — which is exactly as tall as the entire page, since the
+ * hero/ranked/mix/matrix/table rows live in it too — so it keeps sticking
+ * all the way down. Same underlying constraint that moved it out of the
+ * hero card and then above it in the last two rounds; this is the version
+ * that finally lets it sit visually beside the title without losing that.
+ *
+ * No click-to-focus/dim interaction any more either (dropped per
+ * feedback — rows keep their hover lift, but clicking a trip no longer
+ * filters the rest of the page) — see docs/rehaul-progress.md's "Trips
+ * page" entries.
  */
 export function TripsClient({ budgetId, trips }: { budgetId: string; trips: TripSummary[] }) {
   const [metric, setMetric] = useState<TripMetric>('perDay');
@@ -44,18 +58,27 @@ export function TripsClient({ budgetId, trips }: { budgetId: string; trips: Trip
 
   return (
     <>
-      <CompareByBar metric={metric} onMetricChange={setMetric} />
+      <div className="grid grid-cols-[1fr_auto] items-end gap-x-6 gap-y-5">
+        <PageHeader title="Trips" meta={`${trips.length} ${trips.length === 1 ? 'trip' : 'trips'}`} />
+        <CompareByBar metric={metric} onMetricChange={setMetric} />
 
-      <TripsHero trips={trips} metric={metric} />
+        <div className="col-span-full">
+          <TripsHero trips={trips} metric={metric} />
+        </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-stretch gap-5">
-        <TripsRanked trips={trips} metric={metric} />
-        <TripsMix trips={chronological} colors={colors} />
+        <div className="col-span-full grid grid-cols-[repeat(auto-fit,minmax(420px,1fr))] items-stretch gap-5">
+          <TripsRanked trips={trips} metric={metric} />
+          <TripsMix trips={chronological} colors={colors} />
+        </div>
+
+        <div className="col-span-full">
+          <TripsMatrix trips={chronological} metric={metric} colors={colors} />
+        </div>
+
+        <div className="col-span-full">
+          <TripsTable trips={trips} onEditTrip={setEditingTrip} />
+        </div>
       </div>
-
-      <TripsMatrix trips={chronological} metric={metric} colors={colors} />
-
-      <TripsTable trips={trips} onEditTrip={setEditingTrip} />
 
       {editing ? (
         <EditTripModal

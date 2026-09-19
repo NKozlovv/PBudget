@@ -32,24 +32,21 @@ export default async function TripsPage() {
     fxRate: budget.fx_rate,
   });
 
-  return (
-    <>
-      <PageHeader
-        title="Trips"
-        meta={
-          trips.length > 0
-            ? `${trips.length} ${trips.length === 1 ? 'trip' : 'trips'}`
-            : `Tag a "${TRAVEL_CATEGORY}" transaction with a trip name — from the transaction form or by bulk-editing existing rows — and it'll show up here.`
-        }
-      />
-
-      {trips.length > 0 ? (
-        <TripsClient budgetId={budget.id} trips={trips} />
-      ) : (
+  if (trips.length === 0) {
+    return (
+      <>
+        <PageHeader
+          title="Trips"
+          meta={`Tag a "${TRAVEL_CATEGORY}" transaction with a trip name — from the transaction form or by bulk-editing existing rows — and it'll show up here.`}
+        />
         <div className="glass glass-nohover !rounded-[34px] p-12 text-center text-[13px] font-medium text-ink-mute">
           {`Nothing tagged yet. Once a ${TRAVEL_CATEGORY.toLowerCase()} expense has a trip name on it, it'll show up here — ranked, broken down by subcategory, and compared per day and per person.`}
         </div>
-      )}
-    </>
-  );
+      </>
+    );
+  }
+
+  // PageHeader renders inside TripsClient (not here) so it can share a
+  // grid row with CompareByBar — see that component's own comment for why.
+  return <TripsClient budgetId={budget.id} trips={trips} />;
 }
