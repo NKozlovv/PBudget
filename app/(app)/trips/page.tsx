@@ -49,8 +49,7 @@ export default async function TripsPage() {
         <TripsClient budgetId={budget.id} trips={trips} />
       ) : (
         <div className="glass glass-nohover !rounded-[34px] p-12 text-center text-[13px] font-medium text-ink-mute">
-          Nothing tagged yet. Once a {TRAVEL_CATEGORY.toLowerCase()} expense has a trip name on it, it'll show up
-          here — ranked, broken down by subcategory, and compared per day and per person.
+          {`Nothing tagged yet. Once a ${TRAVEL_CATEGORY.toLowerCase()} expense has a trip name on it, it'll show up here — ranked, broken down by subcategory, and compared per day and per person.`}
         </div>
       )}
     </>

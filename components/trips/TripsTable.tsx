@@ -43,7 +43,7 @@ export function TripsTable({
       <div>
         <div className="text-[17px] font-bold -tracking-[0.02em] text-ink">Every trip, side by side</div>
         <div className="mt-1 text-[13px] font-semibold text-ink-soft">
-          Fixed cost is getting there and sleeping; daily cost is everything you spend once you're there.
+          Fixed cost is getting there and sleeping; daily cost is everything you spend once you&rsquo;re there.
         </div>
       </div>
 
