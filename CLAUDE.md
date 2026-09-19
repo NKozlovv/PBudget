@@ -24,28 +24,47 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
 **Frontend (active):**
 - Next.js 15 + React 19 + TypeScript app at the repo root
 - **GitHub repo:** the user's private repo, `NKozlovv/PBudget`
-- **Production:** `master` branch → https://p-budget.vercel.app — **is
-  the Next.js Theus app as of 2026-09-15.** The user explicitly ordered
-  the cutover ("push everything to master and let's make the new theus
-  our main page, not what was the old one"). This was a clean fast-
-  forward (master's old tip, `cd6e2bf`, was a direct ancestor of the
-  rehaul history — the rehaul had branched off it at Chunk 0), so
-  nothing was lost or overwritten.
-- Three now-superseded branches exist on the remote, frozen at whatever
+- **Production:** `master` branch → https://p-budget.vercel.app.
+  **Second cutover, 2026-09-20:** `master` fast-forwarded from `845ed68`
+  (the tip of the 2026-09-15 cutover below) to `ea43125` — the tip of
+  `claude/design-handoff-implementation-724101`, i.e. the v4 "liquid
+  glass" rehaul (Chunk 20) **plus the entire Trips feature** (§4's
+  `trip`/`trip_details`/`is_fixed_cost` schema, `/trips` route). User's
+  explicit instruction: "push everything to master so it becomes main
+  design." Clean fast-forward again (41 commits, zero commits on
+  `master` not already in the branch — verified with
+  `git merge-base --is-ancestor` before pushing), so nothing was lost.
+  `master` and `claude/design-handoff-implementation-724101` are
+  equivalent as of this push; going forward, either push directly to
+  `master` or keep committing to that branch and fast-forward `master`
+  to match (`git push origin claude/design-handoff-implementation-724101:master`)
+  — same branch, two names, until someone deletes one.
+  - **First cutover, 2026-09-15** (superseded by the above, kept for
+    history): `master` fast-forwarded to `cd6e2bf`'s successor, the
+    Sterling-era Next.js rehaul, off the user's instruction "push
+    everything to master and let's make the new theus our main page,
+    not what was the old one." Also a clean fast-forward (`cd6e2bf` was
+    a direct ancestor of that rehaul history). The Sterling design
+    itself was superseded by v4 two days later (§6) and is now further
+    superseded by the Trips-inclusive v4 build above — none of that
+    history needs revisiting, just noted so "cutover" isn't ambiguous
+    about which one if this file is read out of order.
+- Two now-superseded branches exist on the remote, frozen at whatever
   they last had: `experimental/theus-rehaul` (stale, stuck at Chunk
-  13), `experimental/theus-sterling-1to1` (Chunks 12–18), and
-  `claude/budget-app-features-fa62f0` (frozen 2026-09-15 — was kept in
-  sync with `master` push-for-push right after the cutover out of
-  habit; the user pointed out that's pointless once `master` **is**
-  the working branch, so it stopped). None has any commit that isn't
-  already on `master`. Not deleted — ask the user before cleaning them
-  up.
-- **Push only to `master`** going forward — there's no reason to
-  double-push to a second branch now that `master` is both working
-  branch and production (see §10).
+  13) and `experimental/theus-sterling-1to1` (Chunks 12–18).
+  `claude/budget-app-features-fa62f0` (the third branch from the first
+  cutover) is *also* now behind `master` again after this second
+  cutover, same as those two. None has any commit that isn't already
+  on `master`. Not deleted — ask the user before cleaning them up.
+- **Push only to `master`** (or the equivalent
+  `claude/design-handoff-implementation-724101`) going forward — no
+  reason to fan out to a third branch now that both of those track the
+  same production tip (see §10).
 - **Preview:** Vercel deploys a preview for any other branch pushed to
   the repo, if you deliberately want one for a risky change (see §10)
-  — that's how Chunks 0–19 were checked before the cutover.
+  — that's how every chunk of both rehauls (Sterling and v4) got
+  checked before its own cutover, and how the entire Trips feature got
+  checked before this one.
 
 **Frontend (legacy):**
 - Single-file `public/legacy/index.html` (~2,900 lines, ~100 KB), served
