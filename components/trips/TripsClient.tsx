@@ -18,10 +18,15 @@ import type { TripSummary } from '@/lib/trips/summary';
  * renders `PageHeader` itself (rather than `app/(app)/trips/page.tsx`
  * doing it) so the title and `CompareByBar` can share one grid row.
  *
- * That grid is the whole page's layout, not just the header: `PageHeader`
- * and `CompareByBar` are its first two items (columns 1 and 2 of row 1);
- * every section after that spans both columns via `col-span-full`, one
- * per row. This is deliberate, not just for the two-column header — a
+ * That grid is the whole page's layout, not just the header: `PageHeader`,
+ * `CompareByBar`, and an empty spacer are its first three items (a
+ * `1fr auto 1fr` row) — the two equal `1fr` columns keep the pill
+ * genuinely centered on the page regardless of the title's own width,
+ * rather than "flush right because that's what's left after the title"
+ * (a plain `1fr auto` row does the latter, not the former — tried it,
+ * looked pinned to the corner instead of centered). Every section after
+ * row 1 spans all three columns via `col-span-full`, one per row. The
+ * three-column row is deliberate, not just for the header — a
  * plain wrapper around only the header row would be exactly as short as
  * its own content, giving `CompareByBar`'s `position: sticky` zero room
  * to hold its pinned position as you scroll (a sticky element can't
@@ -58,9 +63,10 @@ export function TripsClient({ budgetId, trips }: { budgetId: string; trips: Trip
 
   return (
     <>
-      <div className="grid grid-cols-[1fr_auto] items-end gap-x-6 gap-y-5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-x-6 gap-y-5">
         <PageHeader title="Trips" meta={`${trips.length} ${trips.length === 1 ? 'trip' : 'trips'}`} />
         <CompareByBar metric={metric} onMetricChange={setMetric} />
+        <div aria-hidden />{/* balances the 1fr on the left so the middle column is truly centered, not just "whatever's left after the title" */}
 
         <div className="col-span-full">
           <TripsHero trips={trips} metric={metric} />

@@ -2742,3 +2742,12 @@ and the trips page for both quote characters in raw JSX text (the
 in one template literal, but as a prop value rather than JSX children
 text it isn't subject to `react/no-unescaped-entities` — confirmed by
 re-reading the rule's scope rather than assuming).
+
+**Immediate follow-up, same round:** the `1fr auto` header row put
+`CompareByBar` flush against the right edge, not centered — `1fr` on
+the left absorbs all leftover space and pushes `auto` to the far side,
+which is "whatever's left after the title," not "the middle of the
+page." Fixed by adding a matching empty `1fr` spacer as a third column
+(`1fr auto 1fr`) so the two equal flexible columns balance around the
+pill regardless of the title's own width — the standard centered-navbar-
+item trick. Verified: re-grepped for both quote characters again.
