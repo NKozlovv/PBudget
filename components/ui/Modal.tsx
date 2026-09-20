@@ -41,15 +41,15 @@ export function Modal({
   children: React.ReactNode;
   className?: string;
 }) {
-  // Every modal stacks two `position: fixed` + `backdrop-filter` layers
-  // (this Overlay's blur, and Dialog.Content's own heavy 44px .glass blur)
-  // directly over app/globals.css's .ambient-blob elements, which animate
-  // continuously and infinitely on every page. Two fixed, blurred layers
-  // constantly recompositing over an endlessly-moving background is a
-  // known trigger for intermittent compositor flashes in Chromium/WebKit —
-  // reported as "a millisecond of white screen... only when I have some
-  // sort of popup on screen" (2026-09-20). Pausing the blobs while any
-  // modal is open removes the thing being recomposited underneath.
+  // Pausing the continuously-animating .ambient-blob elements while a
+  // modal is open (kept below — harmless, and still a reasonable thing to
+  // do) did NOT stop the reported white flash. That means backdrop-filter
+  // on a fixed, viewport-covering element is itself the trigger (a known
+  // Chromium/WebKit GPU-compositing bug), independent of whatever's
+  // animating behind it — not something pausing the background fixes.
+  // Overlay and Content below now use plain opaque-ish backgrounds instead
+  // of backdrop-filter (see .modal-surface, app/globals.css) to remove
+  // that combination entirely.
   useEffect(() => {
     if (!open) return;
     markModalOpen();
@@ -59,9 +59,9 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#151a2d]/40 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#151a2d]/55" />
         <Dialog.Content
-          className={cn('glass glass-nohover fixed left-1/2 top-1/2 z-50 w-full max-w-md !rounded-[30px] p-6 outline-none', className)}
+          className={cn('modal-surface fixed left-1/2 top-1/2 z-50 w-full max-w-md !rounded-[30px] p-6 outline-none', className)}
           style={{ transform: 'translate(-50%, -50%)' }}
         >
           <Dialog.Title className="text-[19px] font-bold -tracking-[0.02em] text-ink">{title}</Dialog.Title>
