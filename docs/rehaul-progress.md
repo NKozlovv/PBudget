@@ -2751,3 +2751,45 @@ page." Fixed by adding a matching empty `1fr` spacer as a third column
 (`1fr auto 1fr`) so the two equal flexible columns balance around the
 pill regardless of the title's own width — the standard centered-navbar-
 item trick. Verified: re-grepped for both quote characters again.
+
+## App-wide: the "flash of white screen" on every navigation (2026-09-20)
+
+Long-standing user report, independent of the Trips work: "a
+millisecond of white screen" on navigating, "no difference in what
+page I'm on." The last clause was the giveaway — `app/(app)/loading.tsx`
+is the Suspense fallback Next.js shows for *every* route under `(app)/`
+while that page's server data loads, shared across Dashboard/
+Transactions/Accounts/Categories/Trends/Forecast/Trips alike. It was
+built (likely pre-v4) from flat `bg-white/70`/`bg-white/[0.75]`
+skeleton blocks stacked to cover nearly the entire viewport — a header
+row, three KPI-sized cards, two large chart-sized cards, one more —
+which reads as a stark white flash against the ambient gradient and
+the translucent, backdrop-blurred `.glass-tile` panels every real page
+actually renders. Every navigation triggers a real server round-trip
+(Supabase queries per page), so the fallback genuinely shows for a
+beat each time; it just looked like a flash instead of a loading state
+because nothing about it matched the rest of the UI.
+
+**Fix:** every skeleton block switched from `bg-white/[0.7-0.75]` to
+`glass-tile` (radius overridden per block via `!rounded-*`, the same
+pattern already used throughout `components/`) — same translucency,
+blur and sheen as the real content it's standing in for, so it reads
+as "soft glass settling in" rather than a blown-out flash.
+
+Grepped the rest of the tree for the same flat-white-covering-most-of-
+the-viewport pattern before calling this done — everything else using
+`bg-white/[0.7x]` is a small control (input, button, filter pill)
+already paired with `backdrop-blur`, not a full-page skeleton, so this
+was the one place.
+
+**Also fixed in passing:** `lib/supabase/middleware.ts`'s
+`PROTECTED_PREFIXES` was missing `/trips` (added when the page shipped,
+just never added to this list) — not a security hole, since
+`(app)/layout.tsx` still redirects unauthenticated visitors on every
+protected route regardless of what middleware does, but worth matching
+the other six routes for consistency.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+the changed file by hand; grepped for other instances of the same
+"large flat-white block" pattern (none found beyond small controls,
+listed above).
