@@ -110,26 +110,6 @@ body {
   }
 }
 
-/* Dialog.Content's surface (components/ui/Modal.tsx) — same recipe as
-   .glass-popover (near-opaque gradient + border + shadow) but with NO
-   backdrop-filter at all. Modals stack this as a `position: fixed`,
-   full-width element directly with Dialog.Overlay (also fixed, full-
-   viewport) — pausing the .ambient-blob animations while a modal is open
-   didn't stop the reported white flash, which means backdrop-filter on a
-   fixed, viewport-covering element is itself the trigger (a known
-   Chromium/WebKit GPU-compositing bug), independent of whatever is
-   animating behind it. Dropping backdrop-filter here removes that
-   combination entirely; the background is already ~93-97% opaque, so the
-   visual difference from the blurred version is minor. */
-.modal-surface {
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.93) 45%, rgba(255, 255, 255, 0.97));
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 28px 60px -18px rgba(31, 39, 66, 0.32),
-    0 2px 10px rgba(31, 39, 66, 0.08),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.95);
-}
-
 /* ---------------------------------------------------------------------- */
 /* Ambient ground — the light source layer the glass panels refract.       */
 /* ---------------------------------------------------------------------- */
