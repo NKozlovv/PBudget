@@ -161,6 +161,16 @@ body {
   animation: float1 26s ease-in-out infinite;
 }
 
+/* Every Modal (components/ui/Modal.tsx) stacks two fixed, backdrop-blurred
+   layers (its Overlay + its own .glass Content) directly over these
+   continuously-animating blobs. Two fixed blur layers recompositing every
+   frame against an endlessly-moving background is a known trigger for
+   intermittent compositor flashes in Chromium/WebKit — pausing the blobs
+   while any modal is open removes what's being recomposited underneath. */
+html.modal-open .ambient-blob {
+  animation-play-state: paused;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Motion — see design_handoff_theus_rehaul/README.md "Motion budget".     */
 /* ---------------------------------------------------------------------- */
