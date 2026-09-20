@@ -2841,3 +2841,51 @@ import and use the shared component); traced the counter's increment/
 decrement pairing against React 18 StrictMode's double-invoked effects
 in dev (mount→cleanup→mount nets to the same count either way, so this
 doesn't misbehave locally even though it's a production-only concern).
+
+## Second correction: it was backdrop-filter itself, not what's behind it (2026-09-20, same day)
+
+Pausing the ambient blobs (previous entry) didn't stop the flash either
+— confirmed by the user, and confirmed in code that those three blobs
+were the *only* infinitely-looping animation anywhere on the page
+(grepped for `infinite` across `app/globals.css`/`styles/tokens.css`,
+and for `animate-pulse`/`animate-spin`/`animate-bounce` across
+`components/`+`app/` — nothing else loops continuously). Removing the
+one thing that was continuously changing behind the modal's fixed,
+blurred layers and still seeing the flash rules out "animated content
+recompositing under a blur" as the mechanism entirely.
+
+That leaves `backdrop-filter` on a `position: fixed`, full-viewport
+element as the trigger *by itself* — a documented class of Chromium/
+WebKit GPU-compositing bug that doesn't need anything animating behind
+it to misfire. `Dialog.Overlay` and `Dialog.Content` (`components/ui/
+Modal.tsx`) both used it: the overlay's own `backdrop-blur-sm`, and
+`Dialog.Content`'s `.glass` class carrying a heavy 44px blur. Neither
+needs to actually blur anything to trigger the bug — the mere presence
+of the GPU blur layer on a fixed full-screen element is enough.
+
+**Fix:** dropped backdrop-filter from both entirely. New `.modal-surface`
+class (`app/globals.css`) mirrors `.glass-popover`'s recipe — an
+already ~93–97%-opaque gradient, border, and shadow — with the
+`backdrop-filter` property simply removed; visually near-identical
+since the background was already almost opaque, blur or not. The
+overlay dropped `backdrop-blur-sm` and bumped from `/40` to `/55`
+opacity to keep a similar dimming effect without it. Left the blob-
+pause code from the previous fix in place (harmless, and still a
+reasonable thing to do independent of whether it was ever the actual
+mechanism) rather than reverting it.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+both changed files by hand; grepped every existing `<Modal>` call site
+for a `className` prop that might have assumed `.glass`'s specific
+translucency/blur (none found — every caller only passes `title`/
+`description`/`open`/`onOpenChange`/`children`, so nothing relies on
+the removed backdrop-filter specifically).
+
+(Unrelated git housekeeping, same session: this fix landed on a
+detached HEAD after something re-detached this worktree from its
+branch mid-session — recovered cleanly since `git rev-parse` confirmed
+the branch ref and `origin` both still pointed at the prior commit
+with nothing lost, then `git merge --ff-only` brought the orphaned
+commit back onto the branch before pushing. No data lost, but a
+reminder to check `git status`/branch state before assuming a push
+succeeded, in a repo with this many concurrently-active worktrees.)
