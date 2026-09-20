@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   '/categories',
   '/trends',
   '/forecast',
+  '/trips',
 ];
 const AUTH_PATHS = ['/login', '/signup', '/reset'];
 
