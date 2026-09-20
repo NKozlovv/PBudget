@@ -2889,3 +2889,49 @@ with nothing lost, then `git merge --ff-only` brought the orphaned
 commit back onto the branch before pushing. No data lost, but a
 reminder to check `git status`/branch state before assuming a push
 succeeded, in a repo with this many concurrently-active worktrees.)
+
+## Modal glass reverted; a real donut-chart bug found and fixed (2026-09-20, same day)
+
+Two things from the same round of feedback:
+
+1. **Reverted the backdrop-filter removal from `Modal.tsx`.** Confirmed
+   by the user: the flash still happens with backdrop-filter gone, so
+   that fix cost the glass look for nothing. Restored `.glass
+   glass-nohover` + `backdrop-blur-sm`, deleted the now-dead
+   `.modal-surface` class. Both attempted mechanisms (an animated
+   background behind a blur, backdrop-filter on a fixed element by
+   itself) are now ruled out by direct user confirmation — genuinely
+   still unsolved, see below.
+2. **Real bug found in `NetWorthPie.tsx`** (the Accounts page net-worth
+   donut) — the "Other" grouping's grey wedge was visibly painting over
+   part of the "IB" blue slice. Each ring segment is its own stacked
+   `<circle>` with a `stroke-dasharray`, painted in array order, so the
+   *last* segment renders on top of the first. Its arc length used to be
+   computed independently from its own percentage; several percentages
+   derived from division rarely sum to exactly 100.0, so the final
+   segment's arc could overshoot past the 0°/360° wraparound point and
+   paint over the first segment's color. Fixed by computing each
+   segment's *end* as the running cumulative total and clamping the
+   very last segment to exactly 100 — every segment's boundary is now
+   shared with its neighbor's by construction, so no floating-point gap
+   or overlap is possible anywhere on the ring. Checked every other
+   `strokeDasharray` user in the codebase (`BudgetRing`, `ForecastLine`,
+   `AccountMiniChart`, `ForecastHero`) for the same cumulative-multi-
+   segment pattern — none of them share it; `NetWorthPie` was the only
+   multi-segment stacked-circle donut in the app.
+
+**White flash: still unsolved.** Three attempts so far, all ruled out
+by direct testing: the loading-skeleton fix (real improvement, wrong
+bug), pausing the ambient blob animations (no effect), removing
+backdrop-filter from modals entirely (no effect, and cost the glass
+look for nothing — reverted). Extensions ruled out too (persists in
+Incognito). Next step proposed to the user: try to actually capture it
+via Windows Game Bar's instant-replay (Win+Alt+G) the next time it
+happens, since guessing at increasingly narrow CSS/compositing theories
+without being able to see it hasn't worked three times running.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+both changed files by hand; re-traced `NetWorthPie`'s new cumulative
+math by hand for a 4-segment case (67/18/6/9) to confirm the last
+segment's `end` clamps to exactly 100 regardless of the sum of the
+other three.
