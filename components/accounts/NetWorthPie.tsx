@@ -13,11 +13,24 @@ const C = 2 * Math.PI * R;
 export function NetWorthPie({ shares }: { shares: AccountShare[] }) {
   const { containerRef, hover, show, hide } = useChartHover<AccountShare>();
 
+  // Each segment is its own full <circle> with a stroke-dasharray, stacked
+  // in paint order — so the LAST one renders on top of the first. Its
+  // `dash` used to be computed independently from its own `pct`, which
+  // means any floating-point drift in the running total (summing several
+  // percentages derived from division rarely lands on exactly 100.0) could
+  // let the final segment's arc overshoot past the 0%/360° mark and
+  // visibly paint over part of the first segment's colour. Computing each
+  // segment's end as the running cumulative — and clamping the very last
+  // one to exactly 100 — makes every segment's boundary shared with its
+  // neighbour's, so there's no floating-point gap or overlap possible
+  // anywhere on the ring, including the wraparound seam.
   let cumulative = 0; // percent
-  const segments = shares.map((s) => {
-    const dash = (s.pct / 100) * C;
-    const offset = -((cumulative / 100) * C);
-    cumulative += s.pct;
+  const segments = shares.map((s, i) => {
+    const start = cumulative;
+    const end = i === shares.length - 1 ? 100 : cumulative + s.pct;
+    cumulative = end;
+    const dash = ((end - start) / 100) * C;
+    const offset = -((start / 100) * C);
     return { ...s, dash, offset };
   });
 
