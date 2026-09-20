@@ -2793,3 +2793,51 @@ the other six routes for consistency.
 the changed file by hand; grepped for other instances of the same
 "large flat-white block" pattern (none found beyond small controls,
 listed above).
+
+## Correction: the white flash was never the loading skeleton (2026-09-20, same day)
+
+User follow-up after the `loading.tsx` fix: "Its still happening." That
+fix was a real improvement (the skeleton genuinely was flat white and
+genuinely does show on every navigation) but wasn't the reported bug —
+two follow-up questions narrowed the actual cause precisely: random,
+happens while completely idle (not tied to clicking a nav tab), no
+loading spinner, and — the key detail — "it seems like now it only does
+that when I have some sort of popup on my screen (new transaction, edit
+category)."
+
+That rules out routing/Suspense entirely and points at compositing.
+Every `Modal` (`components/ui/Modal.tsx`, the one shared component
+behind every popup in the app — confirmed nothing else calls
+`Dialog.Root` directly) stacks **two** `position: fixed` +
+`backdrop-filter` layers: the `Dialog.Overlay`'s own blur, and
+`Dialog.Content`'s `.glass` class, which carries a much heavier 44px
+blur. Both sit directly on top of `app/globals.css`'s three
+`.ambient-blob` elements — large, continuously and infinitely animated
+(`float1`/`float2`, 18–26s loops) on *every* page via the shared
+`(app)` layout, not something Trips-specific. Two fixed, blurred layers
+recomputing every single frame against an endlessly-moving background
+underneath is a documented trigger for intermittent white compositor
+flashes in Chromium/WebKit. Nothing else in the app stacks two fixed
+blur layers at once — regular `.glass`/`.glass-tile` cards aren't
+`position: fixed` — which is exactly why it only ever showed up with a
+popup open.
+
+**Fix:** pause the blob animations for as long as any modal is open.
+`Modal.tsx` tracks a module-level `openModalCount` (not a plain
+per-instance boolean) and toggles a `modal-open` class on `<html>`;
+`app/globals.css` pauses `.ambient-blob`'s `animation-play-state` under
+that class. The counter (rather than boolean) matters because this
+codebase nests modals — `CategoryDetailModal`'s rename/delete
+confirmations open on top of it, staying mounted underneath — so a
+naive boolean would un-pause the instant the *inner* modal closes even
+though the outer one is still on screen.
+
+**Verification:** no local build (no Node in this worktree) — reviewed
+both changed files by hand; grepped for any other direct
+`Dialog.Root`/`Dialog.Portal`/`Dialog.Overlay` usage to confirm every
+popup in the app really does go through this one `Modal` component
+(none found — `GlobalAddTransactionModal` and every other caller
+import and use the shared component); traced the counter's increment/
+decrement pairing against React 18 StrictMode's double-invoked effects
+in dev (mount→cleanup→mount nets to the same count either way, so this
+doesn't misbehave locally even though it's a production-only concern).
