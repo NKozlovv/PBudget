@@ -6,7 +6,8 @@ import { SavingsRatePanel, type SavingsRateMonth } from '@/components/dashboard/
 import { CashFlowPanel } from '@/components/dashboard/CashFlowPanel';
 import { SpendingMixPanel } from '@/components/dashboard/SpendingMixPanel';
 import { AccountFaceCards, type AccountFaceData } from '@/components/dashboard/AccountFaceCards';
-import { workingMonth, monthLong } from '@/lib/dashboard/period';
+import { monthLong } from '@/lib/dashboard/period';
+import { activeWorkingMonth, monthsWithActivity } from '@/lib/activeMonths';
 import {
   totalBalanceEUR,
   monthTotalsEUR,
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
   // (CLAUDE.md §8f) — the budget ring, savings-rate chart, cash-flow YTD
   // totals and spending mix are all anchored here. Account balances and
   // MTD received/spent (§8f exception) stay on the true current date.
-  const { year, month } = workingMonth(now);
+  const { year, month } = activeWorkingMonth(now, monthsWithActivity(allTx));
   const monthLabel = monthLong(month);
   const priorMonth = month === 0 ? 11 : month - 1;
   const priorMonthYear = month === 0 ? year - 1 : year;

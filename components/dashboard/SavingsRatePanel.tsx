@@ -87,7 +87,7 @@ export function SavingsRatePanel({ months, avgRatePct, savingsThisYear }: {
                   }}
                 />
                 <div
-                  className="absolute inline-block whitespace-nowrap rounded-[6px] bg-white/70 px-1 text-[10.5px] font-bold tabular-nums backdrop-blur-[8px]"
+                  className="absolute inline-block whitespace-nowrap rounded-[6px] bg-white/70 px-1 text-[10.5px] font-bold tabular-nums"
                   style={{ top: labelTop, left: '50%', transform: 'translateX(-50%)', color: tone }}
                 >
                   {m.pct > 0 ? '+' : m.pct < 0 ? '−' : ''}

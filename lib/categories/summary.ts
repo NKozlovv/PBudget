@@ -1,4 +1,5 @@
 import { txToEUR } from '@/lib/money';
+import { activeMonthCount, monthsWithActivity } from '@/lib/activeMonths';
 import type { Category, Subcategory, Transaction } from '@/lib/supabase/types';
 
 export interface CategorySummary {
@@ -33,6 +34,7 @@ export interface SubcategorySummary {
  *
  * "Budget" is unavailable in the schema; we use YTD monthly average as a
  * proxy ("This month is N% above your YTD average"). monthsElapsed counts
+ * only months (through `month`) that have any income/expense data, and
  * the current month inclusively.
  */
 export function categoriesSummary(args: {
@@ -45,7 +47,8 @@ export function categoriesSummary(args: {
   month: number; // 0-indexed
 }): CategorySummary[] {
   const { categories, subcategoriesById, transactions, fxRate, kind, year, month } = args;
-  const monthsElapsed = month + 1;
+  // Months with data only — an empty month isn't a month of zero spend.
+  const monthsElapsed = activeMonthCount(monthsWithActivity(transactions), year, month);
 
   // Per-category counters.
   const ytdByName = new Map<string, number>();
@@ -99,7 +102,8 @@ export function subcategoriesSummary(args: {
   month: number;
 }): SubcategorySummary[] {
   const { category, subcategories, transactions, fxRate, kind, year, month } = args;
-  const monthsElapsed = month + 1;
+  // Months with data only — an empty month isn't a month of zero spend.
+  const monthsElapsed = activeMonthCount(monthsWithActivity(transactions), year, month);
   const ytdBySub = new Map<string, number>();
   const monthBySub = new Map<string, number>();
   const txCountBySub = new Map<string, number>();

@@ -3,7 +3,7 @@ import { listAccounts } from '@/lib/data/accounts';
 import { listTransactions } from '@/lib/data/transactions';
 import { accountBalanceEURAt, burnRatesEUR, totalBalanceEUR, ytdAverages } from '@/lib/balance';
 import { projectionSeries } from '@/lib/forecast/projection';
-import { workingMonth } from '@/lib/dashboard/period';
+import { activeWorkingMonth, monthsWithActivity } from '@/lib/activeMonths';
 import { dateToISO } from '@/lib/date';
 import { ForecastHero } from '@/components/forecast/ForecastHero';
 import { PerCategoryOutlook } from '@/components/forecast/PerCategoryOutlook';
@@ -24,7 +24,7 @@ export default async function ForecastPage() {
   // month (last completed calendar month, CLAUDE.md §8f) — the same basis
   // Overview's own EOY projection uses — so the two screens agree instead
   // of Forecast counting partial current-month activity Overview doesn't.
-  const { year, month } = workingMonth(now);
+  const { year, month } = activeWorkingMonth(now, monthsWithActivity(transactions));
 
   const ytd = ytdAverages({
     transactions,

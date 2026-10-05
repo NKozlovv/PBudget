@@ -3,7 +3,7 @@ import { getOrCreateUserBudget } from '@/lib/data/budgets';
 import { listCategories, listSubcategoriesForBudget } from '@/lib/data/categories';
 import { listTransactions } from '@/lib/data/transactions';
 import { buildTrendMonths, categoryMonthlyTrend } from '@/lib/categories/monthlyTrend';
-import { workingMonth } from '@/lib/dashboard/period';
+import { activeMonthCount, activeWorkingMonth, monthsWithActivity } from '@/lib/activeMonths';
 import { yearOfDate } from '@/lib/date';
 import { TrendTable } from '@/components/trends/TrendTable';
 import { YearSelect } from '@/components/trends/YearSelect';
@@ -36,7 +36,8 @@ export default async function TrendsPage({
     listTransactions({ budgetId: budget.id }),
   ]);
 
-  const { year: workingYear, month: workingMonthIdx } = workingMonth(new Date());
+  const active = monthsWithActivity(transactions);
+  const { year: workingYear, month: workingMonthIdx } = activeWorkingMonth(new Date(), active);
 
   const expenseDates = transactions.filter((t) => t.type === 'expense').map((t) => t.date);
   const years = new Set<number>([workingYear]);
@@ -47,6 +48,8 @@ export default async function TrendsPage({
   const year = availableYears.includes(requestedYear) ? requestedYear : workingYear;
   const endMonth = year === workingYear ? workingMonthIdx : 11;
   const visibleCount = endMonth + 1;
+  // Avg column divides by months that have data, not every visible column.
+  const avgMonths = activeMonthCount(active, year, endMonth);
 
   // One extra leading month, purely as the first visible column's MoM
   // delta baseline.
@@ -88,7 +91,7 @@ export default async function TrendsPage({
         actions={
           <>
             <YearSelect years={availableYears} selected={year} />
-            <ExportButton rows={rows} months={months} visibleCount={visibleCount} year={year} />
+            <ExportButton rows={rows} months={months} visibleCount={visibleCount} avgMonths={avgMonths} year={year} />
           </>
         }
       />
@@ -99,7 +102,7 @@ export default async function TrendsPage({
         <Legend hue="var(--out)" label="Above average" />
       </div>
 
-      <TrendTable rows={rows} months={months} visibleCount={visibleCount} />
+      <TrendTable rows={rows} months={months} visibleCount={visibleCount} avgMonths={avgMonths} />
     </>
   );
 }

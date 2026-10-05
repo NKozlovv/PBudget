@@ -2,6 +2,7 @@ import type { Account, Transaction } from '@/lib/supabase/types';
 import { txToEUR, signedAmount } from '@/lib/money';
 import { dateToISO } from '@/lib/date';
 import { categoryDisplayName } from '@/lib/transactions/constants';
+import { activeMonthCount, monthsWithActivity } from '@/lib/activeMonths';
 
 /**
  * Total EUR balance across all accounts for a budget.
@@ -238,8 +239,11 @@ export function ytdAverages(args: {
     if (t.type === 'income') totalIncome += eur;
     else if (t.type === 'expense') totalExpense += eur;
   }
-  const monthsElapsed = endMonth + 1;
-  const monthsRemaining = 12 - monthsElapsed;
+  // Averages divide by months that actually have data — an empty month
+  // (usually the one just ended, not entered yet) isn't a month of zero.
+  // Projection still runs over the calendar months left after endMonth.
+  const monthsElapsed = activeMonthCount(monthsWithActivity(transactions), year, endMonth);
+  const monthsRemaining = 11 - endMonth;
   const avgIncome = monthsElapsed > 0 ? totalIncome / monthsElapsed : 0;
   const avgExpense = monthsElapsed > 0 ? totalExpense / monthsElapsed : 0;
   const avgNet = avgIncome - avgExpense;
@@ -328,7 +332,8 @@ export function burnRatesEUR(args: {
   kind: 'expense' | 'income';
 }): BurnRateRow[] {
   const { transactions, year, endMonth, fxRate, kind } = args;
-  const monthsElapsed = endMonth + 1;
+  // Budget-wide months with data (not this category's) — see ytdAverages.
+  const monthsElapsed = activeMonthCount(monthsWithActivity(transactions), year, endMonth);
 
   const totalsByCat = new Map<string, number>();
   const monthlyByCat = new Map<string, Set<number>>();

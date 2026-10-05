@@ -141,7 +141,7 @@ export function TransactionsClient({
           <button
             type="button"
             onClick={() => setVisibleCount((c) => c + LOAD_MORE_STEP)}
-            className="rounded-full border border-white/90 bg-white/[0.72] px-[18px] py-[10px] text-[13px] font-semibold text-ink backdrop-blur-xl transition-colors duration-200 hover:bg-white"
+            className="rounded-full border border-white/90 bg-white/[0.72] px-[18px] py-[10px] text-[13px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
           >
             Load {Math.min(LOAD_MORE_STEP, filtered.length - visible.length)} more
           </button>

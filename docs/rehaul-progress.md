@@ -2976,3 +2976,33 @@ XLSX importer, so `/import` is now CSV-only.
 **Verification:** no Node in this worktree — no typecheck/lint/tests run
 locally; new tests in `test/lib/csv/sparkasse.test.ts`. Pushed to the
 session branch for a Vercel preview build before `master`.
+
+---
+
+## Months-with-data averages + laptop performance (2026-10-05)
+
+**1. Empty months no longer count in averages.** User enters a month's
+data a few days after it ends; until then every YTD average divided by
+one more month than had data, and "this month" pointed at an empty month.
+New `lib/activeMonths.ts`: `monthsWithActivity()` (months with any
+income/expense tx), `activeMonthCount()`, `activeWorkingMonth()` (the
+calendar working month stepped back past empty months). Used by
+`ytdAverages`/`burnRatesEUR` (`lib/balance.ts`), `categoriesSummary`/
+`subcategoriesSummary`, and the Dashboard, Categories, Forecast and
+Trends pages (Trends' Avg column + CSV export divide by visible months
+with data). `monthsRemaining` for projections stays calendar-based
+(`11 - endMonth`). Forecast hero now says "Across N months with data".
+Tests: `test/lib/activeMonths.test.ts`.
+
+**2. Performance.** See CLAUDE.md §8i — infinite blob animations under
+backdrop-filtered glass made every panel re-blur every frame. Blobs are
+now static; blur radii reduced (panels 44→28px, nested 12px); control-
+level `backdrop-blur-xl` removed (Button secondary, Input, Select,
+Filters search, Transactions/Trends/Overview pill buttons, the savings-
+rate chart labels). Modal overlay blur kept (transient). No data-side
+changes were needed: the Transactions list is already paginated (150),
+and no JS timers/scroll handlers exist.
+
+**Verification:** no Node here — not typechecked/tested locally. Visual
+change to confirm on the live site: blobs no longer drift; glass
+slightly less frosted.

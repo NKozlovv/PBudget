@@ -59,7 +59,7 @@ export function Select({
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-full border border-white/90 bg-white/[0.72] px-[16px] py-[10px] text-left text-[13.5px] font-semibold text-ink backdrop-blur-xl',
+          'flex w-full items-center justify-between gap-2 rounded-full border border-white/90 bg-white/[0.72] px-[16px] py-[10px] text-left text-[13.5px] font-semibold text-ink',
           'transition-colors duration-200 hover:border-indigo hover:bg-white',
           'focus:outline-none focus:border-indigo focus:[box-shadow:0_0_0_3px_rgba(74,92,224,.25)]',
           'disabled:cursor-not-allowed disabled:opacity-50',

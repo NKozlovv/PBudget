@@ -99,7 +99,7 @@ export function BalancePanel({
           </button>
           <button
             type="button"
-            className="rounded-full border border-white/90 px-[17px] py-[9px] text-[13.5px] font-semibold text-ink [background:var(--glass-sheen-tile)] backdrop-blur-xl transition-[transform,background] duration-200 ease-theus hover:-translate-y-0.5 hover:bg-white"
+            className="rounded-full border border-white/90 px-[17px] py-[9px] text-[13.5px] font-semibold text-ink [background:var(--glass-sheen-tile)] transition-[transform,background] duration-200 ease-theus hover:-translate-y-0.5 hover:bg-white"
           >
             Transfer
           </button>

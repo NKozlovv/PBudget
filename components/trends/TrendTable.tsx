@@ -31,11 +31,14 @@ export function TrendTable({
   rows,
   months,
   visibleCount,
+  avgMonths,
 }: {
   rows: CategoryTrendRow[];
   /** Includes one leading month used only as the first visible column's delta baseline. */
   months: TrendMonth[];
   visibleCount: number;
+  /** Visible months that have any data — the Avg divisor (lib/activeMonths.ts). */
+  avgMonths: number;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const offset = months.length - visibleCount;
@@ -64,7 +67,7 @@ export function TrendTable({
       (s, v) => s + v,
       0,
     );
-    const avg = visibleCount > 0 ? visibleTotal / visibleCount : 0;
+    const avg = avgMonths > 0 ? visibleTotal / avgMonths : 0;
     return { visibleTotal, avg };
   }
 
@@ -73,7 +76,7 @@ export function TrendTable({
     return rows.reduce((s, r) => s + (r.values[idx] ?? 0), 0);
   });
   const footerTotal = footer.reduce((s, v) => s + v, 0);
-  const footerAvg = visibleCount > 0 ? footerTotal / visibleCount : 0;
+  const footerAvg = avgMonths > 0 ? footerTotal / avgMonths : 0;
 
   return (
     <div className="glass !rounded-[26px] p-2">

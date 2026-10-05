@@ -140,7 +140,6 @@ body {
   top: -140px;
   left: -80px;
   background: radial-gradient(circle at 35% 35%, rgba(242, 112, 143, 0.85), rgba(242, 112, 143, 0) 70%);
-  animation: float1 18s ease-in-out infinite;
 }
 
 .ambient-blob-indigo {
@@ -149,7 +148,6 @@ body {
   top: 220px;
   right: -120px;
   background: radial-gradient(circle at 35% 35%, rgba(74, 92, 224, 0.72), rgba(74, 92, 224, 0) 70%);
-  animation: float2 22s ease-in-out infinite;
 }
 
 .ambient-blob-teal {
@@ -158,18 +156,14 @@ body {
   bottom: -180px;
   left: 32%;
   background: radial-gradient(circle at 35% 35%, rgba(31, 185, 164, 0.62), rgba(31, 185, 164, 0) 70%);
-  animation: float1 26s ease-in-out infinite;
 }
 
-/* Every Modal (components/ui/Modal.tsx) stacks two fixed, backdrop-blurred
-   layers (its Overlay + its own .glass Content) directly over these
-   continuously-animating blobs. Two fixed blur layers recompositing every
-   frame against an endlessly-moving background is a known trigger for
-   intermittent compositor flashes in Chromium/WebKit — pausing the blobs
-   while any modal is open removes what's being recomposited underneath. */
-html.modal-open .ambient-blob {
-  animation-play-state: paused;
-}
+/* The blobs used to drift forever (float1/float2, 18–26s loops). Removed
+   2026-10-05: every glass panel backdrop-filters whatever is under it, so
+   a background that never stops moving forced every panel on the page to
+   re-blur every frame, even with the page idle — unusably laggy on an
+   integrated-GPU laptop. Static blobs cost one paint. Don't re-add a
+   continuous animation under the glass. */
 
 /* ---------------------------------------------------------------------- */
 /* Motion — see design_handoff_theus_rehaul/README.md "Motion budget".     */
@@ -219,26 +213,6 @@ html.modal-open .ambient-blob {
   }
   to {
     stroke-dashoffset: var(--ring);
-  }
-}
-
-@keyframes float1 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(30px, -24px) scale(1.06);
-  }
-}
-
-@keyframes float2 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(-26px, 20px) scale(1.04);
   }
 }
 

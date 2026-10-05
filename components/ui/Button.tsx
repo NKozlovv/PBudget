@@ -13,7 +13,7 @@ const VARIANTS: Record<Variant, string> = {
     'hover:bg-[linear-gradient(180deg,#3a49c4,#3a49c4)] hover:-translate-y-0.5 ' +
     'hover:[box-shadow:0_12px_26px_rgba(74,92,224,.42)]',
   secondary:
-    'border border-white/90 text-ink [background:var(--glass-sheen-tile)] backdrop-blur-xl ' +
+    'border border-white/90 text-ink [background:var(--glass-sheen-tile)] ' +
     'hover:bg-white hover:-translate-y-0.5',
   ghost: 'text-ink-soft hover:text-ink hover:bg-white/60',
 };

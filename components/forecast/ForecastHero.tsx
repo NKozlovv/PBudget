@@ -52,7 +52,7 @@ export function ForecastHero({
         <KpiTile
           label="Average monthly net"
           value={`${avgIsPos ? '+' : '−'}${fmtEUR(Math.abs(avgNet))}`}
-          sub={`Across ${monthsElapsed} elapsed month${monthsElapsed === 1 ? '' : 's'} of ${year}`}
+          sub={`Across ${monthsElapsed} month${monthsElapsed === 1 ? '' : 's'} with data in ${year}`}
         />
       </div>
 

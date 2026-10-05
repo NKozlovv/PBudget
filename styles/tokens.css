@@ -25,9 +25,9 @@
   --glass-sheen-hi: linear-gradient(140deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.26) 42%, rgba(255, 255, 255, 0.46));
   --glass-sheen-in: linear-gradient(140deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.26) 45%, rgba(255, 255, 255, 0.46));
   --glass-sheen-tile: linear-gradient(140deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.18) 45%, rgba(255, 255, 255, 0.38));
-  --glass-blur: blur(44px) saturate(2); /* panels */
-  --glass-blur-in: blur(26px) saturate(1.8); /* inner cards */
-  --glass-blur-tile: blur(24px) saturate(1.8); /* tiles, rows */
+  --glass-blur: blur(28px) saturate(2); /* panels — was 44px; blur cost grows steeply with radius, and over the already-soft ambient ground the difference is barely visible */
+  --glass-blur-in: blur(12px) saturate(1.8); /* inner cards — usually sit on a frosted panel already */
+  --glass-blur-tile: blur(12px) saturate(1.8); /* tiles, rows */
   --glass-edge: rgba(255, 255, 255, 0.5);
   --glass-edge-hi: rgba(255, 255, 255, 0.72);
 

@@ -352,6 +352,30 @@ number, not a monthly summary. Don't route balance code through
 **Forecast** was deliberately left alone (it already has its own
 horizon toggle and is forward-looking, not a "this month" view).
 
+**Update 2026-10-05 — months without data don't count.** The user often
+enters a month's data some days after it ends, so the calendar working
+month is frequently still empty. Every average now divides by months
+that have at least one income/expense transaction (adjustments don't
+count), and the anchor is `activeWorkingMonth()` (`lib/activeMonths.ts`)
+— the calendar working month, stepped back past any empty months.
+Dashboard, Categories, Forecast and Trends all use it (Forecast now
+included, for the same reason). Transactions only uses the month as a
+header label and stays on the plain calendar `workingMonth`. Regression
+coverage: `test/lib/activeMonths.test.ts`.
+
+### 8i. Performance: never animate anything continuously under the glass (2026-10-05)
+
+The user reported the whole app as unusably laggy on an ordinary laptop
+(fine on their powerful PC). Cause: the three `.ambient-blob`s drifted on
+infinite 18–26s CSS animations, and every glass panel `backdrop-filter`s
+what's beneath it — so every panel re-blurred every frame, forever, even
+on an idle page. Fixed by making the blobs static, cutting blur radii
+(panels 44→28px, inner/tile 24–26→12px; cost grows steeply with radius)
+and removing `backdrop-blur-xl` from small controls (Button secondary,
+Input, Select, filter pills) that already sit on frosted panels. Keep it
+that way: no continuous animation behind glass, and don't stack blur on
+small elements inside an already-blurred panel.
+
 ### 8g. Unbounded Supabase selects silently truncate at ~1000 rows (2026-09)
 
 **This one produced wrong financial numbers with no error anywhere** — an

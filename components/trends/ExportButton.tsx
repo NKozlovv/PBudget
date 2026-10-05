@@ -15,11 +15,14 @@ export function ExportButton({
   rows,
   months,
   visibleCount,
+  avgMonths,
   year,
 }: {
   rows: CategoryTrendRow[];
   months: TrendMonth[];
   visibleCount: number;
+  /** Visible months that have any data — the Avg divisor (lib/activeMonths.ts). */
+  avgMonths: number;
   year: number;
 }) {
   const offset = months.length - visibleCount;
@@ -34,7 +37,7 @@ export function ExportButton({
       // leading baseline month used only for the first column's delta —
       // sum just the visible months instead so this matches what's shown.
       const visibleTotal = values.reduce((s, v) => s + Number(v), 0);
-      const avg = visibleCount > 0 ? visibleTotal / visibleCount : 0;
+      const avg = avgMonths > 0 ? visibleTotal / avgMonths : 0;
       lines.push([row.category.name, ...values, avg.toFixed(2), visibleTotal.toFixed(2)]);
     }
     const csv = lines.map((line) => line.map(csvCell).join(',')).join('\n');
@@ -51,7 +54,7 @@ export function ExportButton({
     <button
       type="button"
       onClick={download}
-      className="rounded-full border border-white/90 px-[17px] py-[9px] text-[13.5px] font-semibold text-ink [background:var(--glass-sheen-tile)] backdrop-blur-xl transition-[transform,background] duration-200 ease-theus hover:-translate-y-0.5 hover:bg-white"
+      className="rounded-full border border-white/90 px-[17px] py-[9px] text-[13.5px] font-semibold text-ink [background:var(--glass-sheen-tile)] transition-[transform,background] duration-200 ease-theus hover:-translate-y-0.5 hover:bg-white"
     >
       Export
     </button>
