@@ -2935,3 +2935,44 @@ both changed files by hand; re-traced `NetWorthPie`'s new cumulative
 math by hand for a 4-segment case (67/18/6/9) to confirm the last
 segment's `end` clamps to exactly 100 regardless of the sum of the
 other three.
+
+---
+
+## Sparkasse CSV import (2026-10-05) — replaces the XLSX importer
+
+User couldn't find the legacy Sparkasse CSV importer (legacy v0.9.3 /
+v0.9.4, `openSparkasseImport()` in `public/legacy/index.html`) — it was
+never ported; Chunk 19 had skipped "CSV upload" on a misunderstanding.
+User asked for it in the current app and said they no longer need the
+XLSX importer, so `/import` is now CSV-only.
+
+**Landed:**
+- `lib/csv/sparkasse.ts` — pure parser. Quote-aware tokenizer over the
+  whole file (legacy split on newlines first, which broke on quoted
+  multi-line fields), UTF-8 with Windows-1252 fallback, header matching
+  that tolerates umlauts/CAMT vs MT940 names. Date = card timestamp from
+  the Verwendungszweck (only when 0–14 days before the booking date, so
+  an invoice date in a transfer's reference can't hijack it), else
+  Valutadatum, else Buchungstag. Pending ("vorgemerkt") rows kept and
+  flagged, as in v0.9.4. Also `findLikelyDuplicates()` — one-to-one match
+  on same account + same signed amount within ±3 days.
+- `components/import/SparkasseImport.tsx` — drop the file, then a review
+  panel: account + month pickers (month defaults to `workingMonth`, §8f),
+  per-row include / date / merchant / type (Expense, Income, Transfer =
+  adjustment) / category / subcategory, current → after balance strip.
+  Merchants seen before come pre-categorised (matched against prior
+  transactions' `comment`, which is where imported merchants are stored);
+  likely duplicates start unticked.
+- `app/actions/import.ts` — `importSparkasseAction`: budget + currency
+  come from the account row via RLS; batch insert of 250; adjustments
+  keep the sign, expense/income store the magnitude (see `signedAmount`).
+- Removed: `components/import/ImportDropzone.tsx`, `lib/xlsx/*`,
+  `test/lib/xlsx/classify.test.ts`. `xlsx` dependency left in
+  `package.json` (no Node here to regenerate the lockfile).
+- Nav "More" menu: "Import XLSX" → "Import CSV".
+
+**Not included:** trip tagging per row (tag afterwards on Transactions).
+
+**Verification:** no Node in this worktree — no typecheck/lint/tests run
+locally; new tests in `test/lib/csv/sparkasse.test.ts`. Pushed to the
+session branch for a Vercel preview build before `master`.

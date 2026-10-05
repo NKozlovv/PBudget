@@ -1,59 +1,78 @@
 import { PageHeader } from '@/components/nav/PageHeader';
-import { Card, Mono } from '@/components/ui';
-import { ImportDropzone } from '@/components/import/ImportDropzone';
+import { SparkasseImport, type ImportContext } from '@/components/import/SparkasseImport';
+import { getOrCreateUserBudget } from '@/lib/data/budgets';
+import { listAccounts } from '@/lib/data/accounts';
+import { listCategories, listSubcategoriesForBudget } from '@/lib/data/categories';
+import { listTransactions } from '@/lib/data/transactions';
+import { accountBalanceNativeAt } from '@/lib/balance';
+import { signedAmount } from '@/lib/money';
+import { dateToISO } from '@/lib/date';
+import { merchantKey } from '@/lib/csv/sparkasse';
+import { mostUsedSubcategoryByCategory } from '@/lib/categories/formOptions';
 
 export const metadata = { title: 'Import · Theus' };
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  const budget = await getOrCreateUserBudget();
+  const [accounts, categories, subcategories, transactions] = await Promise.all([
+    listAccounts(budget.id),
+    listCategories(budget.id),
+    listSubcategoriesForBudget(budget.id),
+    // Every transaction (paginated — CLAUDE.md §8g): balances, duplicate
+    // checks and per-merchant category suggestions all need full history.
+    listTransactions({ budgetId: budget.id }),
+  ]);
+
+  const today = dateToISO(new Date());
+  const catNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const subcategoriesByCategory: Record<string, string[]> = {};
+  for (const s of subcategories) {
+    const name = catNameById.get(s.category_id);
+    if (name) (subcategoriesByCategory[name] ??= []).push(s.name);
+  }
+
+  // Merchant → how it was booked last time. Sparkasse rows are stored with
+  // the merchant as the comment, so a re-seen merchant comes back
+  // pre-categorised. Transactions arrive newest first; first hit wins.
+  const suggestions: ImportContext['suggestions'] = {};
+  const existingByAccount: ImportContext['existingByAccount'] = {};
+  for (const t of transactions) {
+    const key = merchantKey(t.comment);
+    if (key && !suggestions[key] && t.type !== 'adjustment' && t.category) {
+      suggestions[key] = { type: t.type, category: t.category, subcategory: t.subcategory ?? '' };
+    }
+    if (t.account_id) {
+      (existingByAccount[t.account_id] ??= []).push({ date: t.date, amount: signedAmount(t) });
+    }
+  }
+
+  const context: ImportContext = {
+    accounts: accounts.map((a) => ({
+      id: a.id,
+      name: a.name,
+      currency: a.currency,
+      balance: accountBalanceNativeAt({
+        accountId: a.id,
+        date: today,
+        openingBalance: a.opening_balance,
+        transactions,
+      }),
+    })),
+    expenseCategories: categories.filter((c) => c.kind === 'expense').map((c) => c.name),
+    incomeCategories: categories.filter((c) => c.kind === 'income').map((c) => c.name),
+    subcategoriesByCategory,
+    mostUsedSubcategory: mostUsedSubcategoryByCategory(transactions),
+    suggestions,
+    existingByAccount,
+  };
+
   return (
     <>
       <PageHeader
-        title="Import XLSX"
-        meta="One-shot bulk import from the legacy Google Sheets export. Existing accounts and categories are reused, not duplicated."
+        title="Import from Sparkasse"
+        meta="Drop the CSV export from Sparkasse online banking, pick a month, then review every row before it's added."
       />
-
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="p-7">
-          <ImportDropzone />
-        </Card>
-
-        <Card className="p-6">
-          <Mono>How it works</Mono>
-          <ol className="mt-4 flex flex-col gap-3 text-[13px] text-ink-soft leading-relaxed">
-            <Step n={1}>
-              The workbook is parsed in place — never uploaded anywhere except to your own
-              Supabase project.
-            </Step>
-            <Step n={2}>
-              Account names ending in <code className="text-ink">$</code> are imported as USD;
-              everything else as EUR.
-            </Step>
-            <Step n={3}>
-              Rows tagged <code className="text-ink">Account adjustment</code> are stored as
-              transfers, not expenses or income — they don&apos;t inflate your totals.
-            </Step>
-            <Step n={4}>
-              For every USD transaction, the historical USD→EUR rate is fetched from
-              Frankfurter. Display values use these rates rather than today&apos;s rate.
-            </Step>
-            <Step n={5}>
-              Re-running the import is safe — accounts and categories are matched by name; the
-              same rows just create more transactions.
-            </Step>
-          </ol>
-        </Card>
-      </div>
+      <SparkasseImport context={context} />
     </>
-  );
-}
-
-function Step({ n, children }: { n: number; children: React.ReactNode }) {
-  return (
-    <li className="flex gap-3">
-      <span className="shrink-0 mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo/[0.12] text-[10px] font-semibold text-indigo-dark">
-        {n}
-      </span>
-      <span>{children}</span>
-    </li>
   );
 }

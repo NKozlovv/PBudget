@@ -102,9 +102,12 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
   `design-refs/`.
 - **Forms:** vanilla `useState` + server actions (no react-hook-form).
 - **Tests:** Vitest, Node env. Regression-critical only —
-  `lib/date.ts`, `lib/money.ts`, `lib/xlsx/classify.ts`.
-- **XLSX:** SheetJS `xlsx` via the official CDN tarball (npm-registry
-  version is far behind).
+  `lib/date.ts`, `lib/money.ts`, `lib/csv/sparkasse.ts`.
+- **Import:** Sparkasse CSV only (`lib/csv/sparkasse.ts`, `/import`) since
+  2026-10-05. The one-shot XLSX importer (`lib/xlsx/*`) was removed at the
+  user's request; the `xlsx` npm dependency is still in `package.json`
+  but nothing imports it — drop it next time someone can regenerate
+  `package-lock.json` with Node.
 - **FX:** Frankfurter API with server-side cache (`lib/fx.ts`).
 
 ---
@@ -189,7 +192,11 @@ Active at the new app's `/`. Routes under `app/(app)/`:
   cells color-coded by month-over-month change (±10% dead zone)
 - `/forecast` — projected EOY balance, YTD averages, forecast bars
   (actual + projected), per-category burn-rate tables
-- `/import` — XLSX bulk import with FX preflight (drag-drop)
+- `/import` — Sparkasse CSV import (ported from legacy v0.9.3/v0.9.4,
+  replaced the XLSX importer 2026-10-05): drop the CSV, pick account +
+  month, review every row (type / category / subcategory, merchant-based
+  category suggestions, likely-duplicate rows start unticked), then a
+  batch insert via `app/actions/import.ts`
 - `/trips` — added 2026-09-19. Trips ranked, subcategory mix, a
   subcategory × trip matrix, and a full side-by-side table, all driven
   by a "Compare by" toggle (Total / Per day / Per person-day). Reads
@@ -298,7 +305,9 @@ In the user's xlsx, rows in the **expense block** with category = "Account adjus
 
 **Correct behavior:** On import, any row (expense block OR income block) where category = "Account adjustment" must be stored as `type: 'adjustment'`. For rows from the expense block, amount should be **negative** (money left the account). The aggregation code already excludes adjustments from expense/income totals while still applying them to account balances.
 
-Regression coverage: `test/lib/xlsx/classify.test.ts`.
+Regression coverage: was `test/lib/xlsx/classify.test.ts` — removed along
+with the XLSX importer (2026-10-05). Still relevant to data already in the
+budget, and to any future importer of that spreadsheet.
 
 ### 8b. Timezone off-by-one on dates
 
@@ -464,7 +473,7 @@ lib/
                       # (Trips-only palette, wider-spread than
                       # categoryColor.ts — see rehaul-progress.md)
                       # (/trips)
-  xlsx/               # parse, classify, dates
+  csv/                # sparkasse (CSV parser + duplicate matching, /import)
   categories/         # summary (Categories page), formOptions
                       # (subcategory dropdown + most-used auto-pick),
                       # monthlyTrend (/trends)
@@ -474,7 +483,7 @@ lib/
   utils.ts, version.ts
 
 styles/               # tokens.css (single source of palette truth)
-test/lib/             # date.test.ts, money.test.ts, xlsx/classify.test.ts
+test/lib/             # date.test.ts, money.test.ts, csv/sparkasse.test.ts
 design-refs/          # reference-only — never imported into prod
 public/legacy/        # the v1.0.1 single-file app, served at /legacy
 docs/                 # rehaul-plan.md, rehaul-progress.md,

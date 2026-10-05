@@ -24,7 +24,7 @@ const TABS: { href: string; label: string }[] = [
 const MORE: { href: string; label: string; icon: IconName }[] = [
   { href: '/coach', label: 'Coach', icon: 'sparkle' },
   { href: '/members', label: 'Members', icon: 'user' },
-  { href: '/import', label: 'Import XLSX', icon: 'upload' },
+  { href: '/import', label: 'Import CSV', icon: 'upload' },
 ];
 
 function initialsFromEmail(email: string): string {
