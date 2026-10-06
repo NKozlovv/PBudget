@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, Mono } from '@/components/ui';
 import { TransactionForm } from './TransactionForm';
-import { createTransactionAction } from '@/app/actions/transactions';
+import type { TxType } from '@/lib/supabase/types';
+import { createTransactionAction, createTransferAction } from '@/app/actions/transactions';
 import { getTransactionFormDataAction, type TransactionFormData } from '@/app/actions/transactionFormData';
 
 /**
@@ -14,6 +15,9 @@ import { getTransactionFormDataAction, type TransactionFormData } from '@/app/ac
  * ADD_TRANSACTION_EVENT in AddTransactionButton/TransactionsTable).
  */
 export const GLOBAL_ADD_TRANSACTION_EVENT = 'transactions:global-add';
+
+/** Same modal, opened pre-set to the Adjustment type — the dashboard's Transfer button. */
+export const GLOBAL_TRANSFER_EVENT = 'transactions:global-transfer';
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -34,9 +38,13 @@ export function GlobalAddTransactionModal() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<TransactionFormData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialType, setInitialType] = useState<TxType>('expense');
+  const [openCount, setOpenCount] = useState(0);
 
   useEffect(() => {
-    function openModal() {
+    function openModal(type: TxType = 'expense') {
+      setInitialType(type);
+      setOpenCount((n) => n + 1);
       setOpen(true);
       if (!data && !loading) {
         setLoading(true);
@@ -54,10 +62,14 @@ export function GlobalAddTransactionModal() {
       e.preventDefault();
       openModal();
     }
-    window.addEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openModal);
+    const openAdd = () => openModal('expense');
+    const openTransfer = () => openModal('adjustment');
+    window.addEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openAdd);
+    window.addEventListener(GLOBAL_TRANSFER_EVENT, openTransfer);
     window.addEventListener('keydown', onKeydown);
     return () => {
-      window.removeEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openModal);
+      window.removeEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openAdd);
+      window.removeEventListener(GLOBAL_TRANSFER_EVENT, openTransfer);
       window.removeEventListener('keydown', onKeydown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,11 +79,13 @@ export function GlobalAddTransactionModal() {
     <Modal
       open={open}
       onOpenChange={setOpen}
-      title="Add transaction"
+      title={initialType === 'adjustment' ? 'Transfer / adjustment' : 'Add transaction'}
       description="A new entry on this budget. Press N anywhere to open this."
     >
       {data ? (
         <TransactionForm
+          key={openCount}
+          defaults={{ type: initialType }}
           budgetId={data.budgetId}
           accounts={data.accounts}
           expenseCats={data.expenseCats}
@@ -79,7 +93,15 @@ export function GlobalAddTransactionModal() {
           subcategoriesByCategory={data.subcategoriesByCategory}
           mostUsedSubcategory={data.mostUsedSubcategory}
           existingTrips={data.existingTrips}
-          submitLabel="Add transaction"
+          submitLabel={initialType === 'adjustment' ? 'Save' : 'Add transaction'}
+          onTransfer={async (input) => {
+            const res = await createTransferAction(input);
+            if (res.ok) {
+              setOpen(false);
+              router.refresh();
+            }
+            return res;
+          }}
           onSubmit={async (input) => {
             const res = await createTransactionAction(input);
             if (res.ok) {
