@@ -16,8 +16,6 @@ import { getTransactionFormDataAction, type TransactionFormData } from '@/app/ac
  */
 export const GLOBAL_ADD_TRANSACTION_EVENT = 'transactions:global-add';
 
-/** Same modal, opened pre-set to the Adjustment type — the dashboard's Transfer button. */
-export const GLOBAL_TRANSFER_EVENT = 'transactions:global-transfer';
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -63,13 +61,10 @@ export function GlobalAddTransactionModal() {
       openModal();
     }
     const openAdd = () => openModal('expense');
-    const openTransfer = () => openModal('adjustment');
     window.addEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openAdd);
-    window.addEventListener(GLOBAL_TRANSFER_EVENT, openTransfer);
     window.addEventListener('keydown', onKeydown);
     return () => {
       window.removeEventListener(GLOBAL_ADD_TRANSACTION_EVENT, openAdd);
-      window.removeEventListener(GLOBAL_TRANSFER_EVENT, openTransfer);
       window.removeEventListener('keydown', onKeydown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,7 +74,7 @@ export function GlobalAddTransactionModal() {
     <Modal
       open={open}
       onOpenChange={setOpen}
-      title={initialType === 'adjustment' ? 'Transfer / adjustment' : 'Add transaction'}
+      title="Add transaction"
       description="A new entry on this budget. Press N anywhere to open this."
     >
       {data ? (
@@ -93,7 +88,7 @@ export function GlobalAddTransactionModal() {
           subcategoriesByCategory={data.subcategoriesByCategory}
           mostUsedSubcategory={data.mostUsedSubcategory}
           existingTrips={data.existingTrips}
-          submitLabel={initialType === 'adjustment' ? 'Save' : 'Add transaction'}
+          submitLabel="Add transaction"
           onTransfer={async (input) => {
             const res = await createTransferAction(input);
             if (res.ok) {

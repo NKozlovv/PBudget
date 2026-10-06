@@ -3,7 +3,7 @@
 import { Icon } from '@/components/ui';
 import { fmtEUR } from '@/lib/money';
 import { BudgetRing } from './BudgetRing';
-import { GLOBAL_ADD_TRANSACTION_EVENT, GLOBAL_TRANSFER_EVENT } from '@/components/transactions/GlobalAddTransactionModal';
+import { GLOBAL_ADD_TRANSACTION_EVENT } from '@/components/transactions/GlobalAddTransactionModal';
 
 function splitFigure(n: number): { sign: string; whole: string; cents: string } {
   const sign = n < 0 ? '−' : '';
@@ -96,13 +96,6 @@ export function BalancePanel({
             <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white/[0.22]">
               <Icon name="arrow-right" size={13} strokeWidth={2.2} />
             </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent(GLOBAL_TRANSFER_EVENT))}
-            className="rounded-full border border-white/90 px-[17px] py-[9px] text-[13.5px] font-semibold text-ink [background:var(--glass-sheen-tile)] transition-[transform,background] duration-200 ease-theus hover:-translate-y-0.5 hover:bg-white"
-          >
-            Transfer
           </button>
         </div>
       </div>
