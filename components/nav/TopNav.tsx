@@ -16,12 +16,14 @@ const TABS: { href: string; label: string }[] = [
   { href: '/transactions', label: 'Transactions' },
   { href: '/accounts', label: 'Accounts' },
   { href: '/categories', label: 'Categories' },
+  { href: '/investing', label: 'Investing' },
+  { href: '/rsu', label: 'RSU' },
   { href: '/trips', label: 'Trips' },
-  { href: '/trends', label: 'Trends' },
   { href: '/forecast', label: 'Forecast' },
 ];
 
 const MORE: { href: string; label: string; icon: IconName }[] = [
+  { href: '/trends', label: 'Trends', icon: 'chart' },
   { href: '/coach', label: 'Coach', icon: 'sparkle' },
   { href: '/members', label: 'Members', icon: 'user' },
   { href: '/import', label: 'Import CSV', icon: 'upload' },

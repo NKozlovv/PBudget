@@ -74,6 +74,30 @@ export interface TripDetails {
   created_at: string;
 }
 
+/** One buy of the tracked asset (WEBN). `open` = the pre-existing position, entered once at its average price. EUR throughout. */
+export interface InvestmentLot {
+  id: string;
+  budget_id: string;
+  type: 'buy' | 'open';
+  date: string;
+  shares: number;
+  price: number;
+  fee: number;
+  created_at: string;
+}
+
+export interface RsuGrant {
+  id: string;
+  budget_id: string;
+  name: string;
+  start_date: string;
+  shares: number;
+  months: number;
+  every: number;
+  cliff: number;
+  created_at: string;
+}
+
 export interface Transaction {
   id: string;
   budget_id: string;
