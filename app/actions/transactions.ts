@@ -109,7 +109,7 @@ export async function createTransferAction(input: TransferInput): Promise<Action
 
     const label = input.comment?.trim() || `${from.name} → ${to.name}`;
     const base = { budget_id: input.budget_id, date: input.date, trip: null, created_by: userData.user.id };
-    const rows = [
+    const rows: Array<Record<string, string | number | null>> = [
       { ...base, type: 'adjustment', amount: -amount, currency: from.currency, fx_rate: fxFrom, category: 'Adjustment', subcategory: null, account_id: from.id, comment: label },
       { ...base, type: 'adjustment', amount: toAmount, currency: to.currency, fx_rate: fxTo, category: 'Adjustment', subcategory: null, account_id: to.id, comment: label },
     ];
