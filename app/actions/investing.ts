@@ -61,6 +61,33 @@ export async function addLotAction(input: {
   }
 }
 
+export async function updateLotAction(input: {
+  budget_id: string;
+  id: string;
+  date: string;
+  shares: number;
+  price: number;
+  fee: number;
+}): Promise<ActionResult> {
+  if (!(input.shares > 0)) return { ok: false, error: 'Enter how many shares.' };
+  if (!(input.price > 0)) return { ok: false, error: 'Enter the price per share.' };
+  if (!Number.isFinite(input.fee) || input.fee < 0) return { ok: false, error: 'Fees can’t be negative.' };
+  if (!DATE_RE.test(input.date) || input.date > todayISO()) return { ok: false, error: 'Date can’t be in the future.' };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('investment_lots')
+      .update({ date: input.date, shares: input.shares, price: input.price, fee: input.fee })
+      .eq('budget_id', input.budget_id)
+      .eq('id', input.id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath('/investing');
+    return { ok: true, data: undefined };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
 export async function deleteLotAction(input: { budget_id: string; id: string }): Promise<ActionResult> {
   try {
     const supabase = await createClient();

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Field, Input, Modal } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { addLotAction, deleteLotAction } from '@/app/actions/investing';
+import { addLotAction, deleteLotAction, updateLotAction } from '@/app/actions/investing';
 import { eur, niceDate } from '@/lib/investing/format';
 import type { Lot } from '@/lib/investing/calc';
 
@@ -37,6 +37,7 @@ export function LotModal({
   const [flash, setFlash] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const hasOpen = lots.some((l) => l.type === 'open');
   const total = (parseFloat(shares) || 0) * (parseFloat(price) || 0) + (parseFloat(fee) || 0);
@@ -45,16 +46,26 @@ export function LotModal({
     setError(null);
     setFlash(null);
     setPending(true);
-    const res = await addLotAction({
+    const common = {
       budget_id: budgetId,
-      type: mode === 'open' ? 'open' : 'buy',
       date,
       shares: parseFloat(shares),
       price: parseFloat(price),
       fee: parseFloat(fee || '0'),
-    });
+    };
+    const res = editingId
+      ? await updateLotAction({ ...common, id: editingId })
+      : await addLotAction({ ...common, type: mode === 'open' ? 'open' : 'buy' });
     setPending(false);
     if (!res.ok) return setError(res.error);
+    if (editingId) {
+      setEditingId(null);
+      setShares('');
+      setFee('1');
+      onModeChange('history');
+      router.refresh();
+      return;
+    }
     setFlash(
       (mode === 'open' ? 'Opening position saved: ' : 'Buy logged: ') +
         shares +
@@ -65,6 +76,18 @@ export function LotModal({
     setShares('');
     setFee('1');
     router.refresh();
+  }
+
+  function startEdit(l: Lot) {
+    setEditingId(l.id);
+    setDate(l.date);
+    setShares(String(l.shares));
+    setPrice(String(l.price));
+    setFee(String(l.fee));
+    setError(null);
+    setFlash(null);
+    setConfirmId(null);
+    onModeChange(l.type);
   }
 
   async function remove(id: string) {
@@ -83,6 +106,7 @@ export function LotModal({
         setError(null);
         setFlash(null);
         setConfirmId(null);
+        setEditingId(null);
         onModeChange(k);
       }}
       className={cn(
@@ -108,7 +132,9 @@ export function LotModal({
         {mode !== 'history' ? (
           <>
             <div className="text-[13px] font-semibold text-ink-soft">
-              {mode === 'open'
+              {editingId
+                ? 'Editing this transaction — change anything and save.'
+                : mode === 'open'
                 ? hasOpen
                   ? 'An opening position is already saved. Remove it in History to replace it.'
                   : 'Enter what you already hold: total shares and your average buy price.'
@@ -141,7 +167,7 @@ export function LotModal({
             {error ? <p className="rounded-[14px] bg-coral/15 px-3 py-2.5 text-[13px] font-bold text-neg" role="alert">{error}</p> : null}
             {flash ? <p className="rounded-[14px] bg-teal/15 px-3 py-2.5 text-[13px] font-bold text-pos">{flash}</p> : null}
             <Button onClick={submit} disabled={pending} className="!py-[13px]">
-              {pending ? 'Saving…' : mode === 'open' ? 'Save opening position' : 'Log buy'}
+              {pending ? 'Saving…' : editingId ? 'Save changes' : mode === 'open' ? 'Save opening position' : 'Log buy'}
             </Button>
           </>
         ) : (
@@ -175,16 +201,25 @@ export function LotModal({
                       {l.shares} × {eur(l.price, 3)} = {eur(l.shares * l.price + l.fee)}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => remove(l.id)}
-                    className={cn(
-                      'whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11.5px] font-bold',
-                      conf ? 'bg-[#e0568a] text-white' : 'bg-white/70 text-ink-mute hover:bg-white',
-                    )}
-                  >
-                    {conf ? 'Confirm' : 'Remove'}
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(l)}
+                      className="whitespace-nowrap rounded-full bg-white/70 px-2.5 py-1.5 text-[11.5px] font-bold text-ink-mute hover:bg-white"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(l.id)}
+                      className={cn(
+                        'whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11.5px] font-bold',
+                        conf ? 'bg-[#e0568a] text-white' : 'bg-white/70 text-ink-mute hover:bg-white',
+                      )}
+                    >
+                      {conf ? 'Confirm' : 'Remove'}
+                    </button>
+                  </div>
                 </div>
               );
             })}
