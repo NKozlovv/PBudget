@@ -61,6 +61,7 @@ export function RsuClient({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  const [scale, setScale] = useState<'month' | 'quarter' | 'year'>('month');
   const chartRef = useRef<HTMLDivElement>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -149,25 +150,45 @@ export function RsuClient({
       return d + ` H${f(from)} Z`;
     };
 
-    // Month-level axis: a faint tick for every month, a label every month /
-    // quarter / year depending on how long the timeline is. January is
-    // labelled with its year so the axis stays readable at any density.
+    // X-axis scale. One "period" per month / quarter / year: the axis ticks
+    // sit at period starts and the hover readout snaps to period *ends* —
+    // same idea as the Investing projection, which only reads at year-end.
+    const stepMonths = scale === 'month' ? 1 : scale === 'quarter' ? 3 : 12;
     const spanMonths = (t1 - t0) / (30.44 * DAY);
-    const labelEvery = spanMonths <= 24 ? 1 : spanMonths <= 60 ? 3 : 12;
+    // Month labels thin out as the range grows so they never collide.
+    const monthLabelEvery = spanMonths <= 20 ? 1 : spanMonths <= 40 ? 2 : spanMonths <= 80 ? 3 : 6;
+    const quarterLabelEvery = spanMonths <= 60 ? 1 : 2;
     const xTicks: { left: number; label: string; major: boolean }[] = [];
     const minorTicks: number[] = [];
+    type Period = { start: string; end: string; x: number; title: string; short: string };
+    const periods: Period[] = [];
     const sd = toDate(start);
-    for (let d = new Date(sd.getFullYear(), sd.getMonth(), 1); d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) {
-      const left = X(toISO(d)) / 10;
-      if (left < 0 || left > 100) continue;
-      if (spanMonths <= 72) minorTicks.push(left);
-      if (d.getMonth() % labelEvery !== 0) continue;
-      const jan = d.getMonth() === 0;
-      xTicks.push({
-        left,
-        major: jan,
-        label: jan ? String(d.getFullYear()) : monthShort(d.getMonth()) + (xTicks.length === 0 ? ' ' + String(d.getFullYear()).slice(2) : ''),
-      });
+    const firstMo = Math.floor(sd.getMonth() / stepMonths) * stepMonths;
+    for (let k = 0; ; k++) {
+      const startD = new Date(sd.getFullYear(), firstMo + k * stepMonths, 1);
+      const endD = new Date(sd.getFullYear(), firstMo + (k + 1) * stepMonths, 0);
+      const startISO = toISO(startD);
+      const endISO = toISO(endD);
+      const yr = startD.getFullYear();
+      const mo = startD.getMonth();
+      const q = Math.floor(mo / 3) + 1;
+      const label = scale === 'month' ? monthShort(mo) + ' ' + yr : scale === 'quarter' ? `Q${q} ${yr}` : String(yr);
+      const short = scale === 'month' ? monthShort(mo) : scale === 'quarter' ? `Q${q}` : String(yr);
+      const xEnd = Math.min(1000, X(endISO));
+      if (xEnd >= 0) periods.push({ start: startISO, end: endISO, x: xEnd, title: label, short });
+
+      const left = X(startISO) / 10;
+      if (left >= 0 && left <= 100) {
+        minorTicks.push(left);
+        if (scale === 'month' && mo % monthLabelEvery === 0) {
+          xTicks.push({ left, major: mo === 0, label: mo === 0 ? String(yr) : monthShort(mo) + (xTicks.length === 0 ? ' ' + String(yr).slice(2) : '') });
+        } else if (scale === 'quarter' && (q - 1) % quarterLabelEvery === 0) {
+          xTicks.push({ left, major: q === 1, label: q === 1 ? String(yr) : `Q${q}` + (xTicks.length === 0 ? ' ' + String(yr).slice(2) : '') });
+        } else if (scale === 'year') {
+          xTicks.push({ left, major: true, label: String(yr) });
+        }
+      }
+      if (endD.getTime() >= t1) break;
     }
 
     return {
@@ -184,28 +205,37 @@ export function RsuClient({
       todayX,
       xTicks,
       minorTicks,
+      periods,
       snaps,
       t0,
       t1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grants, today]);
+  }, [grants, today, scale]);
 
   // Hover readout: the cumulative state at the hovered date, plus what
   // vests during that calendar month.
+  // The cursor snaps to the nearest period end (month / quarter / year per
+  // the scale picker) and reads the cumulative position *at that end*.
   const tip = (() => {
-    if (hover == null || m.snaps.length === 0) return null;
-    const date = toISO(new Date(m.t0 + hover * (m.t1 - m.t0)));
+    if (hover == null || m.periods.length === 0) return null;
+    const hx = hover * 1000;
+    let p = m.periods[0]!;
+    for (const c of m.periods) if (Math.abs(c.x - hx) < Math.abs(p.x - hx)) p = c;
     let snap = m.snaps[0]!;
-    for (const s of m.snaps) if (s.date <= date) snap = s;
-    const ym = date.slice(0, 7);
-    const thisMonth = m.evs.filter((e) => e.date.slice(0, 7) === ym).reduce((a, e) => a + e.shares, 0);
-    const [yy = '', mm = '1'] = date.split('-');
+    for (const s of m.snaps) if (s.date <= p.end) snap = s;
+    const inPeriod = m.evs.filter((e) => e.date >= p.start && e.date <= p.end);
+    const doneInPeriod = inPeriod.filter((e) => e.date <= today).reduce((a, e) => a + e.shares, 0);
+    const laterInPeriod = inPeriod.filter((e) => e.date > today).reduce((a, e) => a + e.shares, 0);
+    const status: 'vested' | 'partial' | 'scheduled' = p.end <= today ? 'vested' : p.start > today ? 'scheduled' : 'partial';
     return {
-      title: `${monthShort(Number(mm) - 1)} ${yy}`,
-      future: date > today,
+      title: p.title,
+      short: p.short,
+      x: p.x / 10,
+      status,
       tot: snap.tot,
-      thisMonth,
+      doneInPeriod,
+      laterInPeriod,
       pct: m.total ? Math.round((snap.tot / m.total) * 100) : 0,
       topPct: (280 - (m.total ? snap.tot / m.total : 0) * 250) / 2.8,
       rows: grants.map((g) => ({ id: g.id, name: g.name, shares: snap.by[g.id] ?? 0 })).filter((r) => r.shares > 0),
@@ -389,13 +419,25 @@ export function RsuClient({
                 Cumulative shares vested, all grants stacked. Solid is behind you, dashed is scheduled.
               </div>
             </div>
-            <div className="flex flex-wrap gap-3.5">
-              {grants.map((g) => (
-                <span key={g.id} className="flex items-center gap-[7px] text-[12px] font-semibold text-ink-soft">
-                  <span className="h-[11px] w-[11px] rounded-[4px]" style={{ background: m.colorOf(g.id) }} />
-                  {g.name}
-                </span>
-              ))}
+            <div className="flex flex-col items-end gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-mute">Scale</span>
+                <div className="flex gap-1 rounded-full bg-white/[0.44] p-1">
+                  {([['month', 'Months'], ['quarter', 'Quarters'], ['year', 'Years']] as const).map(([k, l]) => (
+                    <button key={k} type="button" className={seg(scale === k)} onClick={() => setScale(k)}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-end gap-3.5">
+                {grants.map((g) => (
+                  <span key={g.id} className="flex items-center gap-[7px] text-[12px] font-semibold text-ink-soft">
+                    <span className="h-[11px] w-[11px] rounded-[4px]" style={{ background: m.colorOf(g.id) }} />
+                    {g.name}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           <div
@@ -440,20 +482,30 @@ export function RsuClient({
             </div>
             {tip && hover != null ? (
               <>
-                <div className="pointer-events-none absolute inset-y-0 w-px bg-[rgba(21,26,45,.3)]" style={{ left: `${hover * 100}%` }} />
+                <div className="pointer-events-none absolute inset-y-0 w-px bg-[rgba(21,26,45,.3)]" style={{ left: `${tip.x}%` }} />
                 <div
                   className="pointer-events-none absolute -ml-[5px] -mt-[5px] h-2.5 w-2.5 rounded-full bg-[#151a2d] [box-shadow:0_0_0_3px_#fff]"
-                  style={{ left: `${hover * 100}%`, top: `${tip.topPct}%` }}
+                  style={{ left: `${tip.x}%`, top: `${tip.topPct}%` }}
                 />
                 <div
-                  className="pointer-events-none absolute top-8 z-10 min-w-[190px] whitespace-nowrap rounded-[16px] bg-white/90 px-[13px] py-2.5 [box-shadow:0_12px_28px_-10px_rgba(31,39,66,.35)]"
+                  className="pointer-events-none absolute top-8 z-10 min-w-[210px] whitespace-nowrap rounded-[16px] bg-white/90 px-[13px] py-2.5 [box-shadow:0_12px_28px_-10px_rgba(31,39,66,.35)]"
                   style={{
-                    left: `${hover * 100}%`,
-                    transform: `translateX(${hover > 0.65 ? 'calc(-100% - 12px)' : '12px'})`,
+                    left: `${tip.x}%`,
+                    transform: `translateX(${tip.x > 65 ? 'calc(-100% - 12px)' : '12px'})`,
                   }}
                 >
-                  <div className="text-[11.5px] font-bold text-ink-mute">
-                    {tip.title} · {tip.future ? 'scheduled' : 'vested'}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11.5px] font-bold text-ink-mute">End of {tip.title}</span>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10.5px] font-bold',
+                        tip.status === 'vested' && 'bg-[rgba(31,185,164,.18)] text-[#0f7f72]',
+                        tip.status === 'partial' && 'bg-[rgba(244,165,69,.25)] text-[#8a5a10]',
+                        tip.status === 'scheduled' && 'bg-[rgba(74,92,224,.14)] text-indigo-dark',
+                      )}
+                    >
+                      {tip.status === 'vested' ? 'Already vested' : tip.status === 'partial' ? 'Partly vested' : 'Scheduled'}
+                    </span>
                   </div>
                   <div className="mt-[3px] text-[16px] font-extrabold tabular-nums">
                     {num(tip.tot)} shares <span className="text-ink-mute">· {tip.pct}%</span>
@@ -461,9 +513,10 @@ export function RsuClient({
                   <div className="text-[12px] font-semibold tabular-nums text-ink-soft">
                     {eur(tip.tot * price, 0)} at today’s price
                   </div>
-                  {tip.thisMonth > 0 ? (
-                    <div className="mt-1 text-[12px] font-bold tabular-nums text-indigo-dark">
-                      +{num(tip.thisMonth)} shares vest in {tip.title.split(' ')[0]}
+                  {tip.doneInPeriod > 0 || tip.laterInPeriod > 0 ? (
+                    <div className="mt-1 flex flex-col text-[12px] font-bold tabular-nums text-indigo-dark">
+                      {tip.doneInPeriod > 0 ? <span>+{num(tip.doneInPeriod)} vested in {tip.short}</span> : null}
+                      {tip.laterInPeriod > 0 ? <span>+{num(tip.laterInPeriod)} still to vest in {tip.short}</span> : null}
                     </div>
                   ) : null}
                   {tip.rows.length > 1 ? (
