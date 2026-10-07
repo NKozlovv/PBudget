@@ -244,7 +244,11 @@ export function InvestingClient({
     line(hi.vals) + ' ' + lo.vals.map((v, i) => `L${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).reverse().join(' ') + ' Z';
   const contribLine = line(contribAbs);
   const contribArea = contribLine + ' L1000 320 L0 320 Z';
-  const step = maxV > 4e5 ? 1e5 : maxV > 2e5 ? 5e4 : maxV > 8e4 ? 2.5e4 : 1e4;
+  // ~5 gridlines at "nice" values (1/2/2.5/5 × 10ⁿ) whatever the scale — a
+  // fixed step produced dozens of overlapping labels once plans reached €M.
+  const rawStep = maxV / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const step = ([1, 2, 2.5, 5, 10].find((m) => m * mag >= rawStep) ?? 10) * mag;
   const yGrid: { y: number; label: string }[] = [];
   for (let v = step; v < maxV; v += step) yGrid.push({ y: Y(v), label: big(v) });
   const tickEvery = H <= 5 ? 1 : H <= 10 ? 2 : 5;
@@ -284,12 +288,12 @@ export function InvestingClient({
             <div className="flex flex-wrap items-center gap-2.5">
               <span className={cn(eyebrow, 'tracking-[0.12em]')}>Portfolio · {ticker}</span>
               {market ? (
-                <span className="inline-flex items-center gap-[7px] whitespace-nowrap rounded-full bg-teal/15 px-[11px] py-1 text-[11.5px] font-bold text-[#0f7f72]">
+                <span className="inline-flex items-center gap-[7px] whitespace-nowrap rounded-full bg-[rgba(31,185,164,.15)] px-[11px] py-1 text-[11.5px] font-bold text-[#0f7f72]">
                   <span className="h-[7px] w-[7px] rounded-full bg-teal" />
                   {eur(live, 3)} · {pct(dayPct)} · as of {priceDate}
                 </span>
               ) : (
-                <span className="inline-flex items-center rounded-full bg-amber/20 px-[11px] py-1 text-[11.5px] font-bold text-[#8a5a10]">
+                <span className="inline-flex items-center rounded-full bg-[rgba(244,165,69,.22)] px-[11px] py-1 text-[11.5px] font-bold text-[#8a5a10]">
                   Live price unavailable · using last buy price
                 </span>
               )}
@@ -418,7 +422,7 @@ export function InvestingClient({
                           <td className={cn(td, 'text-right text-[13px] font-bold')} style={{ color: c }}>{signed(x.ret, 0)}</td>
                           <td className={td}>
                             <div className="relative h-2.5">
-                              <div className="absolute -bottom-[3px] -top-[3px] left-1/2 w-px bg-ink/20" />
+                              <div className="absolute -bottom-[3px] -top-[3px] left-1/2 w-px bg-[rgba(21,26,45,.2)]" />
                               <div
                                 className="absolute inset-y-0 rounded-full"
                                 style={{ left: x.ret >= 0 ? '50%' : `${(50 - w).toFixed(2)}%`, width: `${w.toFixed(2)}%`, background: c }}
@@ -493,7 +497,7 @@ export function InvestingClient({
 
         <div className="flex flex-wrap items-stretch gap-6">
           <div className="glass-inner grid min-w-[260px] max-w-full flex-[1_1_320px] grid-cols-[repeat(auto-fit,minmax(240px,1fr))] content-start gap-x-6 gap-y-[18px] !rounded-[24px] p-[18px]">
-            <Slider title="Invest per year" display={eur(p.contrib, 0)} min={0} max={30000} step={250} value={p.contrib} onChange={(v) => setP('contrib', v)} sub={`≈ ${eur(p.contrib / 12, 0)} a month`} />
+            <Slider title="Invest per year" display={eur(p.contrib, 0)} min={0} max={100000} step={250} value={p.contrib} onChange={(v) => setP('contrib', v)} sub={`≈ ${eur(p.contrib / 12, 0)} a month`} />
             <Slider title="Raise it each year" display={p.inc ? `+${p.inc}%` : 'Flat'} min={0} max={10} step={0.5} value={p.inc} onChange={(v) => setP('inc', v)} />
             <div className="flex flex-col gap-2">
               <Slider
@@ -506,13 +510,13 @@ export function InvestingClient({
                 value={p.yield}
                 onChange={(v) => setP('yield', v)}
               />
-              <div className="flex flex-wrap gap-1.5">
-                {[{ l: 'Cautious 4%', v: 4 }, { l: 'Long-run avg 7%', v: 7 }, { l: 'Strong 9%', v: 9 }].map((r) => (
+              <div className="flex flex-nowrap gap-1.5">
+                {[{ l: 'Cautious 4%', v: 4 }, { l: 'Average 7%', v: 7 }, { l: 'Strong 9%', v: 9 }].map((r) => (
                   <button
                     key={r.v}
                     type="button"
                     onClick={() => setP('yield', r.v)}
-                    className={cn('rounded-full px-2.5 py-[5px] text-[11.5px] font-bold', p.yield === r.v ? 'bg-ink text-white' : 'bg-white/60 text-ink-soft')}
+                    className={cn('whitespace-nowrap rounded-full px-2.5 py-[5px] text-[11.5px] font-bold', p.yield === r.v ? 'bg-ink text-white' : 'bg-white/60 text-ink-soft')}
                   >
                     {r.l}
                   </button>
@@ -600,7 +604,7 @@ export function InvestingClient({
               ))}
               {hv != null ? (
                 <>
-                  <div className="pointer-events-none absolute inset-y-0 w-px bg-ink/30" style={{ left: `${X(hv) / 10}%` }} />
+                  <div className="pointer-events-none absolute inset-y-0 w-px bg-[rgba(21,26,45,.3)]" style={{ left: `${X(hv) / 10}%` }} />
                   <div
                     className="pointer-events-none absolute -ml-[5px] -mt-[5px] h-2.5 w-2.5 rounded-full bg-[#0f9d8a] [box-shadow:0_0_0_3px_#fff]"
                     style={{ left: `${X(hv) / 10}%`, top: `${Y(base.vals[hv] ?? 0) / 3.2}%` }}
@@ -626,8 +630,8 @@ export function InvestingClient({
             </div>
             <div className="flex flex-wrap gap-4 text-[12px] font-semibold text-ink-soft">
               <span className="flex items-center gap-[7px]"><span className="h-[3px] w-[18px] rounded-sm bg-[#0f9d8a]" />Projected value</span>
-              <span className="flex items-center gap-[7px]"><span className="h-2.5 w-3.5 rounded-[3px] bg-teal/20" />Good to bad years</span>
-              <span className="flex items-center gap-[7px]"><span className="h-2.5 w-3.5 rounded-[3px] bg-indigo/25" />Money put in</span>
+              <span className="flex items-center gap-[7px]"><span className="h-2.5 w-3.5 rounded-[3px] bg-[rgba(31,185,164,.22)]" />Good to bad years</span>
+              <span className="flex items-center gap-[7px]"><span className="h-2.5 w-3.5 rounded-[3px] bg-[rgba(74,92,224,.24)]" />Money put in</span>
               {sc.map((s) => (
                 <span key={s.name} className="flex items-center gap-[7px]"><span className="w-[18px] border-t-[2.5px] border-dashed" style={{ borderColor: s.color }} />{s.name}</span>
               ))}
@@ -665,7 +669,7 @@ export function InvestingClient({
                 {base.yearly.map((r) => {
                   const o = overrides[String(r.y)];
                   return (
-                    <tr key={r.y} className={o != null ? 'bg-indigo/[0.06]' : ''}>
+                    <tr key={r.y} className={o != null ? 'bg-[rgba(74,92,224,.06)]' : ''}>
                       <td className="border-b border-white/50 px-2.5 py-1.5 text-[13.5px] font-bold">{yr0 + r.y}</td>
                       <td className="border-b border-white/50 px-2.5 py-1.5 text-right">
                         <input
@@ -683,7 +687,7 @@ export function InvestingClient({
                           }}
                           className={cn(
                             'w-[110px] rounded-[11px] border px-2.5 py-[7px] text-right text-[13px] font-bold tabular-nums text-ink outline-none',
-                            o != null ? 'border-indigo bg-indigo/10' : 'border-white/80 bg-white/60',
+                            o != null ? 'border-indigo bg-[rgba(74,92,224,.1)]' : 'border-white/80 bg-white/60',
                           )}
                         />
                       </td>
@@ -706,7 +710,7 @@ export function InvestingClient({
             </div>
           </div>
           <div className="flex flex-col gap-2.5">
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[13px] rounded-[20px] bg-teal/10 px-[15px] py-[13px]">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[13px] rounded-[20px] bg-[rgba(31,185,164,.1)] px-[15px] py-[13px]">
               <span className="w-[18px] border-t-[3px] border-solid border-[#0f9d8a]" />
               <div className="min-w-0">
                 <div className="text-[14px] font-extrabold">Current plan</div>

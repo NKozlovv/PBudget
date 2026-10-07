@@ -164,8 +164,8 @@ export function LotModal({
               <span className="text-[12.5px] font-semibold text-ink-soft">Total cost</span>
               <span className="text-[16px] font-extrabold tabular-nums">{eur(total)}</span>
             </div>
-            {error ? <p className="rounded-[14px] bg-coral/15 px-3 py-2.5 text-[13px] font-bold text-neg" role="alert">{error}</p> : null}
-            {flash ? <p className="rounded-[14px] bg-teal/15 px-3 py-2.5 text-[13px] font-bold text-pos">{flash}</p> : null}
+            {error ? <p className="rounded-[14px] bg-[rgba(242,112,143,.15)] px-3 py-2.5 text-[13px] font-bold text-neg" role="alert">{error}</p> : null}
+            {flash ? <p className="rounded-[14px] bg-[rgba(31,185,164,.15)] px-3 py-2.5 text-[13px] font-bold text-pos">{flash}</p> : null}
             <Button onClick={submit} disabled={pending} className="!py-[13px]">
               {pending ? 'Saving…' : editingId ? 'Save changes' : mode === 'open' ? 'Save opening position' : 'Log buy'}
             </Button>
@@ -182,7 +182,7 @@ export function LotModal({
                   key={l.id}
                   className={cn(
                     'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[14px] px-3 py-2.5',
-                    conf && 'bg-coral/15',
+                    conf && 'bg-[rgba(242,112,143,.15)]',
                   )}
                 >
                   <div className="min-w-0">
@@ -191,7 +191,7 @@ export function LotModal({
                       <span
                         className={cn(
                           'rounded-full px-2 py-0.5 text-[10.5px] font-bold',
-                          l.type === 'open' ? 'bg-indigo/15 text-indigo-dark' : 'bg-white/80 text-ink-soft',
+                          l.type === 'open' ? 'bg-[rgba(74,92,224,.15)] text-indigo-dark' : 'bg-white/80 text-ink-soft',
                         )}
                       >
                         {l.type === 'open' ? 'Opening' : 'Buy'}

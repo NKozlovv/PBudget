@@ -428,7 +428,7 @@ export function RsuClient({
                     key={e.grantId + e.date}
                     className={cn(
                       'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[13px] rounded-[16px] px-3 py-2.5',
-                      view === 'upcoming' && i === 0 && 'bg-indigo/10',
+                      view === 'upcoming' && i === 0 && 'bg-[rgba(74,92,224,.1)]',
                     )}
                   >
                     <span
