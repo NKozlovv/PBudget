@@ -7,7 +7,7 @@ import { Button, Field, Input, Select } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { addGrantAction, deleteGrantAction, setSharePriceAction } from '@/app/actions/rsu';
 import { schedule, toDate, type GrantInput, type VestEvent } from '@/lib/rsu/calc';
-import { eur, niceDateLong, num, span } from '@/lib/investing/format';
+import { eur, niceDateLong, num, pct, signed, span } from '@/lib/investing/format';
 import type { RsuGrant } from '@/lib/supabase/types';
 
 const COLORS = ['#4a5ce0', '#1fb9a4', '#f2708f', '#ef9a3c', '#8b5cf6', '#2ea3e8'];
@@ -62,7 +62,7 @@ export function RsuClient({
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [form, setForm] = useState({ name: '', date: today, shares: '', months: '48', every: '3', cliff: '12' });
+  const [form, setForm] = useState({ name: '', date: today, shares: '', gp: '', months: '48', every: '3', cliff: '12' });
 
   const price = Number.parseFloat(priceInput) >= 0 ? Number.parseFloat(priceInput) : 0;
   const todayMs = toDate(today).getTime();
@@ -93,6 +93,10 @@ export function RsuClient({
     const last = evs.length ? evs[evs.length - 1]!.date : today;
     const vpct = total ? (vested / total) * 100 : 0;
     const perYear = fut.filter((e) => daysTo(e.date) <= 365).reduce((a, e) => a + e.shares, 0);
+    // "Since grant": only grants with a recorded grant-date price count.
+    const priced = gs.map((g) => ({ g, gp: grants.find((x) => x.id === g.id)?.grant_price ?? null })).filter((x) => x.gp != null);
+    const grantBasis = priced.reduce((a, x) => a + x.g.shares * (x.gp ?? 0), 0);
+    const grantNow = priced.reduce((a, x) => a + x.g.shares, 0);
 
     // ── chart ──
     const start = gs.length ? gs.map((g) => g.start_date).sort()[0]! : today;
@@ -145,6 +149,7 @@ export function RsuClient({
     for (let y = Number(start.slice(0, 4)) + 1; y <= new Date(t1).getFullYear(); y++) years.push(y);
 
     return {
+      grantBasis, grantNow,
       gs, colorOf, evs, total, past, fut, vested, unvested, avgDays, next, nextShares, last, vpct, perYear,
       yGrid: [0.25, 0.5, 0.75, 1].map((fr) => ({ y: Y(total * fr), label: num(Math.round(total * fr)) + ' sh' })),
       layers: gs.map((g, i) => ({
@@ -195,11 +200,12 @@ export function RsuClient({
       months: +form.months,
       every: +form.every,
       cliff: +form.cliff,
+      grant_price: form.gp.trim() === '' ? null : Number(form.gp),
     });
     setPending(false);
     if (!res.ok) return setError(res.error);
     setShowForm(false);
-    setForm({ name: '', date: today, shares: '', months: '48', every: '3', cliff: '12' });
+    setForm({ name: '', date: today, shares: '', gp: '', months: '48', every: '3', cliff: '12' });
     router.refresh();
   }
 
@@ -282,6 +288,14 @@ export function RsuClient({
               value={m.unvested ? span(m.avgDays) : '—'}
               sub={m.unvested ? 'share-weighted time until unvested shares vest' : 'Everything has vested'}
             />
+            {m.grantNow > 0 ? (
+              <Stat
+                title="Gain since grant"
+                value={signed(m.grantNow * price - m.grantBasis, 0)}
+                sub={`${m.grantBasis ? pct((m.grantNow * price / m.grantBasis - 1) * 100) : "—"} vs ${eur(m.grantBasis, 0)} at grant price`}
+                valueClass={m.grantNow * price >= m.grantBasis ? "text-pos" : "text-neg"}
+              />
+            ) : null}
             <Stat
               title="Next vest"
               value={m.next ? span(daysTo(m.next.date)) : '—'}
@@ -446,6 +460,11 @@ export function RsuClient({
                     <Input id={id} type="number" min={1} step={1} placeholder="0" value={form.shares} onChange={(e) => setForm({ ...form, shares: e.target.value })} />
                   )}
                 </Field>
+                <Field label="Price at grant (€)">
+                  {({ id }) => (
+                    <Input id={id} type="number" min={0} step={0.01} placeholder="optional" value={form.gp} onChange={(e) => setForm({ ...form, gp: e.target.value })} />
+                  )}
+                </Field>
                 <Field label="Duration">
                   {({ id }) => (
                     <Select id={id} value={form.months} onChange={(e) => setForm({ ...form, months: e.target.value })}>
@@ -467,8 +486,7 @@ export function RsuClient({
                     </Select>
                   )}
                 </Field>
-                <div className="col-span-2">
-                  <Field label="Cliff">
+                <Field label="Cliff">
                     {({ id }) => (
                       <Select id={id} value={form.cliff} onChange={(e) => setForm({ ...form, cliff: e.target.value })}>
                         <option value="0">No cliff</option>
@@ -477,7 +495,6 @@ export function RsuClient({
                       </Select>
                     )}
                   </Field>
-                </div>
               </div>
               {error ? <p className="text-[13px] font-bold text-neg" role="alert">{error}</p> : null}
               <div className="text-[12.5px] font-semibold text-ink-soft">
@@ -514,6 +531,12 @@ export function RsuClient({
                         {num(g.shares)} shares · {g.months / 12} yrs, {EVERY[g.every] ?? `every ${g.every} months`}
                         {g.cliff ? `, ${g.cliff}-month cliff` : ', no cliff'} · from {niceDateLong(g.start_date)}
                       </div>
+                      {g.grant_price != null ? (
+                        <div className="mt-[3px] text-[12px] font-bold tabular-nums text-ink-soft">
+                          Granted at {eur(g.grant_price, 2)} · now {eur(price, 2)}
+                          {g.grant_price > 0 ? ` (${pct((price / g.grant_price - 1) * 100)})` : ""}
+                        </div>
+                      ) : null}
                     </div>
                     <button
                       type="button"

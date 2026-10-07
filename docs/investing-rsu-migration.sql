@@ -66,3 +66,6 @@ create policy rsu_grants_all       on public.rsu_grants       for all to authent
   using (public.is_budget_member(budget_id)) with check (public.is_budget_member(budget_id));
 create policy rsu_settings_all     on public.rsu_settings     for all to authenticated
   using (public.is_budget_member(budget_id)) with check (public.is_budget_member(budget_id));
+
+-- ── RSU: share price at grant (added after first release; safe to re-run) ──
+alter table public.rsu_grants add column if not exists grant_price numeric check (grant_price is null or grant_price >= 0);  -- EUR/share on the grant date

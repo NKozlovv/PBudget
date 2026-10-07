@@ -95,6 +95,8 @@ export interface RsuGrant {
   months: number;
   every: number;
   cliff: number;
+  /** EUR per share on the grant date; null if not entered. */
+  grant_price: number | null;
   created_at: string;
 }
 

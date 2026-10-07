@@ -15,6 +15,7 @@ export async function addGrantAction(input: {
   months: number;
   every: number;
   cliff: number;
+  grant_price: number | null;
 }): Promise<ActionResult> {
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Give the grant a name.' };
@@ -24,6 +25,9 @@ export async function addGrantAction(input: {
   if (!(input.months > 0) || !(input.every > 0)) return { ok: false, error: 'Invalid schedule.' };
   if (input.cliff < 0 || input.cliff >= input.months) {
     return { ok: false, error: 'Cliff must be shorter than the full duration.' };
+  }
+  if (input.grant_price != null && (!Number.isFinite(input.grant_price) || input.grant_price < 0)) {
+    return { ok: false, error: 'Enter a valid price at grant.' };
   }
   try {
     const supabase = await createClient();
@@ -35,6 +39,7 @@ export async function addGrantAction(input: {
       months: input.months,
       every: input.every,
       cliff: input.cliff,
+      grant_price: input.grant_price,
     });
     if (error) return { ok: false, error: error.message };
     revalidatePath('/rsu');
