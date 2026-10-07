@@ -62,8 +62,8 @@ export function KpiTile({
               <span
                 className={cn(
                   'inline-flex items-center gap-1 font-mono text-[12px] font-semibold',
-                  deltaTone === 'pos' && 'text-pos',
-                  deltaTone === 'neg' && 'text-neg',
+                  deltaTone === 'pos' && 'text-in',
+                  deltaTone === 'neg' && 'text-out',
                   deltaTone === 'mute' && 'text-ink-mute',
                 )}
               >

@@ -233,7 +233,7 @@ export function ForecastLine({
       <ChartTooltip x={hover.x} y={hover.y} containerWidth={hover.containerWidth}>
         <span className="font-medium text-ink">{hover.data.label}</span>
         <span className="mx-1 text-ink-mute">·</span>
-        <span className="text-accent">{fmtEUR(hover.data.balance, { decimals: 0 })}</span>
+        <span className="text-indigo">{fmtEUR(hover.data.balance, { decimals: 0 })}</span>
         {hover.data.projected ? <span className="ml-1 text-ink-mute">(projected)</span> : null}
       </ChartTooltip>
     ) : null}

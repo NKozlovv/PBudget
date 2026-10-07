@@ -212,7 +212,7 @@ export function TransactionsTable({
               <button
                 type="button"
                 onClick={() => setMode({ kind: 'delete', tx: mode.tx })}
-                className="text-[12px] text-ink-mute hover:text-neg hover:underline"
+                className="text-[12px] text-ink-mute hover:text-out hover:underline"
               >
                 Delete this transaction
               </button>

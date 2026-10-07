@@ -42,40 +42,24 @@
   --teal: #1fb9a4;
   --coral: #f2708f;
   --amber: #f4a545;
-  --violet: #8b5cf6;
-  --sky: #3da3ef;
   --navy: #1f2742;
   --slate: #8b95b8;
 
   /* semantic — money direction only */
   --in: #12a08c;
   --out: #d94a6f;
-  --warn: #d98b1f;
 
   /* type */
   --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
 
   /* shape */
   --r-panel: 34px;
-  --r-card: 26px;
   --r-inner: 22px;
   --r-tile: 20px;
-  --r-row: 18px;
-  --r-chip: 14px;
-  --r-pill: 999px;
-
-  /* depth — panel rest/hover live in .glass; these are the rest */
-  --shadow-panel: 0 28px 60px -18px rgba(31, 39, 66, 0.32), 0 2px 10px rgba(31, 39, 66, 0.08);
-  --shadow-panel-hover: 0 36px 72px -20px rgba(31, 39, 66, 0.38), 0 3px 12px rgba(31, 39, 66, 0.1);
-  --shadow-nav: 0 22px 44px -16px rgba(31, 39, 66, 0.3);
-  --shadow-solid: 0 12px 26px rgba(31, 39, 66, 0.2);
-  --shadow-action: 0 10px 24px rgba(74, 92, 224, 0.35);
 
   /* motion */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-glass: cubic-bezier(0.22, 0.9, 0.24, 1);
-  --dur-state: 160ms;
-  --dur-move: 200ms;
   --dur-glass: 260ms;
   --dur-reveal: 620ms;
 }

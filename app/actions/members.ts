@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { isUuid } from '@/lib/validation';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -46,8 +47,11 @@ export async function inviteMemberAction(input: {
   budget_id: string;
   email: string;
 }): Promise<ActionResult> {
+  if (!isUuid(input.budget_id) || typeof input.email !== 'string') {
+    return { ok: false, error: 'Invalid invite.' };
+  }
   const email = input.email.trim().toLowerCase();
-  if (!email || !EMAIL_RE.test(email)) {
+  if (!email || email.length > 254 || !EMAIL_RE.test(email)) {
     return { ok: false, error: 'Enter a valid email address.' };
   }
 

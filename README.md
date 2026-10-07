@@ -1,8 +1,6 @@
 # Theus
 
-Personal budget tracker. Branch `experimental/theus-rehaul` is migrating the project from a single-file vanilla `index.html` to Next.js + TypeScript + Tailwind. The plan lives at [docs/rehaul-plan.md](docs/rehaul-plan.md).
-
-The legacy single-file app is still fully functional and is served at `/legacy` until the new app reaches feature parity.
+Personal budget tracker — Next.js 15 + React 19 + TypeScript + Tailwind, backed by Supabase (auth + Postgres with RLS). Architecture decisions live in [docs/rehaul-plan.md](docs/rehaul-plan.md); the running build log is [docs/rehaul-progress.md](docs/rehaul-progress.md). `CLAUDE.md` is the handover document for anyone picking the project up.
 
 ## Local development
 
@@ -23,20 +21,9 @@ Open http://localhost:3000.
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest (regression tests only — see plan §6) |
+| `npm test` | Vitest (regression tests only) |
 | `npm run format` | Prettier |
 
 ## Deployment
 
-Vercel auto-deploys every push:
-
-- `master` → production at https://p-budget.vercel.app
-- `experimental/theus-rehaul` → preview URL provided by Vercel
-
-## Structure
-
-See [docs/rehaul-plan.md](docs/rehaul-plan.md) §6 for the planned folder layout and §7 for the chunked migration order.
-
-## Reference designs
-
-`design-refs/` contains Sterling and Theus brand reference files. Reference-only — never imported into production code.
+Vercel auto-deploys every push: `master` → production at https://p-budget.vercel.app; any other branch gets a preview URL.

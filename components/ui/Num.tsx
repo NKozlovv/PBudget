@@ -6,9 +6,9 @@ const TONE: Record<Tone, string> = {
   default: 'text-ink',
   mute: 'text-ink-mute',
   soft: 'text-ink-soft',
-  accent: 'text-accent',
-  pos: 'text-pos',
-  neg: 'text-neg',
+  accent: 'text-indigo',
+  pos: 'text-in',
+  neg: 'text-out',
 };
 
 /**

@@ -1,8 +1,7 @@
 /**
  * Money formatting + EUR conversion.
  *
- * `txToEUR` mirrors the logic in legacy `index.html` (CLAUDE.md §9):
- * prefer the per-tx `fx_rate` if set, else fall back to the budget's
+ * `txToEUR`: prefer the per-tx `fx_rate` if set, else fall back to the budget's
  * current rate. Display-only — never use this for storage.
  */
 
@@ -58,8 +57,6 @@ export function fmtCurrency(n: number, currency: string, opts: FormatOptions = {
  * - EUR transactions: amount as-is.
  * - USD transactions: prefer per-tx `fx_rate` (historical, set on import or
  *   on creation), else fall back to `fallbackRate` (the budget's live rate).
- *
- * Mirrors legacy `txToEUR()` in index.html line 953.
  */
 export function txToEUR(tx: Transaction, fallbackRate: number): number {
   if (tx.currency === 'EUR') return tx.amount;

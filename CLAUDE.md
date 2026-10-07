@@ -66,11 +66,10 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
   checked before its own cutover, and how the entire Trips feature got
   checked before this one.
 
-**Frontend (legacy):**
-- Single-file `public/legacy/index.html` (~2,900 lines, ~100 KB), served
-  at `/legacy` from the new app via Next.js rewrite. Frozen at v1.0.1.
-  Still reachable at https://p-budget.vercel.app/legacy — the cutover
-  only changed what's at `/`, nothing was deleted.
+**Frontend (legacy):** removed 2026-10-08 (security audit — it had stored XSS and
+shared an origin with the app). `public/legacy` and the `/legacy` rewrite are gone;
+recover from git history (commits before the `audit/security-and-trim` merge) if
+ever needed. See `docs/security-audit.md`.
 
 **Backend (Supabase):**
 - **Project URL:** `https://udcfjiuybkugbydlaltk.supabase.co`
@@ -98,16 +97,13 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
   client + middleware-cookie refresh). Server components run direct
   queries via `lib/data/*`; mutations go through `app/actions/*` server
   actions.
-- **Charts:** inline SVG, no library. Modeled after the design refs in
-  `design-refs/`.
+- **Charts:** inline SVG, no library. Modeled on the v4 handoff design.
 - **Forms:** vanilla `useState` + server actions (no react-hook-form).
 - **Tests:** Vitest, Node env. Regression-critical only —
   `lib/date.ts`, `lib/money.ts`, `lib/csv/sparkasse.ts`.
 - **Import:** Sparkasse CSV only (`lib/csv/sparkasse.ts`, `/import`) since
-  2026-10-05. The one-shot XLSX importer (`lib/xlsx/*`) was removed at the
-  user's request; the `xlsx` npm dependency is still in `package.json`
-  but nothing imports it — drop it next time someone can regenerate
-  `package-lock.json` with Node.
+  2026-10-05. The one-shot XLSX importer and its `xlsx` dependency were removed
+  (importer 2026-10-05, dependency 2026-10-08).
 - **FX:** Frankfurter API with server-side cache (`lib/fx.ts`).
 
 ---
@@ -162,9 +158,9 @@ $$;
 
 ## 5. Pre-rehaul snapshot (frozen at v1.0.1)
 
-The legacy single-file `index.html` is kept at `public/legacy/index.html`
-and served at `/legacy`. **Use it for visual diffs and parity checks**;
-do not treat it as the source of truth for the new architecture.
+The legacy single-file `index.html` was served at `/legacy` until 2026-10-08,
+when it was deleted in the security audit (§2). It survives in git history only;
+this section is the record of what it did.
 
 What it had end-to-end:
 - Login / signup / password reset via Supabase Auth
@@ -207,8 +203,8 @@ Active at the new app's `/`. Routes under `app/(app)/`:
   v4 (`components/trips/*`, `lib/trips/*`), not ported from Sterling.
 
 Plus auth routes under `app/(auth)/` (login / signup / reset) on a
-split-screen Sterling-style layout, and `/styleguide` for the dev-only
-token + primitives reference.
+split-screen layout. (`/styleguide` was deleted 2026-10-08 — it still
+showed the Sterling palette.)
 
 The sidebar shows the build version (`v2.0.0-α`) at the bottom — visual
 confirmation a deploy is live.
@@ -283,7 +279,7 @@ Status as of last update (2026-09-15):
   global add-transaction shortcut, `/trends` page, last-completed-month
   default, JBM→Inter, etc.) — see `docs/rehaul-progress.md`
 - ✅ **Production cutover**: `master` fast-forwarded to the full
-  Next.js app; the old static site lives on at `/legacy` — see §2
+  Next.js app; the old static site was later deleted — see §2
 - 🚫 Out of scope (still, per plan §4): light mode, mobile-optimized
   layout, per-category color editor, Coach's real insight engine
   (currently a stub), forecast scenarios/goals
@@ -448,6 +444,25 @@ Regression coverage: none (a CSS layout property, not something the
 Vitest suite touches) — confirm visually on the live deploy that TopNav
 now stays pinned when scrolled well past the fold on a long page.
 
+
+### 8j. Server actions are public endpoints — validate at runtime, and keep the DB as the real gate (2026-10-08)
+
+A `'use server'` function is a POST endpoint anyone can call with any payload;
+TypeScript argument types do not exist at that boundary. The 2026-10-08 audit
+(`docs/security-audit.md`) found patches going straight into `.update()` with
+no checks. Every action now validates with `lib/validation.ts` (UUIDs, ISO
+dates, enums, bounded numbers and strings) and **allow-lists** the columns it
+writes (see `sanitizeTxPatch` / `sanitizeAccountPatch`). When adding or editing
+an action: validate every field, never spread a client object into a query, and
+if the row references another row (account → budget), check they belong together.
+
+Authorization still rests on Supabase RLS, which this repo cannot see. The audit's
+database findings (the `budget_members` insert policy, invite acceptance before
+email confirmation) live in `docs/security-hardening.sql`, which is **not applied
+automatically** — run it by hand. Also: `?next=` after login goes through
+`safeNextPath()` (no off-site redirects), and CSV exports must neutralise
+formula-leading text (`safeText()` in `components/trends/ExportButton.tsx`).
+
 ---
 
 ## 9. Code architecture
@@ -458,12 +473,11 @@ app/
   (app)/              # dashboard, transactions, accounts, categories,
                       # forecast, import — all gated by middleware + layout
   actions/            # 'use server' mutations
-  styleguide/         # dev-only token + primitives reference
 
 components/
-  ui/                 # primitives (Card, Button, Pill, Input, Field, Mono,
-                      # Num, Modal, Select, KpiTile)
-  nav/                # Sidebar, NavItem, UserCard, PageHeader, Stub
+  ui/                 # primitives (Button, Input, Field, Mono, Checkbox,
+                      # Num, Modal, Select, KpiTile, FilterPill, OptionsList, Icon)
+  nav/                # TopNav, BudgetSwitcher, PageHeader, ScreenTransition
   auth/               # SignInForm, SignUpForm, ResetForm, BrandPanel,
                       # AuthHeader, TheusMark
   transactions/       # Filters, TransactionsTable, TransactionForm,
@@ -504,14 +518,12 @@ lib/
   accounts/           # defaultAccount (Cash EUR pick for Add-transaction)
   dashboard/          # period (incl. workingMonth — see §8f), categoryIcon
   date.ts, money.ts, balance.ts, categoryColor.ts, fx.ts, env.ts,
-  utils.ts, version.ts
+  utils.ts, validation.ts (runtime input checks for server actions)
 
 styles/               # tokens.css (single source of palette truth)
 test/lib/             # date.test.ts, money.test.ts, csv/sparkasse.test.ts
-design-refs/          # reference-only — never imported into prod
-public/legacy/        # the v1.0.1 single-file app, served at /legacy
-docs/                 # rehaul-plan.md, rehaul-progress.md,
-                      # security-review.md, claude-md-proposal.md
+docs/                 # rehaul-plan.md, rehaul-progress.md, security-audit.md,
+                      # security-hardening.sql (DB fixes to run by hand), optional-migrations.sql
 ```
 
 **Data-flow rules:**
@@ -529,9 +541,7 @@ feedback was that it read as unfinished/rudimentary once the app was past
 the stale-cache-confusion phase that motivated adding it in the first
 place (§11 below still says the user considered it "very important,"
 which was true earlier in the project but is now superseded by this).
-`lib/version.ts` itself is untouched (still exports `BUILD_VERSION`/
-`BUILD_DATE`) in case it's wanted again somewhere less prominent, but
-nothing in the app renders it — don't re-add the footer without asking
+`lib/version.ts` was deleted 2026-10-08 (nothing used it). Don't re-add the footer without asking
 first, the same way the JetBrains Mono flip-flops taught us to check
 before reintroducing something that's been deliberately removed.
 
@@ -573,7 +583,7 @@ npm run build       # full production build
 ### Don't forget
 
 - Don't break `master`. It **is** the Next.js Theus app now (the
-  legacy app moved to `/legacy` in the 2026-09-15 cutover — see §2) and
+  legacy app was removed — see §2) and
   it deploys live on every push, so treat any push to it with the care
   that implies. Node isn't available in most agent worktrees for this
   project (see "Local checks" above) — when in doubt about a risky
@@ -614,8 +624,8 @@ npm run build       # full production build
 3. There's no on-page version marker any more (removed 2026-09-19, see
    §9) — check `git log` on `master` for the latest commit instead of
    looking for a build string on the live site.
-4. The legacy app is still at `/legacy` — useful for visual diffs and
-   parity checks. Not the source of truth anymore.
+4. Read `docs/security-audit.md` and run `docs/security-hardening.sql` (it is
+   not applied automatically).
 5. `master` **is** production and there's no separate staging branch as
    of the 2026-09-15 cutover — see §2 and §10. Push carefully; prefer a
    side branch + Vercel preview for anything non-trivial.

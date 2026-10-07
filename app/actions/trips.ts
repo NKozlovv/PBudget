@@ -3,10 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { TRAVEL_CATEGORY } from '@/lib/transactions/constants';
+import { MAX_LABEL, isIsoDate, isShortText, isUuid } from '@/lib/validation';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Renames a trip by moving every transaction's `trip` text from oldName to
@@ -21,8 +20,12 @@ export async function renameTripAction(input: {
   oldName: string;
   newName: string;
 }): Promise<ActionResult> {
+  if (!isUuid(input.budget_id) || typeof input.oldName !== 'string' || typeof input.newName !== 'string') {
+    return { ok: false, error: 'Invalid trip.' };
+  }
   const newName = input.newName.trim();
   if (!newName) return { ok: false, error: 'Trip name is required.' };
+  if (!isShortText(newName, MAX_LABEL)) return { ok: false, error: 'Trip name is too long.' };
   if (newName === input.oldName) return { ok: true, data: undefined };
 
   try {
@@ -73,14 +76,17 @@ export async function setTripDetailsAction(input: {
   start_date: string | null;
   end_date: string | null;
 }): Promise<ActionResult> {
-  const travelers = Math.floor(input.travelers);
-  if (!Number.isFinite(travelers) || travelers < 1) {
-    return { ok: false, error: 'Travelers must be at least 1.' };
+  if (!isUuid(input.budget_id) || typeof input.trip !== 'string' || !input.trip.trim() || !isShortText(input.trip, MAX_LABEL)) {
+    return { ok: false, error: 'Invalid trip.' };
   }
-  const start = input.start_date?.trim() || null;
-  const end = input.end_date?.trim() || null;
-  if (start && !DATE_RE.test(start)) return { ok: false, error: 'Invalid start date.' };
-  if (end && !DATE_RE.test(end)) return { ok: false, error: 'Invalid end date.' };
+  const travelers = Math.floor(input.travelers);
+  if (!Number.isFinite(travelers) || travelers < 1 || travelers > 1000) {
+    return { ok: false, error: 'Travelers must be between 1 and 1000.' };
+  }
+  const start = typeof input.start_date === 'string' ? input.start_date.trim() || null : null;
+  const end = typeof input.end_date === 'string' ? input.end_date.trim() || null : null;
+  if (start && !isIsoDate(start)) return { ok: false, error: 'Invalid start date.' };
+  if (end && !isIsoDate(end)) return { ok: false, error: 'Invalid end date.' };
   if (start && end && start > end) return { ok: false, error: 'Start date must be before end date.' };
   if ((start && !end) || (!start && end)) {
     return { ok: false, error: 'Set both dates, or leave both blank to estimate from transactions.' };

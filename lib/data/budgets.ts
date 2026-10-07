@@ -32,10 +32,6 @@ export const listBudgets = cache(async (): Promise<Budget[]> => {
  *   2. Else fall back to the first budget the user is a member of.
  *   3. Else create a default "My Budget" and use that.
  *
- * Replaces the legacy single-budget `ensureBudget()` once Chunk 12 lands.
- * The function name is preserved for backwards compatibility with the
- * many callers across `app/(app)/*`.
- *
  * Cached per-request (`cache()`) — nearly every page calls this itself
  * *in addition to* the `(app)` layout already resolving it for the
  * sidebar, so without memoization every navigation paid for it twice
@@ -78,18 +74,3 @@ export const getOrCreateUserBudget = cache(async (): Promise<Budget> => {
   if (error) throw error;
   return data as Budget;
 });
-
-export async function updateBudget(
-  id: string,
-  patch: Partial<Pick<Budget, 'name' | 'fx_rate' | 'base_currency'>>,
-): Promise<Budget> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('budgets')
-    .update(patch)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Budget;
-}

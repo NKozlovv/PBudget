@@ -2,6 +2,16 @@
 
 import type { CategoryTrendRow, TrendMonth } from '@/lib/categories/monthlyTrend';
 
+/**
+ * Spreadsheet apps execute cells that start with = + - @ (or tab/CR) as
+ * formulas. Category names are user-controlled — and in a shared budget, a
+ * partner-controlled — so text cells get a leading apostrophe. Numeric cells
+ * are generated here and bypass this.
+ */
+function safeText(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 function csvCell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
@@ -38,7 +48,7 @@ export function ExportButton({
       // sum just the visible months instead so this matches what's shown.
       const visibleTotal = values.reduce((s, v) => s + Number(v), 0);
       const avg = avgMonths > 0 ? visibleTotal / avgMonths : 0;
-      lines.push([row.category.name, ...values, avg.toFixed(2), visibleTotal.toFixed(2)]);
+      lines.push([safeText(row.category.name), ...values, avg.toFixed(2), visibleTotal.toFixed(2)]);
     }
     const csv = lines.map((line) => line.map(csvCell).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });

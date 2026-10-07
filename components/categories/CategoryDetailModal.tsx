@@ -128,7 +128,7 @@ export function CategoryDetailModal({
             <button
               type="button"
               onClick={() => setSubMode({ kind: 'add' })}
-              className="text-[12px] text-accent hover:underline"
+              className="text-[12px] text-indigo hover:underline"
             >
               + Add subcategory
             </button>
@@ -178,7 +178,7 @@ export function CategoryDetailModal({
                     <button
                       type="button"
                       onClick={() => setSubMode({ kind: 'rename', sub: s.subcategory })}
-                      className="text-[11px] text-ink-mute hover:text-accent hover:underline"
+                      className="text-[11px] text-ink-mute hover:text-indigo hover:underline"
                     >
                       Rename
                     </button>
@@ -186,7 +186,7 @@ export function CategoryDetailModal({
                     <button
                       type="button"
                       onClick={() => setSubMode({ kind: 'delete', sub: s.subcategory })}
-                      className="text-[11px] text-ink-mute hover:text-neg hover:underline"
+                      className="text-[11px] text-ink-mute hover:text-out hover:underline"
                     >
                       Delete
                     </button>
@@ -202,7 +202,7 @@ export function CategoryDetailModal({
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
-            className="text-[12px] text-ink-mute hover:text-neg hover:underline"
+            className="text-[12px] text-ink-mute hover:text-out hover:underline"
           >
             Delete category
           </button>
@@ -217,7 +217,7 @@ export function CategoryDetailModal({
         </div>
 
         {error ? (
-          <p className="text-[13px] text-neg" role="alert">
+          <p className="text-[13px] text-out" role="alert">
             {error}
           </p>
         ) : null}

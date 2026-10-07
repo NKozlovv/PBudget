@@ -106,7 +106,7 @@ export function EditTripModal({
           )}
         </Field>
         {error ? (
-          <p className="text-[13px] text-neg" role="alert">
+          <p className="text-[13px] text-out" role="alert">
             {error}
           </p>
         ) : null}

@@ -37,17 +37,3 @@ export function TheusMark({
     </svg>
   );
 }
-
-export function TheusLockup({ size = 28 }: { size?: number }) {
-  return (
-    <div className="inline-flex items-center gap-3">
-      <TheusMark size={Math.round(size * 1.25)} />
-      <span
-        className="font-semibold leading-none"
-        style={{ fontSize: size, letterSpacing: '-0.03em' }}
-      >
-        Theus
-      </span>
-    </div>
-  );
-}

@@ -1,6 +1,5 @@
 import type { Account, Transaction } from '@/lib/supabase/types';
 import { txToEUR, signedAmount } from '@/lib/money';
-import { dateToISO } from '@/lib/date';
 import { categoryDisplayName } from '@/lib/transactions/constants';
 import { activeMonthCount, monthsWithActivity } from '@/lib/activeMonths';
 
@@ -9,12 +8,9 @@ import { activeMonthCount, monthsWithActivity } from '@/lib/activeMonths';
  *
  * Account openings: native amount × current rate for non-EUR accounts.
  * Transactions: txToEUR (uses stored fx_rate when set, falls back) then
- * signedAmount based on type. Mirrors the legacy `totalBalanceNow()`
- * approximation in index.html line 1143.
+ * signedAmount based on type.
  *
- * NOTE: legacy code uses end-of-month historical rates for older
- * balances (better accuracy). The Frankfurter cache lands in Chunk 10
- * with the XLSX importer; for now the dashboard uses current rate.
+ * Opening balances of non-EUR accounts use the current rate, not a historical one.
  */
 export function totalBalanceEUR(args: {
   accounts: Account[];
@@ -57,43 +53,7 @@ export interface MonthBucket {
 const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /**
- * Last N months of {income, expense, net} ending at `endYear`/`endMonth`
- * (inclusive). Months are filled even if they have no transactions.
- */
-export function lastNMonthsTotals(args: {
-  transactions: Transaction[];
-  endYear: number;
-  endMonth: number;
-  count: number;
-  fxRate: number;
-}): MonthBucket[] {
-  const { transactions, endYear, endMonth, count, fxRate } = args;
-  const out: MonthBucket[] = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const date = new Date(endYear, endMonth - i, 1);
-    const y = date.getFullYear();
-    const m = date.getMonth();
-    const totals = monthTotalsEUR({ transactions, year: y, month: m, fxRate });
-    out.push({
-      year: y,
-      month: m,
-      label: MONTH_SHORT[m] ?? '',
-      income: totals.income,
-      expense: totals.expense,
-      net: totals.net,
-    });
-  }
-  return out;
-}
-
-export interface CategorySlice {
-  name: string;
-  value: number;
-}
-
-/**
  * Native-currency balance of an account up to and including `date`.
- * Mirrors legacy `accountBalanceNative()` from index.html line 1115.
  */
 export function accountBalanceNativeAt(args: {
   accountId: string;
@@ -114,8 +74,7 @@ export function accountBalanceNativeAt(args: {
 /**
  * EUR balance of an account up to and including `date`. Uses per-tx
  * `fx_rate` when set, else the current fallback rate. Opening balances
- * are converted at the fallback rate (legacy uses end-of-month historical
- * rates here — that ships in Chunk 10 with the FX cache).
+ * are converted at the fallback rate.
  */
 export function accountBalanceEURAt(args: {
   account: Account;
@@ -135,69 +94,6 @@ export function accountBalanceEURAt(args: {
   return balance;
 }
 
-/** Per-account current EUR balance map, keyed by account id. */
-export function accountsCurrentEUR(args: {
-  accounts: Account[];
-  transactions: Transaction[];
-  fxRate: number;
-}): Map<string, number> {
-  const today = dateToISO(new Date());
-  const out = new Map<string, number>();
-  for (const a of args.accounts) {
-    out.set(
-      a.id,
-      accountBalanceEURAt({
-        account: a,
-        date: today,
-        transactions: args.transactions,
-        fxRate: args.fxRate,
-      }),
-    );
-  }
-  return out;
-}
-
-export interface TrajectoryPoint {
-  label: string;
-  date: string;
-  /** balanceEUR per account id */
-  balances: Record<string, number>;
-}
-
-const MONTH_SHORT_TR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-/**
- * Last N month-end balances per account, in EUR. Used by the trajectory
- * chart on the Accounts page.
- */
-export function accountsTrajectoryEUR(args: {
-  accounts: Account[];
-  transactions: Transaction[];
-  endYear: number;
-  endMonth: number;
-  count: number;
-  fxRate: number;
-}): TrajectoryPoint[] {
-  const { accounts, transactions, endYear, endMonth, count, fxRate } = args;
-  const out: TrajectoryPoint[] = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const m = endMonth - i;
-    // EOM = day 0 of next month, in local TZ.
-    const eom = new Date(endYear, m + 1, 0);
-    const date = dateToISO(eom);
-    const balances: Record<string, number> = {};
-    for (const a of accounts) {
-      balances[a.id] = accountBalanceEURAt({ account: a, date, transactions, fxRate });
-    }
-    out.push({
-      label: MONTH_SHORT_TR[eom.getMonth()] ?? '',
-      date,
-      balances,
-    });
-  }
-  return out;
-}
-
 export interface YtdAverages {
   monthsElapsed: number;
   monthsRemaining: number;
@@ -215,8 +111,7 @@ export interface YtdAverages {
 
 /**
  * Year-to-date averages and end-of-year projection.
- * Mirrors the legacy `forecastSpend()` logic from index.html line 1211:
- * project remaining months at the YTD average pace.
+ * Remaining months are projected at the YTD average pace.
  */
 export function ytdAverages(args: {
   transactions: Transaction[];
@@ -370,46 +265,6 @@ export function burnRatesEUR(args: {
   }
   rows.sort((a, b) => b.projectedYearTotal - a.projectedYearTotal);
   return rows;
-}
-
-export interface CategoryTotalsRange {
-  /** Inclusive YYYY-MM-DD lower bound. */
-  fromDate?: string;
-  /** Inclusive YYYY-MM-DD upper bound. */
-  toDate?: string;
-}
-
-/**
- * Total per category (and per subcategory) over an optional date range,
- * filtered to a specific tx kind. Returns a Map keyed by category name
- * with EUR totals; the subMap returns a per-(category, subcategory) total.
- */
-export function categoryTotalsByKindEUR(args: {
-  transactions: Transaction[];
-  fxRate: number;
-  kind: 'expense' | 'income';
-  range?: CategoryTotalsRange;
-}): {
-  perCategory: Map<string, number>;
-  perSubcategory: Map<string, number>; // key: `${category}::${subcategory}`
-} {
-  const { transactions, fxRate, kind, range } = args;
-  const perCategory = new Map<string, number>();
-  const perSubcategory = new Map<string, number>();
-
-  for (const t of transactions) {
-    if (t.type !== kind) continue;
-    if (range?.fromDate && t.date < range.fromDate) continue;
-    if (range?.toDate && t.date > range.toDate) continue;
-    const cat = categoryDisplayName(t.category);
-    const eur = txToEUR(t, fxRate);
-    perCategory.set(cat, (perCategory.get(cat) ?? 0) + eur);
-    if (t.subcategory && t.subcategory.trim()) {
-      const key = `${cat}::${t.subcategory.trim()}`;
-      perSubcategory.set(key, (perSubcategory.get(key) ?? 0) + eur);
-    }
-  }
-  return { perCategory, perSubcategory };
 }
 
 /** Income / expense / net for a given (year, 0-indexed month), in EUR. */

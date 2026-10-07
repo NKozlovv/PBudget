@@ -54,18 +54,6 @@ export function dateToISO(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/**
- * Coerce a 'YYYY-MM-DD' string OR a Date to its ISO date string,
- * always using local components. Idempotent on strings.
- */
-export function dateStr(d: string | Date): string {
-  if (typeof d === 'string') {
-    parseISO(d); // validates format
-    return d.slice(0, 10);
-  }
-  return dateToISO(d);
-}
-
 /** Format a 'YYYY-MM-DD' string as e.g. "12 May 2026". */
 export function dateDisplay(date: string, locale = 'en-GB'): string {
   const { year, month, day } = parseISO(date);

@@ -1,16 +1,14 @@
 /**
  * Sparkasse online-banking CSV export → reviewable rows.
  *
- * Port of the legacy importer (`parseSparkasseCSV()` in
- * public/legacy/index.html, v0.9.3 + v0.9.4) with a few hardening fixes:
- * a real quote-aware tokenizer over the whole file (a quoted field may
+ * Handles: a real quote-aware tokenizer over the whole file (a quoted field may
  * contain a newline), Windows-1252 fallback for older exports, tolerant
  * header matching (CSV-CAMT and MT940 layouts, with or without umlauts),
  * and a sanity bound on the card-payment date pulled out of the
  * Verwendungszweck. Pure — no DOM, no Supabase — so it's unit-tested in
  * test/lib/csv/sparkasse.test.ts.
  *
- * Pending ("Umsatz vorgemerkt") rows are kept, per legacy v0.9.4 — they're
+ * Pending ("Umsatz vorgemerkt") rows are kept, — they're
  * flagged `pending` so the review table can mark them.
  */
 

@@ -7,10 +7,20 @@ import { createClient } from '@/lib/supabase/client';
 import { AuthHeader } from './AuthHeader';
 import { AuthBanner } from './AuthBanner';
 
+/**
+ * `?next=` is attacker-controllable (anyone can send a link to /login?next=…).
+ * Only same-site absolute paths are allowed; anything else — `https://evil.com`,
+ * `//evil.com`, `/\evil.com`, `javascript:` — falls back to the dashboard.
+ */
+function safeNextPath(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return '/dashboard';
+  return raw;
+}
+
 export function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') || '/dashboard';
+  const next = safeNextPath(params.get('next'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

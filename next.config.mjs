@@ -1,17 +1,20 @@
 /** @type {import('next').NextConfig} */
 
 const SUPABASE_HOST = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const isDev = process.env.NODE_ENV !== 'production';
 
-// CSP — start permissive enough to keep the legacy bundle working at
-// /legacy (it inlines a lot of styles + uses CDNs). Tightened further in
-// Chunk 11 once the legacy app is retired.
+// CSP. Fonts are self-hosted by next/font at build time and the Frankfurter
+// FX lookup happens server-side only, so neither needs an allowance here.
+// 'unsafe-inline' stays for scripts because Next's inline bootstrap needs it
+// without per-request nonces; 'unsafe-eval' is dev-only (React refresh).
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
-  "font-src 'self' https://fonts.gstatic.com data:",
-  `connect-src 'self' ${SUPABASE_HOST} https://api.frankfurter.dev https://api.frankfurter.app`,
+  "font-src 'self' data:",
+  `connect-src 'self' ${SUPABASE_HOST}`,
+  "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -22,12 +25,6 @@ const csp = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  async rewrites() {
-    return [
-      { source: '/legacy', destination: '/legacy/index.html' },
-      { source: '/legacy/', destination: '/legacy/index.html' },
-    ];
-  },
   async headers() {
     return [
       {

@@ -77,11 +77,6 @@ export function projectionSeries(args: {
   return out;
 }
 
-/** ISO month-end date `forwardMonths` ahead of `now`. */
-export function eomAhead(now: Date, forwardMonths: number): Date {
-  return new Date(now.getFullYear(), now.getMonth() + forwardMonths + 1, 0);
-}
-
 /**
  * Pick the next round-number savings milestone past `balance`. Steps by
  * 10k once balance ≥ 20k, else by 5k.

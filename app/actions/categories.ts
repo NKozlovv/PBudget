@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { enforceTripRule } from '@/lib/transactions/constants';
+import { MAX_LABEL, isUuid } from '@/lib/validation';
 import type { CategoryKind } from '@/lib/supabase/types';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
@@ -20,8 +21,12 @@ export async function createCategoryAction(input: {
   name: string;
   kind: CategoryKind;
 }): Promise<ActionResult<{ id: string }>> {
+  if (!isUuid(input.budget_id) || (input.kind !== 'expense' && input.kind !== 'income')) {
+    return { ok: false, error: 'Invalid category.' };
+  }
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Name is required.' };
+  if (name.length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -49,6 +54,7 @@ export async function renameCategoryAction(input: {
 }): Promise<ActionResult> {
   const newName = input.newName.trim();
   if (!newName) return { ok: false, error: 'Name is required.' };
+  if (newName.length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   if (newName === input.oldName) return { ok: true, data: undefined };
   try {
     const supabase = await createClient();
@@ -98,6 +104,7 @@ export async function reassignCategoryAction(input: {
   newName: string;
 }): Promise<ActionResult> {
   if (!input.newName.trim()) return { ok: false, error: 'Target name is required.' };
+  if (input.newName.trim().length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   try {
     const supabase = await createClient();
     const { error } = await supabase
@@ -121,6 +128,7 @@ export async function createSubcategoryAction(input: {
 }): Promise<ActionResult<{ id: string }>> {
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Name is required.' };
+  if (name.length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -145,6 +153,7 @@ export async function renameSubcategoryAction(input: {
 }): Promise<ActionResult> {
   const newName = input.newName.trim();
   if (!newName) return { ok: false, error: 'Name is required.' };
+  if (newName.length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   if (newName === input.oldName) return { ok: true, data: undefined };
   try {
     const supabase = await createClient();

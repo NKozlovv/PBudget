@@ -4,12 +4,14 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_BUDGET_COOKIE } from '@/lib/data/budgets';
+import { MAX_LABEL, isCurrency, isUuid } from '@/lib/validation';
 import type { Currency } from '@/lib/supabase/types';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
 const COOKIE_OPTS = {
   httpOnly: false,
+  secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   path: '/',
   maxAge: 60 * 60 * 24 * 365, // 1 year
@@ -28,8 +30,10 @@ export async function createBudgetAction(input: {
   name: string;
   base_currency: Currency;
 }): Promise<ActionResult<{ id: string }>> {
+  if (!isCurrency(input.base_currency)) return { ok: false, error: 'Invalid currency.' };
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Name is required.' };
+  if (name.length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   try {
     const supabase = await createClient();
     const { data: userData, error: userErr } = await supabase.auth.getUser();
@@ -61,6 +65,7 @@ export async function renameBudgetAction(input: {
 }): Promise<ActionResult> {
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Name is required.' };
+  if (name.length > MAX_LABEL) return { ok: false, error: 'Name is too long.' };
   try {
     const supabase = await createClient();
     const { error } = await supabase.from('budgets').update({ name }).eq('id', input.id);
@@ -110,6 +115,7 @@ export async function deleteBudgetAction(id: string): Promise<ActionResult> {
 }
 
 export async function setActiveBudgetAction(id: string): Promise<ActionResult> {
+  if (!isUuid(id)) return { ok: false, error: 'Invalid budget.' };
   try {
     const supabase = await createClient();
     // RLS will refuse the select if the user isn't a member — use that

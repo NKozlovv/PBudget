@@ -6,9 +6,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next.js internals, static files, the legacy bundle, and the
-  // public landing/styleguide pages so unauth visitors can browse.
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|legacy|api|.*\\..*).*)',
-  ],
+  // Skip Next.js internals and static files.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api|.*\\..*).*)'],
 };

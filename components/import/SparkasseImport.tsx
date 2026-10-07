@@ -56,6 +56,8 @@ function defaultAccountId(accounts: ImportContext['accounts']): string {
   );
 }
 
+const MAX_CSV_BYTES = 5 * 1024 * 1024;
+
 export function SparkasseImport({ context }: { context: ImportContext }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -77,6 +79,10 @@ export function SparkasseImport({ context }: { context: ImportContext }) {
     if (!f) return;
     if (!/\.csv$/i.test(f.name)) {
       setError('That doesn’t look like a CSV file — export “CSV-CAMT” from Sparkasse online banking.');
+      return;
+    }
+    if (f.size > MAX_CSV_BYTES) {
+      setError('That file is larger than 5 MB — a bank statement export should be far smaller.');
       return;
     }
     const parsed = parseSparkasseCsv(decodeCsvBytes(await f.arrayBuffer()));
@@ -153,7 +159,7 @@ export function SparkasseImport({ context }: { context: ImportContext }) {
           amount: r.amount,
           category: r.category || null,
           subcategory: r.subcategory || null,
-          comment: r.merchant,
+          comment: r.merchant.slice(0, 500),
         })),
       });
       if (!res.ok) {

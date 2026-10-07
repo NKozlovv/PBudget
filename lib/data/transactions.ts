@@ -212,13 +212,3 @@ export async function listCategorySubcategoryPairs(
   );
   return [firstPage, ...rest].flat();
 }
-
-export async function countTransactions(budgetId: string): Promise<number> {
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from('transactions')
-    .select('*', { count: 'exact', head: true })
-    .eq('budget_id', budgetId);
-  if (error) throw error;
-  return count ?? 0;
-}

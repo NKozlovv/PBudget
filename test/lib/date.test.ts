@@ -4,7 +4,6 @@ import {
   yearOfDate,
   dayOfDate,
   dateToISO,
-  dateStr,
   dateDisplay,
   eomDateStr,
   monthName,
@@ -67,15 +66,6 @@ describe('date helpers — formatting', () => {
   it('dateToISO pads single-digit month and day', () => {
     const d = new Date(2026, 4, 5); // May 5
     expect(dateToISO(d)).toBe('2026-05-05');
-  });
-
-  it('dateStr is idempotent on string input', () => {
-    expect(dateStr('2026-05-15')).toBe('2026-05-15');
-    expect(dateStr('2026-05-15T10:30:00Z')).toBe('2026-05-15');
-  });
-
-  it('dateStr formats Date input via local components', () => {
-    expect(dateStr(new Date(2026, 0, 1))).toBe('2026-01-01');
   });
 
   it('dateDisplay produces a human-readable form', () => {

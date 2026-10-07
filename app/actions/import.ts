@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getHistoricalRates } from '@/lib/fx';
+import { MAX_COMMENT, MAX_LABEL, isIsoDate, isMoney, isShortText, isTxType, isUuid } from '@/lib/validation';
 import type { TxType } from '@/lib/supabase/types';
 
 export interface ImportRowInput {
@@ -17,8 +18,19 @@ export interface ImportRowInput {
 
 export type ImportResult = { ok: true; data: { inserted: number } } | { ok: false; error: string };
 
+/** Runtime check — the types above are erased at the network boundary. */
+function isValidRow(r: ImportRowInput): boolean {
+  if (typeof r !== 'object' || r === null) return false;
+  if (!isIsoDate(r.date) || !isTxType(r.type) || !isMoney(r.amount) || r.amount === 0) return false;
+  for (const [v, max] of [[r.category, MAX_LABEL], [r.subcategory, MAX_LABEL], [r.comment, MAX_COMMENT]] as const) {
+    if (v !== null && !isShortText(v, max)) return false;
+  }
+  return true;
+}
+
 const TX_BATCH = 250;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** One statement is a few hundred rows; this also keeps the payload under the server-action body limit. */
+const MAX_ROWS = 5000;
 
 /**
  * Insert the rows the user kept on the Sparkasse review screen into one
@@ -32,9 +44,11 @@ export async function importSparkasseAction(input: {
 }): Promise<ImportResult> {
   try {
     const { accountId, rows } = input;
+    if (!isUuid(accountId) || !Array.isArray(rows)) return { ok: false, error: 'Invalid import.' };
     if (rows.length === 0) return { ok: false, error: 'Nothing selected to import.' };
+    if (rows.length > MAX_ROWS) return { ok: false, error: `Import at most ${MAX_ROWS} rows at a time.` };
 
-    const bad = rows.findIndex((r) => !ISO_DATE.test(r.date) || !Number.isFinite(r.amount) || r.amount === 0);
+    const bad = rows.findIndex((r) => !isValidRow(r));
     if (bad >= 0) return { ok: false, error: `Row ${bad + 1} needs a valid date and a non-zero amount.` };
 
     const supabase = await createClient();

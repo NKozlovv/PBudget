@@ -177,7 +177,7 @@ export function BudgetSwitcher({
                 <button
                   type="button"
                   onClick={() => setMode({ kind: 'rename', budget: b })}
-                  className="text-[12px] text-ink-soft hover:text-accent hover:underline"
+                  className="text-[12px] text-ink-soft hover:text-indigo hover:underline"
                 >
                   Rename
                 </button>
@@ -185,7 +185,7 @@ export function BudgetSwitcher({
                 <button
                   type="button"
                   onClick={() => setMode({ kind: 'delete', budget: b })}
-                  className="text-[12px] text-ink-soft hover:text-neg hover:underline"
+                  className="text-[12px] text-ink-soft hover:text-out hover:underline"
                   disabled={budgets.length === 1}
                 >
                   Delete
@@ -290,7 +290,7 @@ function CreateBudgetForm({
         )}
       </Field>
       {error ? (
-        <p className="text-[13px] text-neg" role="alert">
+        <p className="text-[13px] text-out" role="alert">
           {error}
         </p>
       ) : null}
@@ -348,7 +348,7 @@ function RenameBudgetForm({
         )}
       </Field>
       {error ? (
-        <p className="text-[13px] text-neg" role="alert">
+        <p className="text-[13px] text-out" role="alert">
           {error}
         </p>
       ) : null}
@@ -392,7 +392,7 @@ function DeleteBudgetConfirm({
         )}
       </Field>
       {error ? (
-        <p className="text-[13px] text-neg" role="alert">
+        <p className="text-[13px] text-out" role="alert">
           {error}
         </p>
       ) : null}
