@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/nav/PageHeader';
 import { Button, Field, Input, Select } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { addGrantAction, deleteGrantAction, setSharePriceAction, updateGrantAction } from '@/app/actions/rsu';
-import { schedule, toDate, type GrantInput, type VestEvent } from '@/lib/rsu/calc';
-import { eur, niceDateLong, num, pct, signed, span } from '@/lib/investing/format';
+import { schedule, toDate, toISO, type GrantInput, type VestEvent } from '@/lib/rsu/calc';
+import { eur, monthShort, niceDateLong, num, pct, signed, span } from '@/lib/investing/format';
 import type { RsuGrant } from '@/lib/supabase/types';
 
 const COLORS = ['#4a5ce0', '#1fb9a4', '#f2708f', '#ef9a3c', '#8b5cf6', '#2ea3e8'];
@@ -60,6 +60,8 @@ export function RsuClient({
   const [view, setView] = useState<'upcoming' | 'past'>('upcoming');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -147,8 +149,26 @@ export function RsuClient({
       return d + ` H${f(from)} Z`;
     };
 
-    const years: number[] = [];
-    for (let y = Number(start.slice(0, 4)) + 1; y <= new Date(t1).getFullYear(); y++) years.push(y);
+    // Month-level axis: a faint tick for every month, a label every month /
+    // quarter / year depending on how long the timeline is. January is
+    // labelled with its year so the axis stays readable at any density.
+    const spanMonths = (t1 - t0) / (30.44 * DAY);
+    const labelEvery = spanMonths <= 24 ? 1 : spanMonths <= 60 ? 3 : 12;
+    const xTicks: { left: number; label: string; major: boolean }[] = [];
+    const minorTicks: number[] = [];
+    const sd = toDate(start);
+    for (let d = new Date(sd.getFullYear(), sd.getMonth(), 1); d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) {
+      const left = X(toISO(d)) / 10;
+      if (left < 0 || left > 100) continue;
+      if (spanMonths <= 72) minorTicks.push(left);
+      if (d.getMonth() % labelEvery !== 0) continue;
+      const jan = d.getMonth() === 0;
+      xTicks.push({
+        left,
+        major: jan,
+        label: jan ? String(d.getFullYear()) : monthShort(d.getMonth()) + (xTicks.length === 0 ? ' ' + String(d.getFullYear()).slice(2) : ''),
+      });
+    }
 
     return {
       grantBasis, grantNow,
@@ -162,10 +182,35 @@ export function RsuClient({
       pastLine: stepPath((s) => s.tot, 0, todayX),
       futureLine: stepPath((s) => s.tot, todayX, 1000),
       todayX,
-      xTicks: years.map((y) => ({ left: X(`${y}-01-01`) / 10, label: String(y) })),
+      xTicks,
+      minorTicks,
+      snaps,
+      t0,
+      t1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grants, today]);
+
+  // Hover readout: the cumulative state at the hovered date, plus what
+  // vests during that calendar month.
+  const tip = (() => {
+    if (hover == null || m.snaps.length === 0) return null;
+    const date = toISO(new Date(m.t0 + hover * (m.t1 - m.t0)));
+    let snap = m.snaps[0]!;
+    for (const s of m.snaps) if (s.date <= date) snap = s;
+    const ym = date.slice(0, 7);
+    const thisMonth = m.evs.filter((e) => e.date.slice(0, 7) === ym).reduce((a, e) => a + e.shares, 0);
+    const [yy = '', mm = '1'] = date.split('-');
+    return {
+      title: `${monthShort(Number(mm) - 1)} ${yy}`,
+      future: date > today,
+      tot: snap.tot,
+      thisMonth,
+      pct: m.total ? Math.round((snap.tot / m.total) * 100) : 0,
+      topPct: (280 - (m.total ? snap.tot / m.total : 0) * 250) / 2.8,
+      rows: grants.map((g) => ({ id: g.id, name: g.name, shares: snap.by[g.id] ?? 0 })).filter((r) => r.shares > 0),
+    };
+  })();
 
   const list = view === 'upcoming' ? m.fut : [...m.past].reverse();
   const grantName = (id: string) => grants.find((g) => g.id === id)?.name ?? '';
@@ -353,7 +398,17 @@ export function RsuClient({
               ))}
             </div>
           </div>
-          <div className="relative h-[280px]">
+          <div
+            ref={chartRef}
+            onMouseMove={(e) => {
+              const el = chartRef.current;
+              if (!el) return;
+              const r = el.getBoundingClientRect();
+              setHover(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
+            }}
+            onMouseLeave={() => setHover(null)}
+            className="relative h-[280px]"
+          >
             <svg viewBox="0 0 1000 280" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
               {m.yGrid.map((g, i) => (
                 <line key={i} x1="0" x2="1000" y1={g.y} y2={g.y} stroke="rgba(255,255,255,.7)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
@@ -383,12 +438,59 @@ export function RsuClient({
             >
               Today · {Math.round(m.vpct)}% vested
             </div>
+            {tip && hover != null ? (
+              <>
+                <div className="pointer-events-none absolute inset-y-0 w-px bg-[rgba(21,26,45,.3)]" style={{ left: `${hover * 100}%` }} />
+                <div
+                  className="pointer-events-none absolute -ml-[5px] -mt-[5px] h-2.5 w-2.5 rounded-full bg-[#151a2d] [box-shadow:0_0_0_3px_#fff]"
+                  style={{ left: `${hover * 100}%`, top: `${tip.topPct}%` }}
+                />
+                <div
+                  className="pointer-events-none absolute top-8 z-10 min-w-[190px] whitespace-nowrap rounded-[16px] bg-white/90 px-[13px] py-2.5 [box-shadow:0_12px_28px_-10px_rgba(31,39,66,.35)]"
+                  style={{
+                    left: `${hover * 100}%`,
+                    transform: `translateX(${hover > 0.65 ? 'calc(-100% - 12px)' : '12px'})`,
+                  }}
+                >
+                  <div className="text-[11.5px] font-bold text-ink-mute">
+                    {tip.title} · {tip.future ? 'scheduled' : 'vested'}
+                  </div>
+                  <div className="mt-[3px] text-[16px] font-extrabold tabular-nums">
+                    {num(tip.tot)} shares <span className="text-ink-mute">· {tip.pct}%</span>
+                  </div>
+                  <div className="text-[12px] font-semibold tabular-nums text-ink-soft">
+                    {eur(tip.tot * price, 0)} at today’s price
+                  </div>
+                  {tip.thisMonth > 0 ? (
+                    <div className="mt-1 text-[12px] font-bold tabular-nums text-indigo-dark">
+                      +{num(tip.thisMonth)} shares vest in {tip.title.split(' ')[0]}
+                    </div>
+                  ) : null}
+                  {tip.rows.length > 1 ? (
+                    <div className="mt-1.5 flex flex-col gap-0.5 border-t border-[rgba(21,26,45,.08)] pt-1.5">
+                      {tip.rows.map((r) => (
+                        <div key={r.id} className="flex items-center gap-[7px] text-[11.5px] font-semibold tabular-nums text-ink-soft">
+                          <span className="h-2 w-2 rounded-[3px]" style={{ background: m.colorOf(r.id) }} />
+                          {r.name} · {num(r.shares)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
           </div>
-          <div className="relative h-4">
+          <div className="relative h-7">
+            {m.minorTicks.map((left, i) => (
+              <span key={i} className="absolute top-0 h-1.5 w-px bg-[rgba(21,26,45,.18)]" style={{ left: `${left}%` }} />
+            ))}
             {m.xTicks.map((t) => (
               <span
-                key={t.label}
-                className="absolute -translate-x-1/2 whitespace-nowrap text-[11.5px] font-bold text-ink-mute"
+                key={t.label + t.left}
+                className={cn(
+                  'absolute top-2 -translate-x-1/2 whitespace-nowrap text-[11.5px] text-ink-mute',
+                  t.major ? 'font-extrabold text-ink-soft' : 'font-semibold',
+                )}
                 style={{ left: `${t.left}%` }}
               >
                 {t.label}
