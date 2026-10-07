@@ -232,28 +232,18 @@ export function RsuClient({
     for (const c of m.periods) if (Math.abs(c.x - hx) < Math.abs(p.x - hx)) p = c;
     let snap = m.snaps[0]!;
     for (const s of m.snaps) if (s.date <= p.end) snap = s;
-    const inPeriod = m.evs.filter((e) => e.date >= p.start && e.date <= p.end);
-    const doneInPeriod = inPeriod.filter((e) => e.date <= today).reduce((a, e) => a + e.shares, 0);
-    const laterInPeriod = inPeriod.filter((e) => e.date > today).reduce((a, e) => a + e.shares, 0);
-    const status: 'vested' | 'partial' | 'scheduled' = p.end <= today ? 'vested' : p.start > today ? 'scheduled' : 'partial';
     return {
       title: p.title,
-      short: p.short,
       x: p.x / 10,
-      status,
+      // The reading is "everything vested by the end of this month", so it
+      // is only "already vested" once that month-end is behind us.
+      status: (p.end <= today ? 'vested' : 'scheduled') as 'vested' | 'scheduled',
       tot: snap.tot,
-      doneInPeriod,
-      laterInPeriod,
       pct: m.total ? Math.round((snap.tot / m.total) * 100) : 0,
       topPct: (280 - (snap.tot / m.yMax) * 250) / 2.8,
       rows: grants
-        .map((g) => ({
-          id: g.id,
-          name: g.name,
-          shares: snap.by[g.id] ?? 0,
-          added: inPeriod.filter((e) => e.grantId === g.id).reduce((a, e) => a + e.shares, 0),
-        }))
-        .filter((r) => r.shares > 0 || r.added > 0),
+        .map((g) => ({ id: g.id, name: g.name, shares: snap.by[g.id] ?? 0 }))
+        .filter((r) => r.shares > 0),
     };
   })();
 
@@ -515,42 +505,27 @@ export function RsuClient({
                       className={cn(
                         'rounded-full px-2 py-0.5 text-[10.5px] font-bold',
                         tip.status === 'vested' && 'bg-[rgba(31,185,164,.18)] text-[#0f7f72]',
-                        tip.status === 'partial' && 'bg-[rgba(244,165,69,.25)] text-[#8a5a10]',
                         tip.status === 'scheduled' && 'bg-[rgba(74,92,224,.14)] text-indigo-dark',
                       )}
                     >
-                      {tip.status === 'vested' ? 'Already vested' : tip.status === 'partial' ? 'Partly vested' : 'Scheduled'}
+                      {tip.status === 'vested' ? 'Already vested' : 'Scheduled'}
                     </span>
                   </div>
                   <div className="mt-[3px] text-[16px] font-extrabold tabular-nums">
-                    {num(tip.tot)} shares <span className="text-ink-mute">· {tip.pct}%</span>
+                    {num(tip.tot)} shares vested <span className="text-ink-mute">· {tip.pct}%</span>
                   </div>
                   <div className="text-[12px] font-semibold tabular-nums text-ink-soft">
-                    {eur(tip.tot * price, 0)} at today’s price
+                    worth {eur(tip.tot * price, 0)} at today’s share price
                   </div>
-                  {tip.doneInPeriod > 0 || tip.laterInPeriod > 0 ? (
-                    <div className="mt-1 flex flex-col text-[12px] font-bold tabular-nums text-indigo-dark">
-                      {tip.doneInPeriod > 0 ? <span>+{num(tip.doneInPeriod)} vested in {tip.short}</span> : null}
-                      {tip.laterInPeriod > 0 ? <span>+{num(tip.laterInPeriod)} still to vest in {tip.short}</span> : null}
-                    </div>
-                  ) : null}
                   {tip.rows.length > 0 ? (
-                    <div className="mt-1.5 flex flex-col gap-1.5 border-t border-[rgba(21,26,45,.08)] pt-1.5">
+                    <div className="mt-1.5 flex flex-col gap-1 border-t border-[rgba(21,26,45,.08)] pt-1.5">
                       {tip.rows.map((r) => (
-                        <div key={r.id} className="flex flex-col text-[11.5px] font-semibold tabular-nums text-ink-soft">
-                          <div className="flex items-center gap-[7px]">
-                            <span className="h-2 w-2 rounded-[3px]" style={{ background: m.colorOf(r.id) }} />
-                            <span className="font-bold text-ink">{r.name}</span>
-                            <span className="ml-auto pl-3">
-                              {num(r.shares)} sh · {eur(r.shares * price, 0)}
-                            </span>
-                          </div>
-                          {r.added > 0 ? (
-                            <div className="pl-[15px] text-indigo-dark">
-                              +{num(r.added)} sh · {eur(r.added * price, 0)}{' '}
-                              {tip.status === 'vested' ? 'vested in' : tip.status === 'scheduled' ? 'vesting in' : 'in'} {tip.short}
-                            </div>
-                          ) : null}
+                        <div key={r.id} className="flex items-center gap-[7px] text-[11.5px] font-semibold tabular-nums text-ink-soft">
+                          <span className="h-2 w-2 rounded-[3px]" style={{ background: m.colorOf(r.id) }} />
+                          <span className="font-bold text-ink">{r.name}</span>
+                          <span className="ml-auto pl-3">
+                            {num(r.shares)} sh · {eur(r.shares * price, 0)}
+                          </span>
                         </div>
                       ))}
                     </div>
