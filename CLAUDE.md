@@ -24,7 +24,7 @@ accent, sage / rust semantic colors, Inter + Instrument Serif. See
 **Frontend (active):**
 - Next.js 15 + React 19 + TypeScript app at the repo root
 - **GitHub repo:** the user's private repo, `NKozlovv/PBudget`
-- **Production:** `master` branch → https://p-budget.vercel.app.
+- **Production:** `master` branch → https://theusapp.vercel.app.
   **Second cutover, 2026-09-20:** `master` fast-forwarded from `845ed68`
   (the tip of the 2026-09-15 cutover below) to `ea43125` — the tip of
   `claude/design-handoff-implementation-724101`, i.e. the v4 "liquid
@@ -79,8 +79,8 @@ ever needed. See `docs/security-audit.md`.
   `.env.example` is the template.
 
 **Auth URL config in Supabase:**
-- Site URL: `https://p-budget.vercel.app`
-- Redirect URL allowed: `https://p-budget.vercel.app/**`
+- Site URL: `https://theusapp.vercel.app`
+- Redirect URL allowed: `https://theusapp.vercel.app/**`
 
 ---
 
@@ -554,7 +554,7 @@ before reintroducing something that's been deliberately removed.
 **Since the 2026-09-15 cutover, `master` is both the working branch and
 production** — there's no separate `experimental/theus-rehaul` staging
 step anymore (see §2). This means every push to `master` deploys
-straight to https://p-budget.vercel.app for real. Two ways to work
+straight to https://theusapp.vercel.app for real. Two ways to work
 safely:
 - For a small, well-understood change: commit and push directly to
   `master` (`git add . && git commit -m "..." && git push`), same as

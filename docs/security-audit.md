@@ -37,7 +37,7 @@ Status key: **fixed** = changed on branch `audit/security-and-trim`;
 | 19 | Med | **Invite mailer is an open relay for any signed-in user.** Sign-up is open, any user can create a budget, then invite arbitrary addresses; mail goes out from your Gmail with an attacker-chosen budget name. The only limiter was per-instance memory. | **fixed** (partly) — durable cap of 20 invites/hour per user and a 60 s per-invite resend throttle. **Open:** turn off public sign-ups once you and your partner are in |
 | 20 | Med | **SMTP command injection via `budget_invites.email`.** The mailer interpolates the address into `RCPT TO`. The action validates it, but a budget owner can insert rows directly with the public key (RLS allows it), then trigger a resend. | **fixed** — re-validated at the sink in `lib/email.ts`; DB check constraint in SQL §2 |
 | 21 | Low | **Investing/RSU actions unvalidated:** `Infinity` shares/price, unbounded jsonb plan, no UUID checks. Yahoo price fetch had no timeout. | **fixed** — bounded numbers, 20 KB plan cap, 8 s timeout |
-| 22 | Info | **Emailed invite links use the request's `Host` header** unless `NEXT_PUBLIC_SITE_URL` is set. | **open** — set it to `https://p-budget.vercel.app` in Vercel |
+| 22 | Info | **Emailed invite links use the request's `Host` header** unless `NEXT_PUBLIC_SITE_URL` is set. | **open** — set it to `https://theusapp.vercel.app` in Vercel |
 
 Checked and clean: no `dangerouslySetInnerHTML`/`eval`/`innerHTML` anywhere in
 the Next app; no service-role key or other secret in the tree or in git history;

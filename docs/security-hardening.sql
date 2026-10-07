@@ -125,8 +125,8 @@ alter table public.transactions
 --    The app only enforces `minLength=6` in the browser.
 --  * Authentication → Rate Limits: leave the defaults on; the app has no login
 --    throttling of its own.
---  * Authentication → URL Configuration: Site URL https://p-budget.vercel.app and
---    redirect URL https://p-budget.vercel.app/** only (no wildcards for other hosts).
+--  * Authentication → URL Configuration: Site URL https://theusapp.vercel.app and
+--    redirect URL https://theusapp.vercel.app/** only (no wildcards for other hosts).
 --  * Project Settings → API: keep "Max rows" at its default; the app pages explicitly.
 --  * Consider turning off public sign-ups once you and your partner have accounts
 --    (Authentication → Sign In / Up → "Allow new users to sign up").

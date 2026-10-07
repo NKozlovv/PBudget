@@ -2,26 +2,21 @@ import 'server-only';
 import tls from 'node:tls';
 
 /**
- * Transactional email for invitations. Two providers, first configured wins:
- *
- *  1. Gmail SMTP — GMAIL_USER + GMAIL_APP_PASSWORD (a Google "App password",
+ * Transactional email for invitations, via Gmail SMTP — GMAIL_USER + GMAIL_APP_PASSWORD (a Google "App password",
  *     needs 2-step verification on the account). No domain required; sends
  *     from that Gmail address, ~500/day. Speaks SMTP over TLS directly (a
  *     small client below) so there is no new npm dependency.
- *  2. Resend — RESEND_API_KEY + EMAIL_FROM (needs a domain you own, verified
- *     in Resend; a *.vercel.app address can't be).
  *
- * With neither set, sending is skipped and callers fall back to showing the
+ * With the variables unset, sending is skipped and callers fall back to showing the
  * link to copy.
  */
 
 export type SendResult = { ok: true } | { ok: false; error: string };
 
 const gmailConfigured = () => !!process.env.GMAIL_USER && !!process.env.GMAIL_APP_PASSWORD;
-const resendConfigured = () => !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM;
 
 export function emailConfigured(): boolean {
-  return gmailConfigured() || resendConfigured();
+  return gmailConfigured();
 }
 
 const SAFE_RECIPIENT = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
@@ -127,21 +122,6 @@ async function smtpSend(msg: { user: string; pass: string; from: string; to: str
   }
 }
 
-// ─── Resend ────────────────────────────────────────────────────────────
-
-async function resendSend(msg: { from: string; to: string; subject: string; text: string; html: string }): Promise<SendResult> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: msg.from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string } | null;
-    return { ok: false, error: body?.message ?? `Email service returned ${res.status}.` };
-  }
-  return { ok: true };
-}
-
 // ─── Invite email ──────────────────────────────────────────────────────
 
 export async function sendInviteEmail(opts: {
@@ -185,12 +165,9 @@ export async function sendInviteEmail(opts: {
       });
       return { ok: true };
     }
-    if (resendConfigured()) {
-      return await resendSend({ from: process.env.EMAIL_FROM!, to: opts.to, subject, text, html });
-    }
     return {
       ok: false,
-      error: 'Email sending isn’t configured (set GMAIL_USER + GMAIL_APP_PASSWORD, or RESEND_API_KEY + EMAIL_FROM).',
+      error: 'Email sending isn’t configured (set GMAIL_USER and GMAIL_APP_PASSWORD).',
     };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Could not send the email.' };

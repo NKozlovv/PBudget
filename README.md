@@ -2,7 +2,7 @@
 
 A personal budget tracker you can share with a partner. Built to replace a Google Sheets budget: it tracks spending and income, account balances, trips, a forecast, an ETF portfolio and RSU vesting, in EUR with USD accounts converted at historical rates.
 
-Live at **https://p-budget.vercel.app**.
+Live at **https://theusapp.vercel.app**.
 
 ## What's in it
 
@@ -52,9 +52,8 @@ Open http://localhost:3000.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes | The publishable (`sb_publishable_…`) key. Safe to expose; RLS is the gate |
-| `NEXT_PUBLIC_SITE_URL` | recommended | Public origin used in emailed invite links (`https://p-budget.vercel.app`). Production only |
-| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | optional | Send invites through Gmail SMTP (needs an app password). Mark sensitive |
-| `RESEND_API_KEY`, `EMAIL_FROM` | optional | Send invites through Resend instead (needs a verified domain). Gmail wins if both are set |
+| `NEXT_PUBLIC_SITE_URL` | recommended | Public origin used in emailed invite links (`https://theusapp.vercel.app`). Production only |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | optional | Send invite emails through Gmail SMTP (needs a Google app password). Mark both sensitive |
 
 With no email provider configured, invites still work: the owner copies the link and sends it themselves. There is no service-role key anywhere in the project, and there shouldn't be.
 
