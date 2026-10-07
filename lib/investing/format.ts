@@ -32,9 +32,9 @@ export function niceDateLong(s: string): string {
   return `${Number(d)} ${MON[Number(m) - 1] ?? ''} ${y}`;
 }
 
-/** Human duration from a day count: "12 days", "7.5 months", "2.1 years". */
+/** Human duration from a day count, whole numbers only: "9 days", "1 month", "14 months". */
 export function span(days: number): string {
-  if (days < 45) return days + ' days';
-  const mo = days / 30.44;
-  return mo < 18 ? mo.toFixed(1).replace('.0', '') + ' months' : (mo / 12).toFixed(1) + ' years';
+  if (days < 30) return days + (days === 1 ? ' day' : ' days');
+  const mo = Math.max(1, Math.round(days / 30.44));
+  return mo + (mo === 1 ? ' month' : ' months');
 }

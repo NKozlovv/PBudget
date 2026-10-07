@@ -90,9 +90,6 @@ export function RsuClient({
     const fut = evs.filter((e) => e.date > today);
     const vested = past.reduce((a, e) => a + e.shares, 0);
     const unvested = total - vested;
-    const avgDays = unvested
-      ? Math.round(fut.reduce((a, e) => a + e.shares * daysTo(e.date), 0) / unvested)
-      : 0;
     const next = fut[0];
     const nextShares = next ? fut.filter((e) => e.date === next.date).reduce((a, e) => a + e.shares, 0) : 0;
     const last = evs.length ? evs[evs.length - 1]!.date : today;
@@ -193,7 +190,7 @@ export function RsuClient({
 
     return {
       grantBasis, grantNow,
-      gs, colorOf, evs, total, past, fut, vested, unvested, avgDays, next, nextShares, last, vpct, perYear,
+      gs, colorOf, evs, total, past, fut, vested, unvested, next, nextShares, last, vpct, perYear,
       yGrid: [0.25, 0.5, 0.75, 1].map((fr) => ({ y: Y(total * fr), label: num(Math.round(total * fr)) + ' sh' })),
       layers: gs.map((g, i) => ({
         color: colorOf(g.id),
@@ -378,14 +375,14 @@ export function RsuClient({
             <Stat
               title="Unvested · still to come"
               value={eur(m.unvested * price, 0)}
-              sub={`${num(m.unvested)} shares · ${eur(m.perYear * price, 0)} lands in the next 12 months`}
+              sub={m.unvested ? `${num(m.unvested)} shares · fully vested ${niceDateLong(m.last)}` : 'Everything has vested'}
               valueClass="text-ink-soft"
               dot={<span className="h-2.5 w-2.5 rounded-[4px] bg-white/90 [box-shadow:inset_0_0_0_1.5px_#9aa0b4]" />}
             />
             <Stat
-              title="Average wait"
-              value={m.unvested ? span(m.avgDays) : '—'}
-              sub={m.unvested ? 'share-weighted time until unvested shares vest' : 'Everything has vested'}
+              title="Next 12 months"
+              value={eur(m.perYear * price, 0)}
+              sub={m.perYear ? `${num(m.perYear)} shares vest · ≈ ${eur((m.perYear * price) / 12, 0)} a month` : 'Nothing vests in the next 12 months'}
             />
             {m.grantNow > 0 ? (
               <Stat
