@@ -246,7 +246,14 @@ export function RsuClient({
       laterInPeriod,
       pct: m.total ? Math.round((snap.tot / m.total) * 100) : 0,
       topPct: (280 - (snap.tot / m.yMax) * 250) / 2.8,
-      rows: grants.map((g) => ({ id: g.id, name: g.name, shares: snap.by[g.id] ?? 0 })).filter((r) => r.shares > 0),
+      rows: grants
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          shares: snap.by[g.id] ?? 0,
+          added: inPeriod.filter((e) => e.grantId === g.id).reduce((a, e) => a + e.shares, 0),
+        }))
+        .filter((r) => r.shares > 0 || r.added > 0),
     };
   })();
 
@@ -527,12 +534,23 @@ export function RsuClient({
                       {tip.laterInPeriod > 0 ? <span>+{num(tip.laterInPeriod)} still to vest in {tip.short}</span> : null}
                     </div>
                   ) : null}
-                  {tip.rows.length > 1 ? (
-                    <div className="mt-1.5 flex flex-col gap-0.5 border-t border-[rgba(21,26,45,.08)] pt-1.5">
+                  {tip.rows.length > 0 ? (
+                    <div className="mt-1.5 flex flex-col gap-1.5 border-t border-[rgba(21,26,45,.08)] pt-1.5">
                       {tip.rows.map((r) => (
-                        <div key={r.id} className="flex items-center gap-[7px] text-[11.5px] font-semibold tabular-nums text-ink-soft">
-                          <span className="h-2 w-2 rounded-[3px]" style={{ background: m.colorOf(r.id) }} />
-                          {r.name} · {num(r.shares)}
+                        <div key={r.id} className="flex flex-col text-[11.5px] font-semibold tabular-nums text-ink-soft">
+                          <div className="flex items-center gap-[7px]">
+                            <span className="h-2 w-2 rounded-[3px]" style={{ background: m.colorOf(r.id) }} />
+                            <span className="font-bold text-ink">{r.name}</span>
+                            <span className="ml-auto pl-3">
+                              {num(r.shares)} sh · {eur(r.shares * price, 0)}
+                            </span>
+                          </div>
+                          {r.added > 0 ? (
+                            <div className="pl-[15px] text-indigo-dark">
+                              +{num(r.added)} sh · {eur(r.added * price, 0)}{' '}
+                              {tip.status === 'vested' ? 'vested in' : tip.status === 'scheduled' ? 'vesting in' : 'in'} {tip.short}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>
