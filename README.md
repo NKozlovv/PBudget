@@ -17,7 +17,7 @@ Live at **https://theusapp.vercel.app**.
 | **Forecast** | Projected year-end balance, burn rate per category, next savings milestone |
 | **Investing** | One tracked ETF: lots, return vs invested, saved projection scenarios |
 | **RSU** | Grants, vesting timeline, value at a share price you type in |
-| **Members** | Share a budget by email invite or a one-time link |
+| **Members** | Share a budget with a one-time invite link |
 | **Import CSV** | Sparkasse bank export: review every row, merchant-based category suggestions, likely duplicates start unticked |
 
 Two behaviours worth knowing:
@@ -52,10 +52,9 @@ Open http://localhost:3000.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes | The publishable (`sb_publishable_…`) key. Safe to expose; RLS is the gate |
-| `NEXT_PUBLIC_SITE_URL` | recommended | Public origin used in emailed invite links (`https://theusapp.vercel.app`). Production only |
-| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | optional | Send invite emails through Gmail SMTP (needs a Google app password). Mark both sensitive |
+| `NEXT_PUBLIC_SITE_URL` | recommended | Public origin used in invite links (`https://theusapp.vercel.app`). Production only |
 
-With no email provider configured, invites still work: the owner copies the link and sends it themselves. There is no service-role key anywhere in the project, and there shouldn't be.
+Invites are shared by link: the owner copies it from the Members page and sends it themselves, so there is no mail provider to configure. There is no service-role key anywhere in the project, and there shouldn't be.
 
 ### Database
 

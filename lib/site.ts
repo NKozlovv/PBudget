@@ -2,7 +2,7 @@ import 'server-only';
 import { headers } from 'next/headers';
 
 /**
- * Public origin used in emailed links. `NEXT_PUBLIC_SITE_URL` wins (so a
+ * Public origin used in invite links. `NEXT_PUBLIC_SITE_URL` wins (so a
  * preview deploy can still link to production if you want that); otherwise
  * it's derived from the incoming request.
  */

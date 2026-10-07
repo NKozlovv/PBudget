@@ -6,7 +6,7 @@ import { Button, Modal } from '@/components/ui';
 import {
   cancelInviteAction,
   inviteMemberAction,
-  resendInviteAction,
+  renewInviteAction,
   revokeMemberAction,
   type InviteOutcome,
 } from '@/app/actions/members';
@@ -50,7 +50,6 @@ export function MembersPanel({
   currentUserId,
   currentUserEmail,
   isOwner,
-  emailEnabled,
 }: {
   budgetId: string;
   budgetName: string;
@@ -60,8 +59,6 @@ export function MembersPanel({
   currentUserId: string;
   currentUserEmail: string;
   isOwner: boolean;
-  /** Whether the server can send invite emails; if not, the owner shares the link instead. */
-  emailEnabled: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
@@ -86,19 +83,9 @@ export function MembersPanel({
   }
 
   function outcomeFeedback(to: string, o: InviteOutcome): { msg: string; tone: Tone; link?: string } {
-    if (o.emailed) {
-      return { msg: `Invitation emailed to ${to}. The link lets them create an account and join.`, tone: 'ok' };
-    }
-    if (!o.configured) {
-      return {
-        msg: `Invite for ${to} is ready. Send them this link — it works once, only for that address, and expires in 14 days.`,
-        tone: 'ok',
-        link: o.link,
-      };
-    }
     return {
-      msg: `Invite saved, but the email wasn’t sent (${o.emailError ?? 'unknown error'}). Send them this link yourself instead.`,
-      tone: 'info',
+      msg: `Invite for ${to} is ready. Send them this link — it works once, only for that address, and expires in 14 days.`,
+      tone: 'ok',
       link: o.link,
     };
   }
@@ -121,9 +108,9 @@ export function MembersPanel({
     }
   }
 
-  async function resend(i: BudgetInvite) {
+  async function renew(i: BudgetInvite) {
     setFeedback(null);
-    const res = await resendInviteAction(i.id);
+    const res = await renewInviteAction(i.id);
     if (res.ok) {
       setFeedback(outcomeFeedback(i.email, res.data));
       router.refresh();
@@ -149,9 +136,7 @@ export function MembersPanel({
           <div>
             <div className="text-[16px] font-extrabold -tracking-[0.02em] text-ink">Invite someone</div>
             <p className="mt-1.5 max-w-[70ch] text-[13.5px] font-medium text-ink-soft">
-              {emailEnabled
-                ? 'We email them a link. '
-                : 'You get a link to send them yourself (message, WhatsApp, anything). '}
+              You get a link to send them yourself (message, WhatsApp, anything).{' '}
               They create an account (or sign in) with this exact address and press Join. The link
               works once and expires after 14 days.
             </p>
@@ -318,10 +303,10 @@ export function MembersPanel({
                       </button>
                       <button
                         type="button"
-                        onClick={() => resend(i)}
+                        onClick={() => renew(i)}
                         className="rounded-full border border-white/90 bg-white/[0.66] px-[13px] py-[8px] text-[12.5px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
                       >
-                        {emailEnabled ? 'Resend' : 'Renew'}
+                        Renew
                       </button>
                       <button
                         type="button"
@@ -335,9 +320,7 @@ export function MembersPanel({
                 </div>
               ))}
               <div className="rounded-[18px] border border-white/50 bg-white/40 p-[14px] px-4 text-[12.5px] font-semibold leading-relaxed text-ink-soft">
-                {emailEnabled
-                  ? '“Resend” emails the same link again and extends it by 14 days. “Copy link” is there in case an email lands in spam.'
-                  : '“Copy link” gives you the invite link to send. “Renew” extends it by another 14 days and shows the link again.'}
+                “Copy link” gives you the invite link to send. “Renew” extends it by another 14 days and shows the link again.
               </div>
             </>
           )}

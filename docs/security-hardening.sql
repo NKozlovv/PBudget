@@ -66,9 +66,9 @@ revoke insert, update on public.budget_members from authenticated, anon;
 drop trigger if exists trg_accept_pending_invites on auth.users;
 drop function if exists public.accept_pending_invites();
 
--- budget_invites.email is interpolated into SMTP commands by the app's mailer.
--- The app validates it, but a budget owner can also write this table directly
--- with the public key, so enforce the same shape in the database:
+-- budget_invites.email should look like an address; a budget owner can write this
+-- table directly with the public key, bypassing the app's validation, so enforce
+-- the same shape in the database:
 alter table public.budget_invites
   add constraint budget_invites_email_chk
   check (char_length(email) <= 254 and email ~ '^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$') not valid;

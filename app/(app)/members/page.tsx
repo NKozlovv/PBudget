@@ -5,7 +5,6 @@ import {
   listBudgetInvites,
   listBudgetMembers,
 } from '@/lib/data/members';
-import { emailConfigured } from '@/lib/email';
 import { MembersPanel } from '@/components/members/MembersPanel';
 
 export const metadata = { title: 'Members · Theus' };
@@ -32,7 +31,6 @@ export default async function MembersPage() {
       currentUserId={user.id}
       currentUserEmail={user.email ?? ''}
       isOwner={isOwner}
-      emailEnabled={emailConfigured()}
     />
   );
 }
