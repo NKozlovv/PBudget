@@ -3024,3 +3024,21 @@ Built from the `Theus Investing v2` / `Theus RSU` design prototypes.
 - **RSU share price** is typed by hand (stored in `rsu_settings`); no feed.
 - **Not done:** the IB account is not wired into `/accounts` net worth or the Dashboard; lots are separate from
   transactions. Written without a Node toolchain in the worktree — not yet typechecked/linted/built.
+
+---
+
+## Email invitations + password-reset fix (2026-10-07, branch `claude/investing-rsu-pages-fce284`)
+
+- **Flow:** owner invites on `/members` → email (Resend) with `/invite/<token>` → invitee creates an account or
+  signs in → "Join" calls the `accept_invite` DB function (token + *confirmed* email must match) → member added,
+  invite deleted, active budget switched. Works for existing accounts too.
+- **Migration:** `docs/invites-migration.sql` (adds `token`/`expires_at`, `get_invite_preview`, `accept_invite`,
+  and **drops `trg_accept_pending_invites`** — it let anyone who signed up with an invited address in without
+  proving they own it).
+- **Env (Vercel):** `RESEND_API_KEY`, `EMAIL_FROM` (verified domain), optional `NEXT_PUBLIC_SITE_URL`. Missing →
+  the invite is still created and /members shows Copy link.
+- **Also fixed:** `/auth/callback` route (exchanges the emailed `code` for a session) and `/reset/update`
+  (set-new-password form — reset previously had no way to set one); post-login `?next=` is now same-site only;
+  `/investing`, `/rsu`, `/members`, `/import`, `/coach` added to the middleware's protected prefixes.
+- Supabase dashboard: `https://p-budget.vercel.app/**` is already an allowed redirect URL, which covers
+  `/auth/callback`. Not yet run against a live project.

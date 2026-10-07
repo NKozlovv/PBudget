@@ -6,7 +6,9 @@ import { Button, Modal } from '@/components/ui';
 import {
   cancelInviteAction,
   inviteMemberAction,
+  resendInviteAction,
   revokeMemberAction,
+  type InviteOutcome,
 } from '@/app/actions/members';
 import type { BudgetInvite, BudgetMember } from '@/lib/supabase/types';
 
@@ -73,13 +75,39 @@ export function MembersPanel({
     setPending(false);
     if (res.ok) {
       setEmail('');
-      setFeedback({
-        msg: `Invited ${sent}. They get access as soon as they sign up with that address.`,
-        tone: 'ok',
-      });
+      setFeedback(outcomeFeedback(sent, res.data));
       router.refresh();
     } else {
       setFeedback({ msg: res.error, tone: res.error.toLowerCase().includes('already') ? 'info' : 'err' });
+    }
+  }
+
+  function outcomeFeedback(to: string, o: InviteOutcome): { msg: string; tone: Tone } {
+    return o.emailed
+      ? { msg: `Invitation emailed to ${to}. The link lets them create an account and join.`, tone: 'ok' }
+      : {
+          msg: `Invite saved, but the email wasn’t sent (${o.emailError ?? 'unknown error'}). Use “Copy link” on the pending invite and send it yourself.`,
+          tone: 'info',
+        };
+  }
+
+  async function copyLink(i: BudgetInvite) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/invite/${i.token}`);
+      setFeedback({ msg: `Link for ${i.email} copied.`, tone: 'ok' });
+    } catch {
+      setFeedback({ msg: 'Couldn’t copy automatically — your browser blocked clipboard access.', tone: 'err' });
+    }
+  }
+
+  async function resend(i: BudgetInvite) {
+    setFeedback(null);
+    const res = await resendInviteAction(i.id);
+    if (res.ok) {
+      setFeedback(outcomeFeedback(i.email, res.data));
+      router.refresh();
+    } else {
+      setFeedback({ msg: res.error, tone: 'err' });
     }
   }
 
@@ -100,8 +128,8 @@ export function MembersPanel({
           <div>
             <div className="text-[16px] font-extrabold -tracking-[0.02em] text-ink">Invite someone</div>
             <p className="mt-1.5 max-w-[70ch] text-[13.5px] font-medium text-ink-soft">
-              They get access the moment they sign up with this exact address. There is nothing
-              for them to accept, so the address has to be right.
+              We email them a link. They create an account (or sign in) with this exact address
+              and press Join. The link works once and expires after 14 days.
             </p>
           </div>
           <form onSubmit={handleInvite} className="flex flex-wrap gap-[9px]">
@@ -219,22 +247,45 @@ export function MembersPanel({
                   </span>
                   <div className="min-w-0 flex-1 basis-[150px]">
                     <div className="truncate text-[14.5px] font-bold -tracking-[0.01em] text-ink">{i.email}</div>
-                    <div className="mt-1 text-[12px] font-semibold text-ink-mute">Invited {dateSent(i.created_at)}</div>
+                    <div className="mt-1 text-[12px] font-semibold text-ink-mute">
+                      Invited {dateSent(i.created_at)}
+                      {new Date(i.expires_at) < new Date() ? (
+                        <span className="ml-2 font-bold text-out">· expired</span>
+                      ) : (
+                        <span> · expires {dateSent(i.expires_at)}</span>
+                      )}
+                    </div>
                   </div>
                   {isOwner ? (
-                    <button
-                      type="button"
-                      onClick={() => setMode({ kind: 'cancel', invite: i })}
-                      className="shrink-0 rounded-full border border-white/90 bg-white/[0.66] px-[15px] py-[9px] text-[13px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
-                    >
-                      Cancel
-                    </button>
+                    <div className="flex shrink-0 flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => copyLink(i)}
+                        className="rounded-full border border-white/90 bg-white/[0.66] px-[13px] py-[8px] text-[12.5px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
+                      >
+                        Copy link
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => resend(i)}
+                        className="rounded-full border border-white/90 bg-white/[0.66] px-[13px] py-[8px] text-[12.5px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
+                      >
+                        Resend
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode({ kind: 'cancel', invite: i })}
+                        className="rounded-full border border-white/90 bg-white/[0.66] px-[13px] py-[8px] text-[12.5px] font-semibold text-ink transition-colors duration-200 hover:bg-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               ))}
               <div className="rounded-[18px] border border-white/50 bg-white/40 p-[14px] px-4 text-[12.5px] font-semibold leading-relaxed text-ink-soft">
-                A pending invite is just an email on a list. Nothing is sent again, and nothing
-                expires.
+                “Resend” emails the same link again and extends it by 14 days. “Copy link” is
+                there in case an email lands in spam.
               </div>
             </>
           )}
@@ -274,7 +325,7 @@ export function MembersPanel({
           open
           onOpenChange={(o) => !o && setMode({ kind: 'idle' })}
           title="Cancel this invite?"
-          description={`${mode.invite.email} will not get access when they sign up. You can invite them again any time.`}
+          description={`The link sent to ${mode.invite.email} stops working immediately. You can invite them again any time.`}
         >
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setMode({ kind: 'idle' })}>

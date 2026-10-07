@@ -19,7 +19,10 @@ export function ResetForm() {
     try {
       const supabase = createClient();
       const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined,
+        redirectTo:
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/auth/callback?next=${encodeURIComponent('/reset/update')}`
+            : undefined,
       });
       if (authError) {
         // A genuine transport failure — the only case that breaks the

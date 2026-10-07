@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { sendInviteEmail } from '@/lib/email';
+import { getSiteUrl } from '@/lib/site';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -42,10 +44,34 @@ function bumpPaths() {
 
 // ─── Actions ───────────────────────────────────────────────────────────
 
+/** What the UI needs after creating/resending an invite. */
+export type InviteOutcome = {
+  link: string;
+  /** False when email isn't configured or the provider rejected it — the owner then copies `link` and sends it themselves. */
+  emailed: boolean;
+  emailError?: string;
+};
+
+async function deliverInvite(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  invite: { budget_id: string; email: string; token: string },
+  inviterEmail: string,
+): Promise<InviteOutcome> {
+  const link = `${await getSiteUrl()}/invite/${invite.token}`;
+  const { data: budget } = await supabase.from('budgets').select('name').eq('id', invite.budget_id).maybeSingle();
+  const sent = await sendInviteEmail({
+    to: invite.email,
+    inviterEmail,
+    budgetName: (budget as { name?: string } | null)?.name ?? 'a budget',
+    link,
+  });
+  return sent.ok ? { link, emailed: true } : { link, emailed: false, emailError: sent.error };
+}
+
 export async function inviteMemberAction(input: {
   budget_id: string;
   email: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult<InviteOutcome>> {
   const email = input.email.trim().toLowerCase();
   if (!email || !EMAIL_RE.test(email)) {
     return { ok: false, error: 'Enter a valid email address.' };
@@ -80,14 +106,54 @@ export async function inviteMemberAction(input: {
       return { ok: false, error: 'There\'s already a pending invite for that email.' };
     }
 
-    const { error } = await supabase.from('budget_invites').insert({
-      budget_id: input.budget_id,
-      email,
-      invited_by: userData.user.id,
-    });
-    if (error) return { ok: false, error: error.message };
+    const { data: created, error } = await supabase
+      .from('budget_invites')
+      .insert({
+        budget_id: input.budget_id,
+        email,
+        invited_by: userData.user.id,
+      })
+      .select('budget_id, email, token')
+      .single();
+    if (error || !created) return { ok: false, error: error?.message ?? 'Could not create the invite.' };
+
+    const outcome = await deliverInvite(
+      supabase,
+      created as { budget_id: string; email: string; token: string },
+      userData.user.email ?? 'Someone',
+    );
     bumpPaths();
-    return { ok: true, data: undefined };
+    return { ok: true, data: outcome };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+/** Re-sends the email for a pending invite and pushes its expiry out another 14 days (same link). */
+export async function resendInviteAction(inviteId: string): Promise<ActionResult<InviteOutcome>> {
+  try {
+    const supabase = await createClient();
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData.user) return { ok: false, error: 'Not authenticated' };
+
+    const limit = checkRateLimit(userData.user.id);
+    if (!limit.ok) return { ok: false, error: `Too many invites. Try again in ${limit.retryInSeconds}s.` };
+
+    const { data: invite, error } = await supabase
+      .from('budget_invites')
+      .update({ expires_at: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString() })
+      .eq('id', inviteId)
+      .select('budget_id, email, token')
+      .single();
+    if (error || !invite) return { ok: false, error: error?.message ?? 'Invite not found.' };
+
+    const outcome = await deliverInvite(
+      supabase,
+      invite as { budget_id: string; email: string; token: string },
+      userData.user.email ?? 'Someone',
+    );
+    bumpPaths();
+    return { ok: true, data: outcome };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Unexpected error' };
   }

@@ -32,6 +32,9 @@ export interface BudgetInvite {
   email: string;
   invited_by: string;
   created_at: string;
+  /** One-time secret in the emailed link (/invite/<token>). Only the budget owner can read invites. */
+  token: string;
+  expires_at: string;
 }
 
 export interface Account {

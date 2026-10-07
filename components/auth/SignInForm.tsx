@@ -6,15 +6,23 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { AuthHeader } from './AuthHeader';
 import { AuthBanner } from './AuthBanner';
+import { safeNext } from '@/lib/safeNext';
 
 export function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') || '/dashboard';
+  const next = safeNext(params.get('next'));
+  // Arriving from an invite link: keep the invite attached if they'd rather create an account.
+  const inviteMatch = /^\/invite\/([0-9a-f-]{36})$/i.exec(next);
+  const signupHref = inviteMatch
+    ? `/signup?invite=${inviteMatch[1]}&email=${encodeURIComponent(params.get('email') ?? '')}`
+    : '/signup';
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    params.get('error') === 'link' ? 'That link is invalid or has expired. Sign in, or request a new one.' : null,
+  );
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -94,7 +102,7 @@ export function SignInForm() {
 
       <p className="mt-[22px] text-center text-[13.5px] font-semibold text-ink-mute">
         No account yet?{' '}
-        <Link href="/signup" className="font-bold text-indigo hover:text-indigo-dark hover:underline">
+        <Link href={signupHref} className="font-bold text-indigo hover:text-indigo-dark hover:underline">
           Create one
         </Link>
       </p>

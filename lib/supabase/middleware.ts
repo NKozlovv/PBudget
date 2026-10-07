@@ -10,6 +10,11 @@ const PROTECTED_PREFIXES = [
   '/trends',
   '/forecast',
   '/trips',
+  '/investing',
+  '/rsu',
+  '/members',
+  '/import',
+  '/coach',
 ];
 const AUTH_PATHS = ['/login', '/signup', '/reset'];
 
