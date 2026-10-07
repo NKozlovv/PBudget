@@ -61,7 +61,7 @@ export function RsuClient({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const [scale, setScale] = useState<'month' | 'quarter' | 'year'>('month');
+  const [horizon, setHorizon] = useState<'eoy' | '1y' | '2y' | '5y' | 'all'>('all');
   const chartRef = useRef<HTMLDivElement>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,16 +103,28 @@ export function RsuClient({
     // ── chart ──
     const start = gs.length ? gs.map((g) => g.start_date).sort()[0]! : today;
     const t0 = toDate(start).getTime();
-    const t1 = Math.max(toDate(last).getTime(), todayMs) + 30 * DAY;
+    // How far forward the chart reaches. "All" runs to the final vest; the
+    // others stop at a fixed point after today (never past the final vest).
+    const fullEnd = Math.max(toDate(last).getTime(), todayMs) + 30 * DAY;
+    const td = toDate(today);
+    const horizonTarget =
+      horizon === 'eoy'
+        ? new Date(td.getFullYear(), 11, 31).getTime()
+        : new Date(td.getFullYear() + (horizon === '1y' ? 1 : horizon === '2y' ? 2 : 5), td.getMonth(), td.getDate()).getTime();
+    const t1Raw = horizon === 'all' ? fullEnd : Math.min(fullEnd, Math.max(horizonTarget, todayMs + 30 * DAY));
+    const t1 = Math.max(t1Raw, t0 + 30 * DAY);
     const X = (s: string) => ((toDate(s).getTime() - t0) / (t1 - t0)) * 1000;
-    const Y = (v: number) => 280 - (total ? v / total : 0) * 250;
+    // The Y axis is scaled to what's vested by the right edge, so a short
+    // horizon isn't squashed against the grant total. Set once snaps exist.
+    let yMax = total || 1;
+    const Y = (v: number) => 280 - (v / yMax) * 250;
     const todayX = Math.max(0, Math.min(1000, X(today)));
 
     type Snap = { date: string; by: Record<string, number>; tot: number };
     const by: Record<string, number> = {};
     gs.forEach((g) => (by[g.id] = 0));
     let run = 0;
-    const snaps: Snap[] = [{ date: start, by: { ...by }, tot: 0 }];
+    const allSnaps: Snap[] = [{ date: start, by: { ...by }, tot: 0 }];
     Array.from(new Set(evs.map((e) => e.date)))
       .sort()
       .forEach((d) => {
@@ -120,8 +132,12 @@ export function RsuClient({
           by[e.grantId] = (by[e.grantId] ?? 0) + e.shares;
           run += e.shares;
         });
-        snaps.push({ date: d, by: { ...by }, tot: run });
+        allSnaps.push({ date: d, by: { ...by }, tot: run });
       });
+    // Only what falls inside the visible range — later vests would otherwise
+    // pile up against the right edge and draw the wrong end level.
+    const snaps = allSnaps.filter((s) => toDate(s.date).getTime() <= t1);
+    yMax = Math.max(1, snaps[snaps.length - 1]?.tot ?? 0);
     const clampX = (x: number, from: number, to: number) => Math.max(from, Math.min(to, x));
     const f = (n: number) => n.toFixed(1);
 
@@ -147,14 +163,13 @@ export function RsuClient({
       return d + ` H${f(from)} Z`;
     };
 
-    // X-axis scale. One "period" per month / quarter / year: the axis ticks
-    // sit at period starts and the hover readout snaps to period *ends* —
-    // same idea as the Investing projection, which only reads at year-end.
-    const stepMonths = scale === 'month' ? 1 : scale === 'quarter' ? 3 : 12;
+    // One "period" per month: the axis ticks sit at month starts and the
+    // hover readout snaps to month *ends* — same idea as the Investing
+    // projection, which only reads at year-end.
+    const stepMonths = 1;
     const spanMonths = (t1 - t0) / (30.44 * DAY);
     // Month labels thin out as the range grows so they never collide.
     const monthLabelEvery = spanMonths <= 20 ? 1 : spanMonths <= 40 ? 2 : spanMonths <= 80 ? 3 : 6;
-    const quarterLabelEvery = spanMonths <= 60 ? 1 : 2;
     const xTicks: { left: number; label: string; major: boolean }[] = [];
     const minorTicks: number[] = [];
     type Period = { start: string; end: string; x: number; title: string; short: string };
@@ -168,21 +183,16 @@ export function RsuClient({
       const endISO = toISO(endD);
       const yr = startD.getFullYear();
       const mo = startD.getMonth();
-      const q = Math.floor(mo / 3) + 1;
-      const label = scale === 'month' ? monthShort(mo) + ' ' + yr : scale === 'quarter' ? `Q${q} ${yr}` : String(yr);
-      const short = scale === 'month' ? monthShort(mo) : scale === 'quarter' ? `Q${q}` : String(yr);
+      const label = monthShort(mo) + ' ' + yr;
+      const short = monthShort(mo);
       const xEnd = Math.min(1000, X(endISO));
       if (xEnd >= 0) periods.push({ start: startISO, end: endISO, x: xEnd, title: label, short });
 
       const left = X(startISO) / 10;
       if (left >= 0 && left <= 100) {
         minorTicks.push(left);
-        if (scale === 'month' && mo % monthLabelEvery === 0) {
+        if (mo % monthLabelEvery === 0) {
           xTicks.push({ left, major: mo === 0, label: mo === 0 ? String(yr) : monthShort(mo) + (xTicks.length === 0 ? ' ' + String(yr).slice(2) : '') });
-        } else if (scale === 'quarter' && (q - 1) % quarterLabelEvery === 0) {
-          xTicks.push({ left, major: q === 1, label: q === 1 ? String(yr) : `Q${q}` + (xTicks.length === 0 ? ' ' + String(yr).slice(2) : '') });
-        } else if (scale === 'year') {
-          xTicks.push({ left, major: true, label: String(yr) });
         }
       }
       if (endD.getTime() >= t1) break;
@@ -191,7 +201,8 @@ export function RsuClient({
     return {
       grantBasis, grantNow,
       gs, colorOf, evs, total, past, fut, vested, unvested, next, nextShares, last, vpct, perYear,
-      yGrid: [0.25, 0.5, 0.75, 1].map((fr) => ({ y: Y(total * fr), label: num(Math.round(total * fr)) + ' sh' })),
+      yMax,
+      yGrid: [0.25, 0.5, 0.75, 1].map((fr) => ({ y: Y(yMax * fr), label: num(Math.round(yMax * fr)) + ' sh' })),
       layers: gs.map((g, i) => ({
         color: colorOf(g.id),
         pastArea: area(i, 0, todayX),
@@ -208,7 +219,7 @@ export function RsuClient({
       t1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grants, today, scale]);
+  }, [grants, today, horizon]);
 
   // Hover readout: the cumulative state at the hovered date, plus what
   // vests during that calendar month.
@@ -234,7 +245,7 @@ export function RsuClient({
       doneInPeriod,
       laterInPeriod,
       pct: m.total ? Math.round((snap.tot / m.total) * 100) : 0,
-      topPct: (280 - (m.total ? snap.tot / m.total : 0) * 250) / 2.8,
+      topPct: (280 - (snap.tot / m.yMax) * 250) / 2.8,
       rows: grants.map((g) => ({ id: g.id, name: g.name, shares: snap.by[g.id] ?? 0 })).filter((r) => r.shares > 0),
     };
   })();
@@ -418,10 +429,10 @@ export function RsuClient({
             </div>
             <div className="flex flex-col items-end gap-2.5">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-mute">Scale</span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-mute">Show</span>
                 <div className="flex gap-1 rounded-full bg-white/[0.44] p-1">
-                  {([['month', 'Months'], ['quarter', 'Quarters'], ['year', 'Years']] as const).map(([k, l]) => (
-                    <button key={k} type="button" className={seg(scale === k)} onClick={() => setScale(k)}>
+                  {([['eoy', 'End of year'], ['1y', '1 year'], ['2y', '2 years'], ['5y', '5 years'], ['all', 'All']] as const).map(([k, l]) => (
+                    <button key={k} type="button" className={seg(horizon === k)} onClick={() => setHorizon(k)}>
                       {l}
                     </button>
                   ))}
