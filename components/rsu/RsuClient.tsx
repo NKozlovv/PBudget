@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/nav/PageHeader';
 import { Button, Field, Input, Select } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { addGrantAction, deleteGrantAction, setSharePriceAction } from '@/app/actions/rsu';
+import { addGrantAction, deleteGrantAction, setSharePriceAction, updateGrantAction } from '@/app/actions/rsu';
 import { schedule, toDate, type GrantInput, type VestEvent } from '@/lib/rsu/calc';
 import { eur, niceDateLong, num, pct, signed, span } from '@/lib/investing/format';
 import type { RsuGrant } from '@/lib/supabase/types';
@@ -59,10 +59,12 @@ export function RsuClient({
   const [priceInput, setPriceInput] = useState(sharePrice ? String(sharePrice) : '');
   const [view, setView] = useState<'upcoming' | 'past'>('upcoming');
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [form, setForm] = useState({ name: '', date: today, shares: '', gp: '', months: '48', every: '3', cliff: '12' });
+  const blankForm = { name: '', date: today, shares: '', gp: '', months: '48', every: '3', cliff: '12' };
+  const [form, setForm] = useState(blankForm);
 
   const price = Number.parseFloat(priceInput) >= 0 ? Number.parseFloat(priceInput) : 0;
   const todayMs = toDate(today).getTime();
@@ -192,7 +194,7 @@ export function RsuClient({
     setError(null);
     if (+form.cliff >= +form.months) return setError('Cliff must be shorter than the full duration.');
     setPending(true);
-    const res = await addGrantAction({
+    const payload = {
       budget_id: budgetId,
       name: form.name,
       start_date: form.date,
@@ -201,12 +203,34 @@ export function RsuClient({
       every: +form.every,
       cliff: +form.cliff,
       grant_price: form.gp.trim() === '' ? null : Number(form.gp),
-    });
+    };
+    const res = editingId ? await updateGrantAction({ ...payload, id: editingId }) : await addGrantAction(payload);
     setPending(false);
     if (!res.ok) return setError(res.error);
-    setShowForm(false);
-    setForm({ name: '', date: today, shares: '', gp: '', months: '48', every: '3', cliff: '12' });
+    closeForm();
     router.refresh();
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(blankForm);
+    setError(null);
+  }
+
+  function startEdit(g: RsuGrant) {
+    setEditingId(g.id);
+    setForm({
+      name: g.name,
+      date: g.start_date,
+      shares: String(g.shares),
+      gp: g.grant_price != null ? String(g.grant_price) : '',
+      months: String(g.months),
+      every: String(g.every),
+      cliff: String(g.cliff),
+    });
+    setError(null);
+    setShowForm(true);
   }
 
   async function remove(id: string) {
@@ -437,7 +461,10 @@ export function RsuClient({
               <div className="text-[17px] font-extrabold -tracking-[0.02em]">Grants</div>
               <div className="mt-1 text-[13px] font-semibold text-ink-soft">Each grant follows its own schedule.</div>
             </div>
-            <Button size="sm" variant={showForm ? 'secondary' : 'primary'} onClick={() => { setShowForm((v) => !v); setError(null); }}>
+            <Button size="sm" variant={showForm ? 'secondary' : 'primary'} onClick={() => {
+                if (showForm) closeForm();
+                else { setEditingId(null); setForm(blankForm); setShowForm(true); setError(null); }
+              }}>
               {showForm ? 'Cancel' : 'Add grant'}
             </Button>
           </div>
@@ -503,7 +530,7 @@ export function RsuClient({
                   : 'Fill in shares to preview the schedule.'}
               </div>
               <Button onClick={submit} disabled={pending}>
-                {pending ? 'Saving…' : 'Add grant'}
+                {pending ? 'Saving…' : editingId ? 'Save changes' : 'Add grant'}
               </Button>
             </div>
           ) : error ? (
@@ -538,6 +565,14 @@ export function RsuClient({
                         </div>
                       ) : null}
                     </div>
+                    <div className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(g)}
+                      className="whitespace-nowrap rounded-full bg-white/50 px-2.5 py-1.5 text-[11.5px] font-bold text-ink-mute hover:bg-white/80"
+                    >
+                      Edit
+                    </button>
                     <button
                       type="button"
                       onClick={() => remove(g.id)}
@@ -548,6 +583,7 @@ export function RsuClient({
                     >
                       {conf ? 'Confirm remove' : 'Remove'}
                     </button>
+                    </div>
                   </div>
                   <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/50">
                     <div className="h-full rounded-full" style={{ width: `${((v / g.shares) * 100).toFixed(2)}%`, background: m.colorOf(g.id) }} />
