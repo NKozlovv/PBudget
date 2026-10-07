@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { sendInviteEmail } from '@/lib/email';
+import { emailConfigured, sendInviteEmail } from '@/lib/email';
 import { getSiteUrl } from '@/lib/site';
 
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
@@ -49,6 +49,8 @@ export type InviteOutcome = {
   link: string;
   /** False when email isn't configured or the provider rejected it — the owner then copies `link` and sends it themselves. */
   emailed: boolean;
+  /** False when no email provider is set up at all (link-sharing mode), as opposed to a send that failed. */
+  configured: boolean;
   emailError?: string;
 };
 
@@ -58,6 +60,8 @@ async function deliverInvite(
   inviterEmail: string,
 ): Promise<InviteOutcome> {
   const link = `${await getSiteUrl()}/invite/${invite.token}`;
+  // No email provider at all → link-sharing mode: nothing to attempt.
+  if (!emailConfigured()) return { link, emailed: false, configured: false };
   const { data: budget } = await supabase.from('budgets').select('name').eq('id', invite.budget_id).maybeSingle();
   const sent = await sendInviteEmail({
     to: invite.email,
@@ -65,7 +69,9 @@ async function deliverInvite(
     budgetName: (budget as { name?: string } | null)?.name ?? 'a budget',
     link,
   });
-  return sent.ok ? { link, emailed: true } : { link, emailed: false, emailError: sent.error };
+  return sent.ok
+    ? { link, emailed: true, configured: true }
+    : { link, emailed: false, configured: true, emailError: sent.error };
 }
 
 export async function inviteMemberAction(input: {
