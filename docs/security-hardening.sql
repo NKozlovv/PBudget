@@ -54,44 +54,25 @@ revoke insert, update on public.budget_members from authenticated, anon;
 
 
 -- ─────────────────────────────────────────────────────────────────────
--- 2. Invites are only honoured for a CONFIRMED email           (MEDIUM)
+-- 2. Retire the sign-up auto-accept trigger; harden invites     (MEDIUM)
 -- ─────────────────────────────────────────────────────────────────────
 --
--- trg_accept_pending_invites fires on INSERT into auth.users, i.e. at sign-up,
--- before the address is confirmed. Anyone who knows (or guesses) an email that
--- has a pending invite can sign up with it, never confirm, and — if the project
--- lets unconfirmed users sign in — land inside the inviter's budget. Gate on
--- email_confirmed_at, and re-run when it flips. Also pins search_path, which the
--- original SECURITY DEFINER function in CLAUDE.md §13 did not.
-
-create or replace function public.accept_pending_invites()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.email_confirmed_at is null then
-    return new;
-  end if;
-  insert into public.budget_members (budget_id, user_id, role)
-  select budget_id, new.id, 'member'
-  from public.budget_invites
-  where lower(email) = lower(new.email)
-  on conflict do nothing;
-  delete from public.budget_invites where lower(email) = lower(new.email);
-  return new;
-end;
-$$;
+-- IMPORTANT — correction to the first version of this file: it re-created
+-- trg_accept_pending_invites. docs/invites-migration.sql §4 retires that trigger
+-- ON PURPOSE (acceptance now goes through accept_invite(): token + confirmed
+-- email + expiry). If you already ran the first version, run this to undo it.
+-- The trigger ignored the invite's expiry and token; accept_invite() does not.
 
 drop trigger if exists trg_accept_pending_invites on auth.users;
-create trigger trg_accept_pending_invites
-after insert or update of email_confirmed_at on auth.users
-for each row execute function public.accept_pending_invites();
+drop function if exists public.accept_pending_invites();
 
--- Known gap (functional, not a vulnerability): this only runs when an auth.users
--- row is created or confirmed, so inviting someone who ALREADY has an account does
--- nothing until they re-confirm. If you want that, add an "accept invite" action.
+-- budget_invites.email is interpolated into SMTP commands by the app's mailer.
+-- The app validates it, but a budget owner can also write this table directly
+-- with the public key, so enforce the same shape in the database:
+alter table public.budget_invites
+  add constraint budget_invites_email_chk
+  check (char_length(email) <= 254 and email ~ '^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$') not valid;
+-- alter table public.budget_invites validate constraint budget_invites_email_chk;
 
 
 -- ─────────────────────────────────────────────────────────────────────

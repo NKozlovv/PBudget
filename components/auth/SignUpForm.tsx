@@ -8,8 +8,16 @@ import { AuthBanner } from './AuthBanner';
 
 type Done = 'confirm' | 'redirecting' | null;
 
-export function SignUpForm() {
-  const [email, setEmail] = useState('');
+export function SignUpForm({
+  inviteToken,
+  prefillEmail,
+}: {
+  /** Present when arriving from an invite link — the account is created for the invited address and sent back to accept it. */
+  inviteToken?: string;
+  prefillEmail?: string;
+} = {}) {
+  const landing = inviteToken ? `/invite/${inviteToken}` : '/dashboard';
+  const [email, setEmail] = useState(prefillEmail ?? '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done>(null);
@@ -25,7 +33,9 @@ export function SignUpForm() {
         password,
         options: {
           emailRedirectTo:
-            typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined,
+            typeof window !== 'undefined'
+              ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(landing)}`
+              : undefined,
         },
       });
       if (authError) {
@@ -36,7 +46,7 @@ export function SignUpForm() {
         setDone('confirm');
       } else if (data.session) {
         setDone('redirecting');
-        window.location.href = '/dashboard';
+        window.location.href = landing;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected error');
@@ -90,7 +100,10 @@ export function SignUpForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      <AuthHeader title="Create your budget" subtitle="Email and a password. That is the whole signup." />
+      <AuthHeader
+        title={inviteToken ? "Create your account" : "Create your budget"}
+        subtitle={inviteToken ? "You’ve been invited. Choose a password and you’ll join the shared budget." : "Email and a password. That is the whole signup."}
+      />
 
       {error ? <AuthBanner tone="err">{error}</AuthBanner> : null}
 
@@ -101,6 +114,7 @@ export function SignUpForm() {
             type="email"
             autoComplete="email"
             required
+            readOnly={!!inviteToken && !!prefillEmail}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
@@ -141,7 +155,10 @@ export function SignUpForm() {
 
       <p className="mt-[22px] text-center text-[13.5px] font-semibold text-ink-mute">
         Already have an account?{' '}
-        <Link href="/login" className="font-bold text-indigo hover:text-indigo-dark hover:underline">
+        <Link
+          href={inviteToken ? `/login?next=${encodeURIComponent(landing)}&email=${encodeURIComponent(prefillEmail ?? '')}` : '/login'}
+          className="font-bold text-indigo hover:text-indigo-dark hover:underline"
+        >
           Sign in
         </Link>
       </p>

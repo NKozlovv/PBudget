@@ -14,11 +14,13 @@ import type { Budget } from '@/lib/supabase/types';
 const TABS: { href: string; label: string }[] = [
   { href: '/dashboard', label: 'Overview' },
   { href: '/transactions', label: 'Transactions' },
-  { href: '/accounts', label: 'Accounts' },
-  { href: '/categories', label: 'Categories' },
-  { href: '/trips', label: 'Trips' },
   { href: '/trends', label: 'Trends' },
+  { href: '/trips', label: 'Trips' },
+  { href: '/categories', label: 'Categories' },
+  { href: '/accounts', label: 'Accounts' },
   { href: '/forecast', label: 'Forecast' },
+  { href: '/investing', label: 'Investing' },
+  { href: '/rsu', label: 'RSU' },
 ];
 
 const MORE: { href: string; label: string; icon: IconName }[] = [

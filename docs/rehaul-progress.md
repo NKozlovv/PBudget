@@ -3006,3 +3006,39 @@ and no JS timers/scroll handlers exist.
 **Verification:** no Node here — not typechecked/tested locally. Visual
 change to confirm on the live site: blobs no longer drift; glass
 slightly less frosted.
+
+---
+
+## Investing + RSU pages (2026-10-07, branch `claude/investing-rsu-pages-fce284`)
+
+Built from the `Theus Investing v2` / `Theus RSU` design prototypes.
+
+- **Routes:** `/investing`, `/rsu` (TopNav tabs; `Trends` moved into "More" to make room).
+- **Schema:** `docs/investing-rsu-migration.sql` — `investment_lots`, `investment_plans`
+  (jsonb sliders/scenarios), `rsu_grants`, `rsu_settings`. **Must be run in Supabase before the pages work.**
+- **Key decision — gains are derived, never stored.** A lot = a buy (cash bank → broker). Value, return and
+  yield are computed from lots × daily price history (`lib/investing/calc.ts`), so market moves never enter the
+  transaction log and can't skew "Saved". No Dec-31 "bonus" row; year-end figures fall out of the history.
+- **Price:** `lib/market.ts` — Yahoo chart endpoint for `WEBN.DE` (EUR), `range=max&interval=1d`, cached 12h by
+  Next's fetch cache. Unofficial; on failure the page falls back to the last lot's price and says so.
+- **RSU share price** is typed by hand (stored in `rsu_settings`); no feed.
+- **Not done:** the IB account is not wired into `/accounts` net worth or the Dashboard; lots are separate from
+  transactions. Written without a Node toolchain in the worktree — not yet typechecked/linted/built.
+
+---
+
+## Email invitations + password-reset fix (2026-10-07, branch `claude/investing-rsu-pages-fce284`)
+
+- **Flow:** owner invites on `/members` → email (Resend) with `/invite/<token>` → invitee creates an account or
+  signs in → "Join" calls the `accept_invite` DB function (token + *confirmed* email must match) → member added,
+  invite deleted, active budget switched. Works for existing accounts too.
+- **Migration:** `docs/invites-migration.sql` (adds `token`/`expires_at`, `get_invite_preview`, `accept_invite`,
+  and **drops `trg_accept_pending_invites`** — it let anyone who signed up with an invited address in without
+  proving they own it).
+- **Env (Vercel):** `RESEND_API_KEY`, `EMAIL_FROM` (verified domain), optional `NEXT_PUBLIC_SITE_URL`. Missing →
+  the invite is still created and /members shows Copy link.
+- **Also fixed:** `/auth/callback` route (exchanges the emailed `code` for a session) and `/reset/update`
+  (set-new-password form — reset previously had no way to set one); post-login `?next=` is now same-site only;
+  `/investing`, `/rsu`, `/members`, `/import`, `/coach` added to the middleware's protected prefixes.
+- Supabase dashboard: `https://p-budget.vercel.app/**` is already an allowed redirect URL, which covers
+  `/auth/callback`. Not yet run against a live project.

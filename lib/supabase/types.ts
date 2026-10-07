@@ -32,6 +32,9 @@ export interface BudgetInvite {
   email: string;
   invited_by: string;
   created_at: string;
+  /** One-time secret in the emailed link (/invite/<token>). Only the budget owner can read invites. */
+  token: string;
+  expires_at: string;
 }
 
 export interface Account {
@@ -71,6 +74,32 @@ export interface TripDetails {
   /** Explicit override for the trip's date range — see lib/trips/summary.ts. Null until the user sets it; the page falls back to a derived guess (earliest/latest tagged transaction date) until then. */
   start_date: string | null;
   end_date: string | null;
+  created_at: string;
+}
+
+/** One buy of the tracked asset (WEBN). `open` = the pre-existing position, entered once at its average price. EUR throughout. */
+export interface InvestmentLot {
+  id: string;
+  budget_id: string;
+  type: 'buy' | 'open';
+  date: string;
+  shares: number;
+  price: number;
+  fee: number;
+  created_at: string;
+}
+
+export interface RsuGrant {
+  id: string;
+  budget_id: string;
+  name: string;
+  start_date: string;
+  shares: number;
+  months: number;
+  every: number;
+  cliff: number;
+  /** EUR per share on the grant date; null if not entered. */
+  grant_price: number | null;
   created_at: string;
 }
 
